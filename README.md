@@ -33,13 +33,16 @@ locked onto your cadence are flagged and left out of max-HR and efficiency estim
 
 ## Setup (once)
 
-Needs Python 3.10+ (`brew install python` if you don't have it).
+Needs **Python 3.10 or newer**. The `python3` that comes with macOS is 3.9, which is too
+old, so install a current one first, either `brew install python@3.12` (Homebrew) or the
+installer from [python.org](https://www.python.org/downloads/). Then open a new Terminal window.
 
 ```bash
 git clone https://github.com/andrew-hy-kim/garmin.connector.git
 cd garmin.connector
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -e .
 
 garmin-connector login     # asks for your Garmin email + password
