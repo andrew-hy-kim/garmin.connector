@@ -33,6 +33,15 @@ locked onto your cadence are flagged and left out of max-HR and efficiency estim
 
 ## Setup (once)
 
+**Easiest:** paste this into Terminal. It installs everything (including its own Python,
+no admin password needed), logs you in, runs the first sync and opens the dashboard:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/andrew-hy-kim/garmin.connector/claude/affectionate-bohr-2g8s7y/scripts/setup-mac.sh)"
+```
+
+**Or by hand:**
+
 Needs **Python 3.10 or newer**. The `python3` that comes with macOS is 3.9, which is too
 old, so install a current one first, either `brew install python@3.12` (Homebrew) or the
 installer from [python.org](https://www.python.org/downloads/). Then open a new Terminal window.
