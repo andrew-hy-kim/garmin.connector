@@ -16,7 +16,9 @@ from typing import Any
 
 from . import analysis, processing
 
-EASY_TYPES = {"easy", "recovery", "long", "easy_strides"}
+EASY_TYPES = {"easy", "recovery", "long", "easy_strides", "run_walk"}
+BREAK_DAYS = 21       # this long without running counts as a break (injury, illness, off-season)
+COMEBACK_DAYS = 56    # comeback notes for 8 weeks after returning
 
 
 def _note(level: str, title: str, detail: str) -> dict[str, str]:
@@ -44,6 +46,43 @@ def _runs(conn: sqlite3.Connection, since: str | None = None) -> list[dict[str, 
     return out
 
 
+# ---------------------------------------------------------------- comeback after a break
+
+def _running_seconds(run: dict[str, Any]) -> float:
+    """Time actually running: for run/walk, only the running segments."""
+    if run["workout"] == "run_walk" and run["metrics"].get("reps"):
+        return sum(r["seconds"] for r in run["metrics"]["reps"])
+    return run["duration_s"] or 0
+
+
+def comeback(runs: list[dict[str, Any]], as_of: str) -> dict[str, Any] | None:
+    """If the latest break of 3+ weeks ended within the last 8 weeks (as of a date), describe it."""
+    runs = [r for r in runs if r["date"] <= as_of]
+    for prev, nxt in zip(reversed(runs[:-1]), reversed(runs[1:])):
+        gap = (date.fromisoformat(nxt["date"]) - date.fromisoformat(prev["date"])).days
+        if gap >= BREAK_DAYS:
+            back = date.fromisoformat(nxt["date"])
+            if (date.fromisoformat(as_of) - back).days > COMEBACK_DAYS:
+                return None
+            since_back = [r for r in runs if r["date"] >= nxt["date"]]
+            end = date.fromisoformat(as_of)
+            week = [r for r in since_back if r["date"] > (end - timedelta(days=7)).isoformat()]
+            prev_week = [r for r in since_back if (end - timedelta(days=14)).isoformat() < r["date"]
+                         <= (end - timedelta(days=7)).isoformat()]
+            return {
+                "break_days": gap, "back_on": nxt["date"], "runs_back": len(since_back),
+                "days_back": (end - back).days,
+                "week_minutes": sum(_running_seconds(r) for r in week) / 60,
+                "prev_week_minutes": sum(_running_seconds(r) for r in prev_week) / 60,
+            }
+    return None
+
+
+def _weeks(days: int) -> str:
+    weeks = round(days / 7)
+    return f"{weeks} week{'s' if weeks != 1 else ''}" if days >= 14 else f"{days} days"
+
+
 # ---------------------------------------------------------------- one workout
 
 def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[str, str]]:
@@ -62,6 +101,36 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
 
     if workout:
         notes.append(_note("info", f"Tagged: {workout['label']}", workout["reason"]))
+
+    # Coming back from a break
+    day = row["start_time_local"][:10]
+    back = comeback(_runs(conn, (date.fromisoformat(day) - timedelta(days=COMEBACK_DAYS + 120)).isoformat()), day)
+    if back and back["back_on"] == day:
+        notes.append(_note("good", f"First run back after {_weeks(back['break_days'])} off",
+                           "Welcome back. For the first few weeks, build running time gradually (roughly "
+                           "10–20% more per week), keep every run conversational, and back off if the old "
+                           "problem speaks up."))
+    elif back:
+        mins, prev = back["week_minutes"], back["prev_week_minutes"]
+        detail = f"Run {back['runs_back']} since returning on {back['back_on']}. {round(mins)} min of running in the last 7 days"
+        if prev >= 10 and mins > prev * 1.3:
+            notes.append(_note("warn", "Comeback: building quickly",
+                               f"{detail}, up {mins / prev - 1:.0%} on the week before. After a long break, "
+                               f"tendons and bones adapt more slowly than your heart and lungs. Keep increases "
+                               f"to roughly 10–20% a week."))
+        else:
+            notes.append(_note("good", "Comeback on track",
+                               f"{detail}{f' (vs {round(prev)} the week before)' if prev >= 10 else ''}. "
+                               f"Steady, gradual build."))
+    if kind == "run_walk":
+        reps_ = m.get("reps") or []
+        running = sum(r["seconds"] for r in reps_)
+        total = conn.execute("SELECT duration_s FROM activities WHERE activity_id = ?",
+                                            (activity_id,)).fetchone()[0] or 0
+        if running and total:
+            notes.append(_note("info", f"Ran {round(running / 60)} of {round(total / 60)} minutes",
+                               f"{len(reps_)} running segments. A common next step is fewer, longer running "
+                               f"segments before cutting the walk breaks."))
 
     # Easy days should stay easy
     bands = m.get("intensity_seconds")
@@ -208,6 +277,16 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
         now, week_ago = load[-1], load[-8]
         state = form_state(now["fitness"], now["form"])
         level = {"overreaching": "warn", "fresh": "info"}.get(state["key"], "good")
+        back = comeback(_runs(conn, (today - timedelta(days=COMEBACK_DAYS + 120)).isoformat()), today.isoformat())
+        if back:
+            notes.append(_note(
+                "info", f"Rebuilding after {_weeks(back['break_days'])} off",
+                f"Back since {back['back_on']} ({back['runs_back']} runs, {round(back['week_minutes'])} min of "
+                f"running in the last 7 days). Fitness numbers dropped during the break, which is expected. "
+                f"Build running time by roughly 10–20% a week and keep it all easy for now."))
+            if state["key"] == "fresh":
+                state = {**state, "advice": "This reads 'fresh' only because your recent training load is low "
+                                            "after the break. It's not a sign to race; keep building gradually."}
         notes.append(_note(level, f"Form: {state['label']}", state["advice"]))
         if week_ago["fitness"] > 5:
             ramp = now["fitness"] / week_ago["fitness"] - 1

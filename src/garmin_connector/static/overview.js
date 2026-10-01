@@ -1,7 +1,12 @@
-// Overview page: training load, weekly volume, efficiency, VO2 max, records, activity list.
+// Overview page: training load, volume, intensity, efficiency, VO2 max, records, activity list.
 
 const PAGE_SIZE = 25;
-const state = { activities: [], vo2: [], load: [], records: {}, settings: null, insights: [], type: "run", shown: PAGE_SIZE };
+const RANGES = [["3M", 91], ["6M", 182], ["1Y", 365], ["2Y", 730], ["5Y", 1826], ["All", null]];
+const state = {
+  activities: [], vo2: [], load: [], records: {}, settings: null, insights: [], type: "run",
+  range: (() => { try { return localStorage.getItem("range") || "1Y"; } catch { return "1Y"; } })(),
+  table: { search: "", workout: "all", when: "any", from: "", to: "", sort: "start_time_local", dir: -1, page: 0 },
+};
 
 // Form as a share of fitness -> state. Mirrors insights.FORM_STATES.
 const FORM_STATES = [
@@ -21,10 +26,52 @@ function startOfWeek(d) { // Monday
   x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
   return x;
 }
+const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
+const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 function drawChart(key, canvasId, config) {
   charts[key]?.destroy();
   charts[key] = new Chart($(canvasId), config);
+}
+
+// ---------- time range ----------
+function rangeDays() { return (RANGES.find(([k]) => k === state.range) || RANGES[2])[1]; }
+
+// First day shown on the charts.
+function rangeStart() {
+  const days = rangeDays();
+  if (days) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - days + 1); return d; }
+  const first = state.activities.at(-1);
+  return first ? localDate(first.start_time_local) : new Date();
+}
+const inRange = (dateStr) => localDate(dateStr) >= rangeStart();
+
+// Weekly bars up to about a year, monthly beyond that.
+function buckets() {
+  const start = rangeStart(), now = new Date();
+  const monthly = (now - start) / 864e5 > 400;
+  const keyOf = monthly ? startOfMonth : startOfWeek;
+  const list = [];
+  for (let d = keyOf(start); d <= now; d = monthly ? new Date(d.getFullYear(), d.getMonth() + 1, 1) : new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7)) {
+    list.push(d);
+  }
+  const index = new Map(list.map((d, i) => [d.getTime(), i]));
+  const label = (d) => d.toLocaleDateString(undefined, monthly ? { month: "short", year: "2-digit" } : { month: "short", day: "numeric" });
+  return { monthly, list, labels: list.map(label), indexOf: (date) => index.get(keyOf(date).getTime()) };
+}
+
+function setupRange() {
+  const el = $("range");
+  el.innerHTML = RANGES.map(([k]) => `<button data-r="${k}">${k}</button>`).join("");
+  const sync = () => el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.r === state.range));
+  el.addEventListener("click", (e) => {
+    if (!e.target.dataset.r) return;
+    state.range = e.target.dataset.r;
+    try { localStorage.setItem("range", state.range); } catch {}
+    sync(); renderCharts();
+    if (state.table.when === "range") { state.table.page = 0; renderTable(); }
+  });
+  sync();
 }
 
 // ---------- tiles ----------
@@ -32,7 +79,7 @@ function renderTiles() {
   const now = new Date();
   const periods = [
     ["This week", startOfWeek(now)],
-    ["This month", new Date(now.getFullYear(), now.getMonth(), 1)],
+    ["This month", startOfMonth(now)],
     ["This year", new Date(now.getFullYear(), 0, 1)],
   ];
   const u = Units.get();
@@ -61,32 +108,51 @@ function renderTiles() {
 
 // ---------- training load ----------
 function renderLoad() {
-  const recent = state.load.slice(-182);
-  const labels = recent.map((d) => new Date(d.date + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }));
+  const startDay = isoDay(rangeStart());
+  const recent = state.load.filter((d) => d.date >= startDay);
+  const long = recent.length > 400;
+  const label = (d) => new Date(d.date + "T12:00").toLocaleDateString(undefined, long ? { month: "short", year: "2-digit" } : { month: "short", day: "numeric" });
   const opts = chartBase();
-  opts.plugins.tooltip = { callbacks: { label: (i) => `${i.dataset.label}: ${i.parsed.y.toFixed(0)}` } };
+  opts.plugins.tooltip = { callbacks: {
+    title: (i) => new Date(recent[i[0].dataIndex].date + "T12:00").toLocaleDateString(undefined, { dateStyle: "medium" }),
+    label: (i) => `${i.dataset.label}: ${i.parsed.y.toFixed(0)}`,
+  } };
   drawChart("load", "load", {
     type: "line",
-    data: { labels, datasets: [
+    data: { labels: recent.map(label), datasets: [
       { label: "Fitness", data: recent.map((d) => d.fitness), borderColor: cssVar("--fitness"), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 },
-      { label: "Fatigue", data: recent.map((d) => d.fatigue), borderColor: cssVar("--fatigue"), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 },
+      { label: "Fatigue", data: recent.map((d) => d.fatigue), borderColor: cssVar("--fatigue"), borderWidth: long ? 1 : 2, pointRadius: 0, pointHoverRadius: 4 },
     ] },
     options: opts,
   });
 
+  // Daily form bars, or weekly averages over long ranges so bars stay readable.
+  let bars = recent;
+  if (long) {
+    const weeks = new Map();
+    for (const d of recent) {
+      const k = isoDay(startOfWeek(new Date(d.date + "T12:00")));
+      const w = weeks.get(k) || { date: k, form: 0, fitness: 0, n: 0 };
+      w.form += d.form; w.fitness += d.fitness; w.n += 1;
+      weeks.set(k, w);
+    }
+    bars = [...weeks.values()].map((w) => ({ date: w.date, form: w.form / w.n, fitness: w.fitness / w.n }));
+  }
   const formOpts = chartBase();
-  formOpts.plugins.tooltip = { callbacks: { label: (i) => `Form: ${i.parsed.y > 0 ? "+" : ""}${i.parsed.y.toFixed(0)}` } };
+  formOpts.plugins.tooltip = { callbacks: {
+    title: (i) => (long ? "Week of " : "") + new Date(bars[i[0].dataIndex].date + "T12:00").toLocaleDateString(undefined, { dateStyle: "medium" }),
+    label: (i) => `Form: ${i.parsed.y > 0 ? "+" : ""}${i.parsed.y.toFixed(0)}`,
+    afterLabel: (i) => formState(bars[i.dataIndex]).label,
+  } };
   formOpts.scales.x.ticks.display = false;
-  formOpts.plugins.tooltip.callbacks.afterLabel = (i) => formState(recent[i.dataIndex]).label;
   $("form-legend").innerHTML = "<span style='color:var(--text-secondary)'>Form:</span>" +
     FORM_STATES.map((st) => `<span style="--c:var(${st.color})">${st.label}</span>`).join("");
   drawChart("form", "form", {
     type: "bar",
-    data: { labels, datasets: [{ label: "Form", data: recent.map((d) => d.form),
-      backgroundColor: recent.map((d) => cssVar(formState(d).color)), barPercentage: 1, categoryPercentage: 0.9 }] },
+    data: { labels: bars.map((d) => d.date), datasets: [{ label: "Form", data: bars.map((d) => d.form),
+      backgroundColor: bars.map((d) => cssVar(formState(d).color)), barPercentage: 1, categoryPercentage: 0.9 }] },
     options: formOpts,
   });
-  renderExplain();
 }
 
 // Plain-language reading of the numbers, plus what resting would do.
@@ -107,7 +173,8 @@ function renderExplain() {
   const sign = (v) => `${v > 0 ? "+" : ""}${v.toFixed(0)}`;
   $("explain").innerHTML = `
     <div><b>Fitness ${today.fitness.toFixed(0)}</b> is the average training load you've carried per day over about
-      6 weeks: the endurance you've banked.${trend != null ? ` It's ${trend >= 0 ? "up" : "down"} ${Math.abs(trend).toFixed(0)} from 6 weeks ago.` : ""}
+      6 weeks: the endurance you've banked.${trend == null ? "" : Math.abs(trend) < 1 ? " It's about the same as 6 weeks ago."
+        : ` It's ${trend > 0 ? "up" : "down"} ${Math.abs(trend).toFixed(0)} from 6 weeks ago.`}
       <b>Fatigue ${today.fatigue.toFixed(0)}</b> is the same over the last week: how tired that training has made you.
       Each workout's load comes from how long you spent at each heart rate, with hard minutes counting much more than easy ones.</div>
     <div><b>Form ${sign(today.form)}</b> is fitness minus fatigue. Right now that's <b>${st.label.toLowerCase()}</b>: ${st.text}</div>
@@ -118,26 +185,60 @@ function renderExplain() {
       That trade-off is what a taper before a race manages.</div>`;
 }
 
+// Fitness now vs. earlier points and your all-time peak.
+function renderCompare() {
+  if (!state.load.length) { $("compare").innerHTML = ""; return; }
+  const byDate = new Map(state.load.map((d) => [d.date, d]));
+  const at = (daysAgo) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); return byDate.get(isoDay(d)); };
+  const peak = state.load.reduce((p, d) => (d.fitness > p.fitness ? d : p));
+  const rows = [["Now", state.load.at(-1)], ["3 months ago", at(91)], ["6 months ago", at(182)], ["1 year ago", at(365)],
+    ["2 years ago", at(730)], ["3 years ago", at(1095)], ["5 years ago", at(1826)]].filter(([, d]) => d);
+  rows.push([`Peak (${new Date(peak.date + "T12:00").toLocaleDateString(undefined, { month: "short", year: "numeric" })})`, peak]);
+  const max = peak.fitness || 1;
+  $("compare").innerHTML = rows.map(([label, d]) => `<tr><td>${label}</td>
+    <td class="barcell"><div class="bar" style="width:${Math.max(2, (d.fitness / max) * 100)}%"></div></td>
+    <td class="num"><b>${d.fitness.toFixed(0)}</b></td></tr>`).join("");
+}
+
+// ---------- volume ----------
+function renderVolume() {
+  const b = buckets();
+  const totals = b.list.map(() => 0);
+  for (const a of filtered()) {
+    const i = b.indexOf(localDate(a.start_time_local));
+    if (i != null) totals[i] += dist(a.distance_m);
+  }
+  const u = Units.get();
+  $("volume-title").textContent = b.monthly ? "Monthly distance" : "Weekly distance";
+  const avg = totals.reduce((s, v) => s + v, 0) / (totals.length || 1);
+  $("volume-hint").textContent = `Average ${avg.toFixed(1)} ${u} per ${b.monthly ? "month" : "week"} in this range.`;
+  const opts = chartBase();
+  opts.plugins.tooltip = { callbacks: { title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`, label: (i) => `${i.parsed.y.toFixed(1)} ${u}` } };
+  opts.scales.y.ticks.callback = (v) => `${v} ${u}`;
+  drawChart("weekly", "weekly", {
+    type: "bar",
+    data: { labels: b.labels, datasets: [{ data: totals, backgroundColor: cssVar("--pace"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 18 }] },
+    options: opts,
+  });
+}
+
 // ---------- intensity mix ----------
 const MIX = [["Easy", "--z1"], ["Tempo", "--z3"], ["Threshold", "--z4"], ["VO2 max", "--z5"]];
 function renderMix() {
-  const weeks = [];
-  const w = startOfWeek(new Date());
-  for (let i = 0; i < 12; i++) { weeks.unshift(new Date(w)); w.setDate(w.getDate() - 7); }
-  const idx = new Map(weeks.map((d, i) => [d.getTime(), i]));
-  const mins = MIX.map(() => weeks.map(() => 0));
+  const b = buckets();
+  const mins = MIX.map(() => b.list.map(() => 0));
   for (const a of state.activities) {
     if (!isRun(a.activity_type) || !a.intensity_seconds) continue;
-    const i = idx.get(startOfWeek(localDate(a.start_time_local)).getTime());
+    const i = b.indexOf(localDate(a.start_time_local));
     if (i == null) continue;
-    a.intensity_seconds.forEach((s, b) => { mins[b][i] += s / 60; });
+    a.intensity_seconds.forEach((s, k) => { mins[k][i] += s / 60; });
   }
   $("mix-legend").innerHTML = MIX.map(([l, c]) => `<span style="--c:var(${c})">${l}</span>`).join("");
   const opts = chartBase();
   opts.scales.x.stacked = true; opts.scales.y.stacked = true;
   opts.scales.y.ticks.callback = (v) => `${v} min`;
   opts.plugins.tooltip = { callbacks: {
-    title: (i) => `Week of ${i[0].label}`,
+    title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`,
     label: (i) => {
       const total = mins.reduce((t, m) => t + m[i.dataIndex], 0) || 1;
       return `${i.dataset.label}: ${Math.round(i.parsed.y)} min (${Math.round((i.parsed.y / total) * 100)}%)`;
@@ -145,52 +246,38 @@ function renderMix() {
   } };
   drawChart("mix", "mix", {
     type: "bar",
-    data: { labels: weeks.map((d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" })),
-      datasets: MIX.map(([label, c], b) => ({ label, data: mins[b], backgroundColor: cssVar(c),
+    data: { labels: b.labels,
+      datasets: MIX.map(([label, c], k) => ({ label, data: mins[k], backgroundColor: cssVar(c),
         borderColor: cssVar("--surface-1"), borderWidth: { top: 2 }, maxBarThickness: 22 })) },
     options: opts,
   });
 }
 
-// ---------- weekly distance ----------
-function renderWeekly() {
-  const weeks = [];
-  const w = startOfWeek(new Date());
-  for (let i = 0; i < 26; i++) { weeks.unshift(new Date(w)); w.setDate(w.getDate() - 7); }
-  const totals = new Map(weeks.map((d) => [d.getTime(), 0]));
-  for (const a of filtered()) {
-    const key = startOfWeek(localDate(a.start_time_local)).getTime();
-    if (totals.has(key)) totals.set(key, totals.get(key) + dist(a.distance_m));
-  }
-  const u = Units.get();
-  const opts = chartBase();
-  opts.plugins.tooltip = { callbacks: { title: (i) => `Week of ${i[0].label}`, label: (i) => `${i.parsed.y.toFixed(1)} ${u}` } };
-  opts.scales.y.ticks.callback = (v) => `${v} ${u}`;
-  drawChart("weekly", "weekly", {
-    type: "bar",
-    data: { labels: weeks.map((d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" })),
-      datasets: [{ data: [...totals.values()], backgroundColor: cssVar("--pace"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 18 }] },
-    options: opts,
-  });
+// Shared x axis for the date-based line/scatter charts
+function timeAxis(opts) {
+  opts.scales.x.type = "linear";
+  opts.scales.x.min = rangeStart().getTime();
+  opts.scales.x.max = Date.now();
+  opts.scales.x.ticks.callback = (v) => new Date(v).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
 }
 
 // ---------- efficiency ----------
 function renderEfficiency() {
-  const easyCeiling = state.settings ? state.settings.zones[1].high : 999;
-  const pts = state.activities
+  const easyCeiling = state.settings ? 0.9 * state.settings.lthr : 999;
+  const all = state.activities
     .filter((a) => isRun(a.activity_type) && a.efficiency && a.avg_hr && a.avg_hr < easyCeiling && !(a.cadence_lock > 0.2))
     .map((a) => ({ x: localDate(a.start_time_local).getTime(), y: a.efficiency, a }))
     .sort((p, q) => p.x - q.x);
   // 30-day rolling average, so the trend shows through day-to-day noise
+  const start = rangeStart().getTime();
+  const pts = all.filter((p) => p.x >= start);
   const trend = pts.map((p) => {
-    const win = pts.filter((q) => q.x <= p.x && q.x > p.x - 30 * 864e5);
+    const win = all.filter((q) => q.x <= p.x && q.x > p.x - 30 * 864e5);
     return { x: p.x, y: win.reduce((s, q) => s + q.y, 0) / win.length };
   });
   const opts = chartBase();
   opts.interaction = { mode: "nearest", intersect: false };
-  opts.scales.x.type = "linear";
-  opts.scales.x.ticks.callback = (v) => new Date(v).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
-  if (pts.length) Object.assign(opts.scales.x, { min: pts[0].x, max: pts.at(-1).x });
+  timeAxis(opts);
   opts.scales.y.ticks.callback = (v) => `${v.toFixed(2)} m`;
   opts.plugins.tooltip = { callbacks: {
     title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
@@ -214,8 +301,7 @@ function renderVo2() {
   $("vo2-legend").innerHTML = sports.length > 1 ? sports.map(([, l, c]) => `<span style="--c:var(${c})">${l}</span>`).join("") : "";
   const opts = chartBase();
   opts.interaction = { mode: "nearest", intersect: false };
-  opts.scales.x.type = "linear";
-  opts.scales.x.ticks.callback = (v) => new Date(v).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+  timeAxis(opts);
   opts.scales.y.grace = "10%";
   opts.plugins.tooltip = { callbacks: {
     title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
@@ -225,7 +311,7 @@ function renderVo2() {
     type: "line",
     data: { datasets: sports.map(([k, label, c]) => ({
       label, borderColor: cssVar(c), backgroundColor: cssVar(c), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.2,
-      data: state.vo2.filter((r) => r.sport === k).map((r) => ({ x: new Date(r.date + "T12:00").getTime(), y: r.value })),
+      data: state.vo2.filter((r) => r.sport === k && inRange(r.date)).map((r) => ({ x: new Date(r.date + "T12:00").getTime(), y: r.value })),
     })) },
     options: opts,
   });
@@ -234,13 +320,17 @@ function renderVo2() {
 // ---------- records ----------
 function renderRecords() {
   const entries = Object.entries(state.records);
+  const showRange = rangeDays() != null;
+  $("range-best-head").hidden = !showRange;
+  $("range-best-head").textContent = `Best in last ${state.range}`;
   $("records").innerHTML = entries.length ? entries.map(([label, list]) => {
-    const best = list[0], second = list[1];
+    const best = list[0];
+    const inR = list.find((e) => inRange(e.date));
     return `<tr class="clickable" data-id="${best.activity_id}">
       <td>${esc(label)}</td><td class="num"><b>${fmtDuration(best.seconds)}</b></td>
       <td class="num">${fmtPace(best.meters / best.seconds)}</td>
       <td>${fmtDate(best.date)}</td>
-      <td class="num">${second ? fmtDuration(second.seconds) : ""}</td></tr>`;
+      ${showRange ? `<td class="num">${inR ? `${fmtDuration(inR.seconds)} <span class="hint">${fmtDate(inR.date, { month: "short", year: "2-digit" })}</span>` : "–"}</td>` : ""}</tr>`;
   }).join("") : `<tr><td colspan="5" class="empty">Records appear after your runs are synced and analyzed.</td></tr>`;
 }
 
@@ -280,10 +370,60 @@ $("settings").addEventListener("submit", async (e) => {
 });
 
 // ---------- activities ----------
+const WORKOUT_FILTERS = [
+  ["all", "All workouts", null],
+  ["easy", "Easy & recovery", ["easy", "recovery", "easy_strides"]],
+  ["long", "Long runs", ["long"]],
+  ["run_walk", "Run/walk", ["run_walk"]],
+  ["quality", "Any hard session", [...QUALITY]],
+  ["tempo", "Tempo & threshold", ["tempo", "threshold", "progression", "intervals_threshold"]],
+  ["vo2", "VO2 max & speed", ["intervals_vo2", "speed", "fartlek"]],
+  ["race", "Races", ["race"]],
+];
+
+function tableRows() {
+  const t = state.table;
+  const types = (WORKOUT_FILTERS.find(([k]) => k === t.workout) || WORKOUT_FILTERS[0])[2];
+  const now = new Date();
+  let from = null, to = null;
+  if (t.when === "range") from = rangeStart();
+  else if (t.when === "30" || t.when === "90") { from = new Date(); from.setDate(from.getDate() - Number(t.when)); }
+  else if (t.when === "year") from = new Date(now.getFullYear(), 0, 1);
+  else if (t.when === "lastyear") { from = new Date(now.getFullYear() - 1, 0, 1); to = new Date(now.getFullYear(), 0, 1); }
+  else if (t.when === "custom") {
+    if (t.from) from = new Date(t.from + "T00:00");
+    if (t.to) { to = new Date(t.to + "T00:00"); to.setDate(to.getDate() + 1); }
+  }
+  const q = t.search.trim().toLowerCase();
+  const rows = filtered().filter((a) => {
+    const d = localDate(a.start_time_local);
+    return (!from || d >= from) && (!to || d < to) && (!types || types.includes(a.workout_type))
+      && (!q || (a.name || "").toLowerCase().includes(q));
+  });
+  const key = t.sort;
+  rows.sort((a, b) => {
+    const x = a[key], y = b[key];
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (x < y ? -1 : x > y ? 1 : 0) * t.dir;
+  });
+  return rows;
+}
+
 function renderTable() {
-  const all = filtered(), list = all.slice(0, state.shown);
-  $("more").hidden = all.length <= state.shown;
-  $("more").textContent = `Show more (${all.length - state.shown} older)`;
+  const t = state.table;
+  const all = tableRows();
+  const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+  t.page = Math.min(t.page, pages - 1);
+  const list = all.slice(t.page * PAGE_SIZE, (t.page + 1) * PAGE_SIZE);
+  const meters = all.reduce((s, a) => s + (a.distance_m || 0), 0);
+  const secs = all.reduce((s, a) => s + (a.duration_s || 0), 0);
+  $("f-summary").textContent = all.length
+    ? `${all.length} ${all.length === 1 ? "activity" : "activities"} · ${fmtDist(meters, Units.get(), 1)} · ${fmtDuration(secs)}`
+    : "No activities match these filters.";
+  document.querySelectorAll("#table-head th.sortable").forEach((th) =>
+    th.setAttribute("aria-sort", th.dataset.sort === t.sort ? (t.dir > 0 ? "ascending" : "descending") : "none"));
   $("rows").innerHTML = list.length ? list.map((a) => `<tr class="${a.has_streams ? "clickable" : ""}" data-id="${a.activity_id}">
       <td>${fmtDate(a.start_time_local)}</td>
       <td class="name">${esc(a.name)}</td>
@@ -296,7 +436,42 @@ function renderTable() {
       <td class="num">${a.trimp != null ? Math.round(a.trimp) : ""}</td>
       <td class="num">${a.decoupling_pct != null ? a.decoupling_pct.toFixed(1) + "%" : ""}</td>
     </tr>`).join("")
-    : `<tr><td colspan="10" class="empty">No activities yet. Click <b>Sync now</b>, or run <code>garmin-connector sync</code>.</td></tr>`;
+    : `<tr><td colspan="10" class="empty">${state.activities.length ? "No activities match these filters." : "No activities yet. Click <b>Sync now</b>, or run <code>garmin-connector sync</code>."}</td></tr>`;
+  $("pager").innerHTML = all.length > PAGE_SIZE ? `
+    <span>${t.page * PAGE_SIZE + 1}–${Math.min(all.length, (t.page + 1) * PAGE_SIZE)} of ${all.length}</span>
+    <button data-p="-1" ${t.page === 0 ? "disabled" : ""}>‹ Newer</button>
+    <button data-p="1" ${t.page >= pages - 1 ? "disabled" : ""}>Older ›</button>` : "";
+}
+
+function setupTable() {
+  const t = state.table;
+  $("f-workout").innerHTML = WORKOUT_FILTERS.map(([k, label]) => `<option value="${k}">${label}</option>`).join("");
+  const update = () => { t.page = 0; renderTable(); };
+  let timer;
+  $("f-search").addEventListener("input", (e) => { clearTimeout(timer); timer = setTimeout(() => { t.search = e.target.value; update(); }, 150); });
+  $("f-workout").addEventListener("change", (e) => { t.workout = e.target.value; update(); });
+  $("f-when").addEventListener("change", (e) => { t.when = e.target.value; $("f-custom").hidden = t.when !== "custom"; update(); });
+  $("f-from").addEventListener("change", (e) => { t.from = e.target.value; update(); });
+  $("f-to").addEventListener("change", (e) => { t.to = e.target.value; update(); });
+  $("f-clear").addEventListener("click", () => {
+    Object.assign(t, { search: "", workout: "all", when: "any", from: "", to: "" });
+    $("f-search").value = ""; $("f-workout").value = "all"; $("f-when").value = "any";
+    $("f-from").value = ""; $("f-to").value = ""; $("f-custom").hidden = true;
+    update();
+  });
+  $("table-head").addEventListener("click", (e) => {
+    const th = e.target.closest("th.sortable");
+    if (!th) return;
+    if (t.sort === th.dataset.sort) t.dir = -t.dir;
+    else { t.sort = th.dataset.sort; t.dir = th.dataset.sort === "name" || th.dataset.sort === "workout_label" ? 1 : -1; }
+    update();
+  });
+  $("pager").addEventListener("click", (e) => {
+    const step = Number(e.target.dataset.p);
+    if (!step) return;
+    t.page += step; renderTable();
+    $("rows").closest("section").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 for (const id of ["rows", "records"]) {
@@ -314,9 +489,14 @@ function populateTypes() {
   $("type").value = state.type;
 }
 
+// Everything that depends on the time range
+function renderCharts() {
+  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderRecords();
+}
+
 function render() {
-  renderTiles(); renderNotes($("notes"), state.insights); renderLoad(); renderWeekly(); renderMix(); renderEfficiency();
-  renderVo2(); renderRecords(); renderSettings(); renderTable();
+  renderTiles(); renderNotes($("notes"), state.insights); renderExplain(); renderCompare();
+  renderCharts(); renderSettings(); renderTable();
 }
 
 async function load() {
@@ -329,7 +509,7 @@ async function load() {
 
 $("sync").addEventListener("click", async () => {
   $("sync").disabled = true;
-  setStatus("Syncing with Garmin Connect… (the first sync downloads every workout and can take a while)");
+  setStatus("Syncing with Garmin Connect…");
   try {
     const r = await getJSON("/api/sync", { method: "POST" });
     setStatus(`Synced ${r.activities} activities, downloaded ${r.fit_files} workout files, analyzed ${r.analyzed}.`);
@@ -338,8 +518,9 @@ $("sync").addEventListener("click", async () => {
   finally { $("sync").disabled = false; }
 });
 
-$("type").addEventListener("change", (e) => { state.type = e.target.value; state.shown = PAGE_SIZE; render(); });
-$("more").addEventListener("click", () => { state.shown += 50; renderTable(); });
+$("type").addEventListener("change", (e) => { state.type = e.target.value; state.table.page = 0; render(); });
+setupRange();
+setupTable();
 unitsToggle($("units"), render);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 load().catch((err) => setStatus(`Couldn't load data: ${err.message}`, true));

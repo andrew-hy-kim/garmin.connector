@@ -54,6 +54,23 @@ def intervals(reps: int = 6, rep_s: int = 180, rest_s: int = 90, warm_s: int = 6
     return samples, laps
 
 
+def run_walk(reps: int = 4, run_s: int = 300, walk_s: int = 120, run_mps: float = 2.7, walk_mps: float = 1.4,
+             run_hr: int = 142, walk_hr: int = 118, warm_walk_s: int = 300):
+    """Run/walk session (e.g. a comeback from injury): no workout laps, just one lap for the whole thing."""
+    plan = [(warm_walk_s, walk_mps, walk_hr)]
+    for _ in range(reps):
+        plan += [(run_s, run_mps, run_hr), (walk_s, walk_mps, walk_hr)]
+    samples, t, distance, hr = [], 0, 0.0, float(walk_hr)
+    for length, speed, target in plan:
+        for _ in range(length):
+            distance += speed
+            hr += (target - hr) / 15
+            samples.append({"t": t, "speed": speed, "distance": distance, "hr": round(hr),
+                            "cadence": 82 if speed > 2 else 55, "altitude": 50.0})
+            t += 1
+    return samples, [(0, t, "active")]
+
+
 def write_fit(path: Path, samples, laps, start: datetime | None = None, external_hr: bool = False,
               wrist_spikes: bool = False) -> Path:
     start = start or datetime(2026, 9, 1, 14, 0, tzinfo=timezone.utc)

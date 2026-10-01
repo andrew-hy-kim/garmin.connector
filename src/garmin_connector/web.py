@@ -153,7 +153,7 @@ def create_app(db_path: Path | str | None = None) -> Flask:
 
     @app.get("/api/records")
     def records():
-        """Your five fastest times at each standard distance, from any run."""
+        """Your times at each standard distance, from every run, fastest first."""
         with conn() as c:
             rows = c.execute(
                 "SELECT a.activity_id, a.name, a.start_time_local, m.data FROM activity_metrics m "
@@ -166,8 +166,9 @@ def create_app(db_path: Path | str | None = None) -> Flask:
                     "activity_id": r["activity_id"], "name": r["name"],
                     "date": r["start_time_local"][:10], **effort,
                 })
+        # Every effort, fastest first, so the dashboard can also show the best within a date range.
         return jsonify({
-            label: sorted(efforts, key=lambda e: e["seconds"])[:5]
+            label: sorted(efforts, key=lambda e: e["seconds"])
             for label, efforts in by_distance.items() if efforts
         })
 

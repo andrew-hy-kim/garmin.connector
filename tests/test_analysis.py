@@ -204,3 +204,19 @@ def test_classify_intervals_from_laps_and_from_pace():
     # Same reps, but at 96% of a higher threshold HR -> threshold intervals.
     tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 185, lap_dicts)
     assert tag["type"] == "intervals_threshold"
+
+
+def test_run_walk_is_not_a_workout():
+    from fitgen import run_walk
+
+    samples, _ = run_walk(reps=4, run_s=300)
+    s = _streams(samples)
+    tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 172, [])
+    assert tag["type"] == "run_walk" and not tag["quality"]
+    assert "4 × 5 min of running with walking breaks" in tag["reason"]
+
+    # Same pattern but jogged recoveries at easy effort: just an easy run, not a fartlek.
+    samples, _ = run_walk(reps=5, run_s=240, walk_s=120, walk_mps=2.3, run_mps=2.9, run_hr=140, walk_hr=132)
+    s = _streams(samples)
+    tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 172, [])
+    assert tag["type"] == "easy"

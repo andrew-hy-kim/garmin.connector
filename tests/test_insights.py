@@ -89,3 +89,33 @@ def test_ai_review_request_and_cache(conn, monkeypatch):
 
     ai.review(conn, "overview", None, "km")
     assert "activities_last_8_weeks" in calls[1]["messages"][0]["content"]
+
+
+def test_comeback_after_injury(tmp_path):
+    from fitgen import run_walk
+
+    conn = db.connect(tmp_path / "c.db")
+    db.set_setting(conn, "lthr", 172)
+    today = date.today()
+    for n in range(4):  # training before the injury, ~3 months ago
+        _add_run(conn, tmp_path, 10 + n, (today - timedelta(days=95 + n * 2)).isoformat(),
+                 *steady_run(minutes=30, start_hr=140))
+    for n, days_ago in enumerate([4, 2, 0]):  # run/walk comeback
+        _add_run(conn, tmp_path, 20 + n, (today - timedelta(days=days_ago)).isoformat(),
+                 *run_walk(reps=4 + n, run_s=300 - n * 60))
+    processing.refresh(conn)
+
+    tag = json.loads(conn.execute("SELECT data FROM activity_metrics WHERE activity_id = 20").fetchone()[0])["workout"]
+    assert tag["type"] == "run_walk"
+
+    first = [n["title"] for n in insights.workout_insights(conn, 20)]
+    assert "First run back after 13 weeks off" in first
+    assert any(t.startswith("Ran ") and "minutes" in t for t in first)
+    latest = [n["title"] for n in insights.workout_insights(conn, 22)]
+    assert any(t.startswith("Comeback") for t in latest)
+
+    overview = {n["title"]: n for n in insights.overview_insights(conn)}
+    assert "Rebuilding after 13 weeks off" in overview
+    form = next(n for t, n in overview.items() if t.startswith("Form: "))
+    if form["title"] == "Form: Fresh":
+        assert "not a sign to race" in form["detail"]

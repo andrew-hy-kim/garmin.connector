@@ -304,6 +304,7 @@ WORKOUT_LABELS = {
     "recovery": "Recovery run",
     "easy": "Easy run",
     "easy_strides": "Easy + strides",
+    "run_walk": "Run/walk",
     "long": "Long run",
     "progression": "Progression run",
     "tempo": "Tempo run",
@@ -408,6 +409,42 @@ def detect_reps(t, speed, hr, distance, laps: list[dict] | None, gap=None) -> li
     return reps if len(reps) >= 3 else []
 
 
+WALK_MPS = 1.9  # slower than about 14 min/mile (8:45 /km) is walking for most runners
+
+
+def detect_run_walk(t, speed, hr, distance) -> list[Rep]:
+    """Running segments of a run/walk: at least 3 walking breaks (30 s+) between
+    running segments (60 s+). Returns the running segments, or [] if it isn't one."""
+    smooth = rolling_mean(speed, 15)
+    state = ["run" if v is not None and v >= WALK_MPS + 0.2 else "walk" if v is not None and v > 0.3 else None
+             for v in smooth]
+    segments, i = [], 0
+    while i < len(state):
+        j = i
+        while j + 1 < len(state) and state[j + 1] == state[i]:
+            j += 1
+        if state[i]:
+            segments.append((state[i], i, j))
+        i = j + 1
+    runs = [(a, b) for kind, a, b in segments if kind == "run" and t[b] - t[a] >= 60]
+    walks = [(a, b) for kind, a, b in segments if kind == "walk" and t[b] - t[a] >= 30
+             and runs and runs[0][0] < a and b < runs[-1][1]]
+    if len(runs) < 3 or len(walks) < 2:
+        return []
+    return [_make_rep(a, b, t, hr, distance) for a, b in runs]
+
+
+def _walk_recoveries(t, speed, reps: list[Rep]) -> bool:
+    """True when the gaps between reps were mostly walked (run/walk), not jogged."""
+    gaps = []
+    for a, b in zip(reps, reps[1:]):
+        gaps.extend(v for v in speed[a.end + 1:b.start] if v is not None)
+    if len(gaps) < 30:
+        return False
+    gaps.sort()
+    return gaps[len(gaps) // 2] < WALK_MPS
+
+
 def _thirds_speed(t, speed) -> list[float | None]:
     pts = [(ti, s) for ti, s in zip(t, speed) if s is not None and s > MOVING_SPEED_MPS]
     if len(pts) < 900:
@@ -435,6 +472,9 @@ def classify_workout(activity_type: str | None, t, speed, hr, distance, lthr: fl
         return tag("race", "Marked as a race in Garmin Connect.")
 
     reps = detect_reps(t, speed, hr, distance, laps, gap)
+    if not reps:
+        # Mostly-running sessions with walking breaks don't show up as pace surges.
+        reps = detect_run_walk(t, speed, hr, distance)
     work_s = sum(r.seconds for r in reps)
     if reps and (work_s >= 360 or len(reps) >= 4):
         lengths = sorted(r.seconds for r in reps)
@@ -443,7 +483,15 @@ def classify_workout(activity_type: str | None, t, speed, hr, distance, lthr: fl
         avgs = sorted(r.avg_hr for r in reps if r.avg_hr)
         peak_rel = peaks[len(peaks) // 2] / lthr if peaks else 0
         avg_rel = avgs[len(avgs) // 2] / lthr if avgs else 0
+        if typical >= 60:  # detected edges are a few seconds off; 4:57 reads better as 5 min
+            typical = round(typical / 15) * 15
         desc = f"{len(reps)} × {_fmt_s(typical)} reps"
+        easy_effort = avg_rel < 0.90 and peak_rel < 0.95
+        if typical >= 90 and easy_effort and _walk_recoveries(t, speed, reps):
+            running = sum(r.seconds for r in reps)
+            return tag("run_walk", f"{len(reps)} × {_fmt_s(typical)} of running with walking breaks "
+                                   f"({_fmt_s(running)} running), all at easy effort "
+                                   f"({avg_rel:.0%} of threshold HR).")
         if typical < 90:
             if work_s < 300 and bands and bands[0] >= 0.7 * sum(bands):
                 return tag("easy_strides", f"Easy running with {len(reps)} short pickups ({_fmt_s(typical)}).")
@@ -452,7 +500,9 @@ def classify_workout(activity_type: str | None, t, speed, hr, distance, lthr: fl
             return tag("intervals_vo2", f"{desc} peaking at {peak_rel:.0%} of threshold HR.")
         if avg_rel >= 0.94 or peak_rel >= 0.97:
             return tag("intervals_threshold", f"{desc} at about {avg_rel:.0%} of threshold HR.")
-        return tag("fartlek", f"{desc} below threshold intensity.")
+        if not easy_effort:
+            return tag("fartlek", f"{desc} at tempo effort, below threshold.")
+        # Pace changed but effort stayed easy: not a workout. Tag it as steady running below.
 
     if not bands:
         if moving_s >= 75 * 60:
@@ -545,7 +595,8 @@ def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[
         metrics["reps"] = [
             {"seconds": r.seconds, "meters": r.meters, "avg_hr": r.avg_hr, "peak_hr": r.peak_hr,
              "start_t": t[r.start], "gap_mps": _mean(gap[r.start:r.end + 1])}
-            for r in detect_reps(t, streams["speed"], hr, streams["distance"], laps, gap)
+            for r in (detect_reps(t, streams["speed"], hr, streams["distance"], laps, gap)
+                      or detect_run_walk(t, streams["speed"], hr, streams["distance"]))
         ]
         if not external_hr:
             metrics["cadence_lock"] = round(cadence_lock_fraction(hr, cadence), 3)

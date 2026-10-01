@@ -5,24 +5,27 @@ heart rate, pace, cadence and elevation, and analyzes them in a browser dashboar
 built for running.
 
 **Workout tags:** every run is tagged by what it actually was, using heart rate relative to
-your threshold (the COROS approach) plus the watch's workout laps and pace surges: Recovery,
-Easy, Easy + strides, Long, Progression, Tempo, Threshold, Threshold intervals, VO2 max
-intervals, Speed session, Fartlek, Race. Each tag comes with the reason.
+your threshold (the COROS approach) plus the watch's workout laps, pace surges and walking
+breaks: Recovery, Easy, Easy + strides, Run/walk, Long, Progression, Tempo, Threshold,
+Threshold intervals, VO2 max intervals, Speed session, Fartlek, Race. Each tag comes with
+the reason.
 
 **Coach notes:** feedback on each workout and on your training overall (easy days drifting
 too hard, HR drift, rep pacing, efficiency vs. your usual, 80/20 balance, mileage jumps,
-ramp rate, new bests), worked out on your Mac. Optionally, **Ask Claude** for a written
+ramp rate, new bests, and how you're building back after a break of 3+ weeks), worked out
+on your Mac. Optionally, **Ask Claude** for a written
 coach's review (see below).
 
-**Overview page**
+**Overview page** (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the time range for every chart)
 - **Fitness, fatigue & form** explained in plain language: what the numbers mean, your
   current form state (fresh / maintaining / productive / overreaching), and what resting
-  would do
-- **Easy vs. hard running:** weekly minutes by intensity
+  would do, plus your fitness now vs. 3 months, 1, 2, 3 and 5 years ago and your peak
+- **Easy vs. hard running:** minutes by intensity per week (or per month on long ranges)
 - Weekly distance, VO2 max trend, and **aerobic efficiency** (distance per heartbeat on
   easy runs), which shows whether your aerobic base is improving
 - **Personal records** at 400 m, 1 km, mile, 5K, 10K, half and marathon, taken from the fastest
-  stretch of any outdoor run
+  stretch of any outdoor run, all-time and within the selected range
+- **Activity list** with search, workout-type and date filters, sortable columns and paging
 - Heart-rate settings (max, resting, threshold) and **zones pulled from your Garmin account**
   on every sync, so zones match your watch. You can override any value, and anything Garmin
   doesn't have is estimated from your data.
