@@ -29,36 +29,52 @@ def import_fit(conn: sqlite3.Connection, activity_id: int, path: Path | str) -> 
     conn.commit()
 
 
-def effective_settings(conn: sqlite3.Connection) -> dict[str, Any]:
-    """Your saved settings, with estimates filled in for anything not set.
+def _estimate_max_hr(conn: sqlite3.Connection) -> float:
+    """Highest 30-second average heart rate seen in any activity (so a one-second
+    wrist spike can't inflate it), ignoring activities where the wrist sensor
+    locked onto cadence."""
+    row = conn.execute("SELECT max(max_hr_30s) FROM activity_metrics WHERE coalesce(cadence_lock, 0) < 0.2").fetchone()
+    if row[0]:
+        return round(row[0])
+    maxes = [r[0] for r in conn.execute("SELECT max_hr FROM activities WHERE max_hr IS NOT NULL")]
+    return round(quantiles(maxes, n=20)[-1]) if len(maxes) >= 2 else DEFAULT_MAX_HR
 
-    Max HR is estimated as the highest 30-second average heart rate seen in any
-    activity (so a one-second wrist spike can't inflate it), ignoring
-    activities where the wrist sensor locked onto cadence.
+
+def effective_settings(conn: sqlite3.Connection) -> dict[str, Any]:
+    """The heart-rate settings to use, and where each one came from.
+
+    For each value: what you set in the dashboard wins, then what's in your
+    Garmin account, then an estimate from your data. Garmin's own zone
+    boundaries are used unless you've overridden max or threshold HR.
     """
     chosen = db.get_settings(conn)
-    settings: dict[str, Any] = {"estimated": []}
+    garmin = db.get_garmin_profile(conn)
+    settings: dict[str, Any] = {"sources": {}}
 
-    if "max_hr" in chosen:
-        settings["max_hr"] = chosen["max_hr"]
-    else:
-        settings["estimated"].append("max_hr")
-        row = conn.execute("SELECT max(max_hr_30s) FROM activity_metrics WHERE coalesce(cadence_lock, 0) < 0.2").fetchone()
-        if row[0]:
-            settings["max_hr"] = round(row[0])
+    for key in ("max_hr", "resting_hr", "lthr"):
+        if key in chosen:
+            settings[key], source = chosen[key], "you"
+        elif garmin.get(key):
+            settings[key], source = float(garmin[key]), "garmin"
+        elif key == "max_hr":
+            settings[key], source = _estimate_max_hr(conn), "estimated"
+        elif key == "resting_hr":
+            settings[key], source = DEFAULT_RESTING_HR, "default"
         else:
-            maxes = [r[0] for r in conn.execute("SELECT max_hr FROM activities WHERE max_hr IS NOT NULL")]
-            settings["max_hr"] = round(quantiles(maxes, n=20)[-1]) if len(maxes) >= 2 else DEFAULT_MAX_HR
+            settings[key], source = None, "not set"
+        settings["sources"][key] = source
+    settings["estimated"] = [k for k, s in settings["sources"].items() if s in ("estimated", "default")]
 
-    settings["resting_hr"] = chosen.get("resting_hr", DEFAULT_RESTING_HR)
-    if "resting_hr" not in chosen:
-        settings["estimated"].append("resting_hr")
-    settings["lthr"] = chosen.get("lthr")
+    overridden = "max_hr" in chosen or "lthr" in chosen
+    settings["zone_floors"] = garmin.get("zone_floors") if not overridden else None
+    settings["zone_method"] = garmin.get("zone_method") if settings["zone_floors"] else None
+    settings["male"] = garmin.get("gender") != "FEMALE"
     return settings
 
 
 def _signature(settings: dict[str, Any]) -> str:
-    return json.dumps([settings["max_hr"], settings["resting_hr"], settings["lthr"]])
+    return json.dumps([settings["max_hr"], settings["resting_hr"], settings["lthr"],
+                       settings["zone_floors"], settings["male"]])
 
 
 def analyze_activity(conn: sqlite3.Connection, activity_id: int, settings: dict[str, Any]) -> None:
@@ -113,7 +129,8 @@ def training_load_series(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     ).fetchall()
     for day, trimp, duration, avg_hr in rows:
         if trimp is None and duration and avg_hr:
-            trimp = analysis.trimp_from_summary(duration, avg_hr, settings["resting_hr"], settings["max_hr"])
+            trimp = analysis.trimp_from_summary(duration, avg_hr, settings["resting_hr"], settings["max_hr"],
+                                                settings["male"])
         if trimp:
             daily[day] = daily.get(day, 0.0) + trimp
     if not daily:

@@ -120,6 +120,22 @@ def hr_zones(max_hr: float, lthr: float | None = None) -> list[Zone]:
     return [Zone(ZONE_NAMES[i], bounds[i], bounds[i + 1]) for i in range(5)]
 
 
+def zones_from_floors(floors: Sequence[float]) -> list[Zone]:
+    """Zones from the lower bound (floor) of each of Garmin's five zones.
+
+    Heart rate below zone 1's floor is counted in zone 1.
+    """
+    bounds = [0.0, *[float(f) for f in floors[1:5]], 999.0]
+    return [Zone(ZONE_NAMES[i], bounds[i], bounds[i + 1]) for i in range(5)]
+
+
+def zones_for(settings: dict[str, Any]) -> list[Zone]:
+    """The zones to use: Garmin's own when available, otherwise computed."""
+    if settings.get("zone_floors"):
+        return zones_from_floors(settings["zone_floors"])
+    return hr_zones(settings["max_hr"], settings.get("lthr"))
+
+
 def time_in_zones(t: Sequence[int], hr: Sequence[float | None], zones: list[Zone]) -> list[float]:
     seconds = [0.0] * len(zones)
     for dt, h in zip(sample_durations(t), hr):
@@ -147,10 +163,11 @@ def trimp(t: Sequence[int], hr: Sequence[float | None], resting_hr: float, max_h
     return total
 
 
-def trimp_from_summary(duration_s: float, avg_hr: float, resting_hr: float, max_hr: float) -> float:
+def trimp_from_summary(duration_s: float, avg_hr: float, resting_hr: float, max_hr: float,
+                       male: bool = True) -> float:
     """TRIMP for activities without second-by-second data, assuming a steady average HR."""
     reserve = min(max((avg_hr - resting_hr) / (max_hr - resting_hr), 0.0), 1.0)
-    return duration_s / 60 * reserve * 0.64 * math.exp(1.92 * reserve)
+    return duration_s / 60 * reserve * 0.64 * math.exp((1.92 if male else 1.67) * reserve)
 
 
 # ---------------------------------------------------------------- pace
@@ -285,13 +302,14 @@ def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[
     """
     t = streams["t"]
     hr = clean_hr(streams["hr"]) if not external_hr else [float(h) if h else None for h in streams["hr"]]
-    zones = hr_zones(settings["max_hr"], settings.get("lthr"))
+    zones = zones_for(settings)
     has_hr = any(h is not None for h in hr)
     run = is_run(activity_type)
 
     metrics: dict[str, Any] = {
         "external_hr": external_hr,
-        "trimp": round(trimp(t, hr, settings["resting_hr"], settings["max_hr"]), 1) if has_hr else None,
+        "trimp": round(trimp(t, hr, settings["resting_hr"], settings["max_hr"], settings.get("male", True)), 1)
+        if has_hr else None,
         "zone_seconds": time_in_zones(t, hr, zones) if has_hr else None,
         "max_hr_30s": max((v for v in rolling_mean(hr, 30) if v is not None), default=None) if has_hr else None,
         "decoupling_pct": None,

@@ -170,11 +170,13 @@ function renderSettings() {
   const form = $("settings");
   for (const key of ["max_hr", "resting_hr", "lthr"]) {
     const input = form.elements[key];
-    const estimated = s.estimated.includes(key);
-    input.value = s[key] && !estimated ? Math.round(s[key]) : "";
-    input.placeholder = s[key] ? `${Math.round(s[key])} (est.)` : "not set";
+    const source = s.sources[key];
+    // Only values you set go in the box; Garmin's and estimates show as the placeholder.
+    input.value = source === "you" ? Math.round(s[key]) : "";
+    const label = { garmin: "Garmin", estimated: "est.", default: "default" }[source];
+    input.placeholder = s[key] && label ? `${Math.round(s[key])} (${label})` : "not set";
   }
-  $("zones").innerHTML = `<p class="hint" style="margin-top:12px">Zones ${s.lthr ? "from threshold HR" : "from max HR"}.</p>` +
+  $("zones").innerHTML = `<p class="hint" style="margin-top:12px">${zoneBasis(s)}.</p>` +
     s.zones.map((z, i) => {
       const range = i === 0 ? `< ${z.high}` : i === s.zones.length - 1 ? `≥ ${z.low}` : `${z.low}–${z.high - 1}`;
       return `<div class="zone-row"><div>Z${i + 1} ${esc(z.name)}</div>

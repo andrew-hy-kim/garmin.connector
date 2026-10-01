@@ -230,6 +230,17 @@ def save_metrics(conn: sqlite3.Connection, activity_id: int, metrics: dict[str, 
 
 # ---------------------------------------------------------------- settings
 
+def get_garmin_profile(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Heart-rate settings last fetched from Garmin (see sync.fetch_hr_profile)."""
+    row = conn.execute("SELECT value FROM settings WHERE key = '_garmin_profile'").fetchone()
+    return json.loads(row[0]) if row and row[0] else {}
+
+
+def set_garmin_profile(conn: sqlite3.Connection, profile: dict[str, Any]) -> None:
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('_garmin_profile', ?)", (json.dumps(profile),))
+    conn.commit()
+
+
 def get_settings(conn: sqlite3.Connection) -> dict[str, float]:
     """Settings the user chose; missing keys mean 'estimate it'."""
     rows = conn.execute("SELECT key, value FROM settings WHERE key NOT LIKE '\\_%' ESCAPE '\\'")

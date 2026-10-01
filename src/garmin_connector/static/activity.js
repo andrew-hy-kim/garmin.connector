@@ -430,7 +430,7 @@ function renderZones() {
   const m = D.metrics;
   if (!m?.zone_seconds) { $("zones").innerHTML = `<p class="empty">No heart-rate data.</p>`; return; }
   $("zones").innerHTML = zoneRows(D.zones, m.zone_seconds);
-  $("zones-hint").textContent = `Zones ${D.settings.lthr ? `from threshold HR ${Math.round(D.settings.lthr)}` : `from max HR ${Math.round(D.settings.max_hr)}`}. You can change these on the overview page.`;
+  $("zones-hint").textContent = `${zoneBasis(D.settings)}. You can change these on the overview page.`;
 }
 
 function renderLaps() {

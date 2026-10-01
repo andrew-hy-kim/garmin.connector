@@ -11,7 +11,9 @@ built for running.
   easy runs), which shows whether your aerobic base is improving
 - **Personal records** at 400 m, 1 km, mile, 5K, 10K, half and marathon, taken from the fastest
   stretch of any outdoor run
-- Heart-rate settings (max, resting, threshold). Blanks are estimated from your data.
+- Heart-rate settings (max, resting, threshold) and **zones pulled from your Garmin account**
+  on every sync, so zones match your watch. You can override any value, and anything Garmin
+  doesn't have is estimated from your data.
 
 **Workout page** (click any activity)
 - HR, pace + grade-adjusted pace, cadence and elevation on one synced timeline (by time or
@@ -70,7 +72,8 @@ Your password goes in the macOS Keychain and Garmin's login tokens in
 | `garmin-connector sync --since 2026-01-01` | Re-pull everything from a date |
 | `garmin-connector sync --no-fit` | Summaries only; skip downloading workout files |
 | `garmin-connector dashboard` | Open the dashboard (it also has a **Sync now** button) |
-| `garmin-connector settings --max-hr 192 --lthr 172` | Set heart-rate values (0 = go back to estimating) |
+| `garmin-connector settings` | Show heart-rate settings and where each came from (Garmin, you, estimated) |
+| `garmin-connector settings --max-hr 192` | Override a Garmin value (0 = go back to Garmin's) |
 | `garmin-connector analyze` | Re-run the analysis on every downloaded workout |
 | `garmin-connector logout` | Forget the saved password and tokens |
 

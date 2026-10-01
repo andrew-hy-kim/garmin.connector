@@ -37,6 +37,8 @@ def sync(
     pulls the whole history on the very first run. Each activity's .fit file is
     downloaded and analyzed so the second-by-second data is available.
     """
+    fetch_hr_profile(client, conn)
+
     if since is None:
         latest = db.latest_activity_date(conn)
         since = date.fromisoformat(latest) - timedelta(days=OVERLAP_DAYS) if latest else EARLIEST
@@ -72,6 +74,48 @@ def sync(
     n_analyzed = processing.refresh(conn)
 
     return {"activities": n_activities, "vo2max_readings": n_vo2, "fit_files": n_fit, "analyzed": n_analyzed}
+
+
+def fetch_hr_profile(client: Garmin, conn: sqlite3.Connection) -> dict:
+    """Save the heart-rate settings from your Garmin account: max, resting and
+    threshold HR, your zone boundaries, and sex (used by the training-load formula).
+
+    Best effort: anything Garmin doesn't return is left to the app's estimates,
+    and a failure here never stops the sync.
+    """
+    profile = {}
+    try:
+        zones = client.connectapi("/biometric-service/heartRateZones") or []
+        entry = next((z for z in zones if z.get("sport") == "RUNNING"), None) \
+            or next((z for z in zones if z.get("sport") == "DEFAULT"), None) or (zones[0] if zones else {})
+        profile["max_hr"] = entry.get("maxHeartRateUsed")
+        profile["resting_hr"] = entry.get("restingHeartRateUsed")
+        profile["lthr"] = entry.get("lactateThresholdHeartRateUsed")
+        floors = [entry.get(f"zone{i}Floor") for i in range(1, 6)]
+        if all(floors) and floors == sorted(floors):
+            profile["zone_floors"] = floors
+            profile["zone_method"] = entry.get("trainingMethod")
+    except Exception as err:
+        log.warning("Couldn't fetch heart-rate zones from Garmin: %s", err)
+    try:
+        user = (client.get_user_profile() or {}).get("userData", {})
+        profile["gender"] = user.get("gender")
+        profile["lthr"] = profile.get("lthr") or user.get("lactateThresholdHeartRate")
+    except Exception as err:
+        log.warning("Couldn't fetch your Garmin profile: %s", err)
+    if not profile.get("lthr"):
+        try:
+            profile["lthr"] = client.get_lactate_threshold()["speed_and_heart_rate"].get("heartRate")
+        except Exception as err:
+            log.debug("No lactate threshold from Garmin: %s", err)
+
+    profile = {k: v for k, v in profile.items() if v}
+    if profile:
+        db.set_garmin_profile(conn, profile)
+        log.info("Heart-rate settings from Garmin: %s", ", ".join(
+            f"{label} {profile[key]}" for key, label in
+            (("max_hr", "max"), ("resting_hr", "resting"), ("lthr", "threshold")) if key in profile))
+    return profile
 
 
 def vo2max_days_to_check(conn: sqlite3.Connection) -> list[str]:

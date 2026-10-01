@@ -146,3 +146,49 @@ def test_vo2max_only_for_run_days_and_resumes(conn):
     conn.execute("DELETE FROM vo2max WHERE date = ?", (days_ago(20),))
     sync.sync(client, conn, download_fit=False)
     assert client.metric_days == [days_ago(20)]
+
+
+class FakeGarminWithProfile(FakeGarmin):
+    zones = [
+        {"sport": "DEFAULT", "trainingMethod": "HR_MAX", "maxHeartRateUsed": 200, "restingHeartRateUsed": 55,
+         "zone1Floor": 100, "zone2Floor": 120, "zone3Floor": 140, "zone4Floor": 160, "zone5Floor": 180},
+        {"sport": "RUNNING", "trainingMethod": "HR_RESERVE", "maxHeartRateUsed": 192, "restingHeartRateUsed": 48,
+         "lactateThresholdHeartRateUsed": None,
+         "zone1Floor": 120, "zone2Floor": 135, "zone3Floor": 149, "zone4Floor": 164, "zone5Floor": 178},
+    ]
+
+    def connectapi(self, path, **kwargs):
+        assert path == "/biometric-service/heartRateZones"
+        return self.zones
+
+    def get_user_profile(self):
+        return {"userData": {"gender": "FEMALE", "lactateThresholdHeartRate": 171}}
+
+
+def test_hr_settings_and_zones_come_from_garmin(conn):
+    from garmin_connector import analysis, processing
+
+    sync.sync(FakeGarminWithProfile([make_activity(1, days_ago(3))]), conn, download_fit=False)
+    s = processing.effective_settings(conn)
+    assert (s["max_hr"], s["resting_hr"], s["lthr"]) == (192, 48, 171)  # running zones win; LTHR from profile
+    assert s["sources"] == {"max_hr": "garmin", "resting_hr": "garmin", "lthr": "garmin"}
+    assert s["male"] is False and s["zone_method"] == "HR_RESERVE"
+    zones = analysis.zones_for(s)
+    assert [(z.low, z.high) for z in zones] == [(0, 135), (135, 149), (149, 164), (164, 178), (178, 999)]
+
+    # Setting your own max HR overrides Garmin's value and its zone boundaries.
+    db.set_setting(conn, "max_hr", 200)
+    s = processing.effective_settings(conn)
+    assert s["sources"]["max_hr"] == "you" and s["zone_floors"] is None
+    assert s["resting_hr"] == 48
+
+
+def test_garmin_profile_errors_dont_stop_sync(conn):
+    class Broken(FakeGarmin):
+        def connectapi(self, path, **kwargs):
+            raise RuntimeError("Garmin is down")
+
+    result = sync.sync(Broken([make_activity(1, days_ago(3))]), conn, download_fit=False)
+    assert result["activities"] == 1
+    from garmin_connector import processing
+    assert processing.effective_settings(conn)["sources"]["max_hr"] == "estimated"

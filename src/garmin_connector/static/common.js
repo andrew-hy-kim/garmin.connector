@@ -76,6 +76,14 @@ function chartBase() {
   };
 }
 
+const ZONE_METHODS = { HR_MAX: "% of max HR", HR_RESERVE: "% of heart-rate reserve", LACTATE_THRESHOLD: "% of threshold HR" };
+
+// One line saying where the zones come from
+function zoneBasis(s) {
+  if (s.zone_floors) return `Zones from your Garmin settings${ZONE_METHODS[s.zone_method] ? ` (${ZONE_METHODS[s.zone_method]})` : ""}`;
+  return s.lthr ? `Zones from threshold HR ${Math.round(s.lthr)}` : `Zones from max HR ${Math.round(s.max_hr)}`;
+}
+
 function zoneRows(zones, seconds) {
   const total = seconds.reduce((a, b) => a + b, 0) || 1;
   const maxShare = Math.max(...seconds) / total || 1;

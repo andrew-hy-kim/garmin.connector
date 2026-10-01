@@ -63,7 +63,7 @@ select, button, input {
   font: inherit; color: var(--text-primary); background: var(--surface-1);
   border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
 }
-input[type="number"] { width: 90px; }
+input[type="number"] { width: 100%; max-width: 160px; }
 button { cursor: pointer; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 button:disabled { opacity: .6; cursor: progress; }

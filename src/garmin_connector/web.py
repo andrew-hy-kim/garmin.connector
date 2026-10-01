@@ -77,7 +77,7 @@ def create_app(db_path: Path | str | None = None) -> Flask:
             "activity": dict(row),
             "laps": laps,
             "metrics": json.loads(metrics_row[0]) if metrics_row else None,
-            "zones": [asdict(z) for z in analysis.hr_zones(settings["max_hr"], settings.get("lthr"))],
+            "zones": [asdict(z) for z in analysis.zones_for(settings)],
             "settings": settings,
             "streams": None,
             "external_hr": None,
@@ -129,7 +129,7 @@ def create_app(db_path: Path | str | None = None) -> Flask:
 
     def settings_with_zones(c):
         settings = processing.effective_settings(c)
-        settings["zones"] = [asdict(z) for z in analysis.hr_zones(settings["max_hr"], settings.get("lthr"))]
+        settings["zones"] = [asdict(z) for z in analysis.zones_for(settings)]
         return settings
 
     @app.get("/api/settings")

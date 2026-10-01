@@ -28,9 +28,9 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
 
     p_set = sub.add_parser("settings", help="show or change heart-rate settings used for zones and load")
-    p_set.add_argument("--max-hr", type=float, help="your max heart rate (0 = estimate from your data)")
-    p_set.add_argument("--resting-hr", type=float, help="your resting heart rate (0 = use the default of 60)")
-    p_set.add_argument("--lthr", type=float, help="lactate-threshold heart rate; zones are based on it if set (0 = unset)")
+    p_set.add_argument("--max-hr", type=float, help="your max heart rate (0 = use Garmin's / estimate)")
+    p_set.add_argument("--resting-hr", type=float, help="your resting heart rate (0 = use Garmin's / default)")
+    p_set.add_argument("--lthr", type=float, help="lactate-threshold heart rate (0 = use Garmin's)")
 
     p_dash = sub.add_parser("dashboard", help="open the dashboard in your browser")
     p_dash.add_argument("--port", type=int, default=8765)
@@ -70,8 +70,12 @@ def main(argv: list[str] | None = None) -> None:
             current = processing.effective_settings(conn)
         for key, label in (("max_hr", "Max HR"), ("resting_hr", "Resting HR"), ("lthr", "Threshold HR")):
             value = current[key]
-            note = " (estimated)" if key in current["estimated"] else ""
+            source = current["sources"][key]
+            note = {"you": " (set by you)", "garmin": " (from Garmin)", "estimated": " (estimated)",
+                    "default": " (default)"}.get(source, "")
             print(f"{label}: {round(value) if value else 'not set'}{note}")
+        if current["zone_floors"]:
+            print("Zones: from Garmin, lower bounds " + ", ".join(str(f) for f in current["zone_floors"]))
     elif args.command == "dashboard":
         from .web import create_app
 
