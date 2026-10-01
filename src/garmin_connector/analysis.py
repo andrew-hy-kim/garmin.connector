@@ -102,15 +102,16 @@ class Zone:
     high: float  # bpm, exclusive
 
 
-ZONE_NAMES = ["Recovery", "Aerobic", "Tempo", "Threshold", "Anaerobic"]
+ZONE_NAMES = ["Recovery", "Aerobic", "Tempo", "Threshold", "VO2 max"]
 
 
 def hr_zones(max_hr: float, lthr: float | None = None) -> list[Zone]:
     """Five heart-rate zones.
 
-    With a lactate-threshold HR, zones are set around threshold (as COROS does):
-    <85%, 85-90%, 90-95%, 95-100%, ≥100% of LTHR. Otherwise they use % of max
-    HR: <70%, 70-80%, 80-87%, 87-93%, ≥93%.
+    With a lactate-threshold HR, zones are anchored to threshold, the approach
+    COROS uses, with Joe Friel's running percentages: <85%, 85-90%, 90-95%,
+    95-100%, ≥100% of LTHR. Without one they use % of max HR: <70%, 70-80%,
+    80-87%, 87-93%, ≥93%.
     """
     if lthr:
         edges = [0.85 * lthr, 0.90 * lthr, 0.95 * lthr, lthr]
@@ -291,38 +292,263 @@ def training_load(daily_load: dict[str, float], days: list[str]) -> list[dict[st
     return out
 
 
+# ---------------------------------------------------------------- workout tagging
+
+# Intensity bands as a share of lactate-threshold HR, the way threshold-based
+# systems (COROS, Friel) define them. Used for tagging regardless of which zone
+# system the dashboard displays.
+LTHR_BANDS = [("easy", 0.0, 0.90), ("tempo", 0.90, 0.95), ("threshold", 0.95, 1.00), ("vo2", 1.00, 9.0)]
+
+WORKOUT_LABELS = {
+    "race": "Race",
+    "recovery": "Recovery run",
+    "easy": "Easy run",
+    "easy_strides": "Easy + strides",
+    "long": "Long run",
+    "progression": "Progression run",
+    "tempo": "Tempo run",
+    "threshold": "Threshold run",
+    "intervals_threshold": "Threshold intervals",
+    "intervals_vo2": "VO2 max intervals",
+    "speed": "Speed session",
+    "fartlek": "Fartlek",
+}
+QUALITY_TYPES = {"race", "progression", "tempo", "threshold", "intervals_threshold", "intervals_vo2", "speed", "fartlek"}
+
+
+def intensity_seconds(t: Sequence[int], hr: Sequence[float | None], lthr: float) -> list[float]:
+    """Seconds spent easy (<90% LTHR), tempo (90-95%), threshold (95-100%) and VO2 max (≥100%)."""
+    zones = [Zone(name, lo * lthr, hi * lthr) for name, lo, hi in LTHR_BANDS]
+    return time_in_zones(t, hr, zones)
+
+
+@dataclass
+class Rep:
+    start: int  # sample index
+    end: int    # sample index (inclusive)
+    seconds: float
+    meters: float | None
+    avg_hr: float | None    # second half of the rep; HR lags at the start
+    peak_hr: float | None
+
+
+def _mean(values) -> float | None:
+    values = [v for v in values if v is not None]
+    return sum(values) / len(values) if values else None
+
+
+def _make_rep(i0: int, i1: int, t, hr, distance) -> Rep:
+    mid = (i0 + i1) // 2
+    d0, d1 = distance[i0], distance[i1]
+    return Rep(i0, i1, t[i1] - t[i0], (d1 - d0) if d0 is not None and d1 is not None else None,
+               _mean(hr[mid:i1 + 1]), max((h for h in hr[i0:i1 + 1] if h is not None), default=None))
+
+
+def _idx_at(t: Sequence[int], seconds: float) -> int:
+    lo, hi = 0, len(t) - 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if t[mid] < seconds:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+
+STRUCTURED_LAP_TYPES = {"warmup", "cooldown", "rest", "recovery", "interval"}
+
+
+def detect_reps(t, speed, hr, distance, laps: list[dict] | None, gap=None) -> list[Rep]:
+    """Work intervals.
+
+    If the watch recorded a structured workout (laps marked warm-up, rest,
+    cool-down...), the "active" laps between rest laps are the reps, and a
+    workout without rest laps (warm-up, tempo, cool-down) has none. Otherwise
+    reps are found from repeated surges of at least 45 s that are faster than
+    the run's typical pace both as run (12%+) and grade-adjusted (10%+), so
+    neither downhills nor holding pace up a hill look like a rep.
+    """
+    if laps and any(l.get("intensity") in STRUCTURED_LAP_TYPES for l in laps):
+        if not any(l.get("intensity") in ("rest", "recovery") for l in laps):
+            return []
+        reps = []
+        for lap in laps:
+            if lap.get("intensity") == "active" and lap.get("elapsed_s"):
+                i0 = _idx_at(t, lap["start_t"])
+                i1 = min(_idx_at(t, lap["start_t"] + lap["elapsed_s"]), len(t) - 1)
+                if i1 > i0:
+                    reps.append(_make_rep(i0, i1, t, hr, distance))
+        return reps
+
+    def surge_flags(values, factor):
+        smooth = rolling_mean(values, 21)
+        moving = sorted(v for v in smooth if v is not None and v > MOVING_SPEED_MPS)
+        if len(moving) < 600:
+            return None
+        typical = moving[len(moving) // 2]
+        return [v is not None and v >= typical * factor for v in smooth]
+
+    fast = surge_flags(speed, 1.12)
+    if fast is None:
+        return []
+    if gap is not None:
+        fast_gap = surge_flags(gap, 1.10) or fast
+        fast = [a and b for a, b in zip(fast, fast_gap)]
+    reps, i = [], 0
+    while i < len(fast):
+        if not fast[i]:
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(fast) and fast[j + 1]:
+            j += 1
+        if t[j] - t[i] >= 45:
+            reps.append(_make_rep(i, j, t, hr, distance))
+        i = j + 1
+    return reps if len(reps) >= 3 else []
+
+
+def _thirds_speed(t, speed) -> list[float | None]:
+    pts = [(ti, s) for ti, s in zip(t, speed) if s is not None and s > MOVING_SPEED_MPS]
+    if len(pts) < 900:
+        return [None, None, None]
+    n = len(pts) // 3
+    return [_mean(s for _, s in pts[k * n:(k + 1) * n]) for k in range(3)]
+
+
+def classify_workout(activity_type: str | None, t, speed, hr, distance, lthr: float,
+                     laps: list[dict] | None = None, is_race: bool = False, gap=None) -> dict[str, Any] | None:
+    """Tag a run as easy, long, tempo, threshold, intervals, etc., and say why.
+
+    ``gap`` (grade-adjusted speed) keeps hills from being mistaken for surges.
+    """
+    if not is_run(activity_type):
+        return None
+    moving_s = sum(dt for dt, s in zip(sample_durations(t), speed) if s is not None and s > MOVING_SPEED_MPS)
+    smooth_hr = rolling_mean(hr, 30)
+    bands = intensity_seconds(t, smooth_hr, lthr) if any(h is not None for h in hr) else None
+
+    def tag(kind: str, reason: str) -> dict[str, Any]:
+        return {"type": kind, "label": WORKOUT_LABELS[kind], "reason": reason, "quality": kind in QUALITY_TYPES}
+
+    if is_race:
+        return tag("race", "Marked as a race in Garmin Connect.")
+
+    reps = detect_reps(t, speed, hr, distance, laps, gap)
+    work_s = sum(r.seconds for r in reps)
+    if reps and (work_s >= 360 or len(reps) >= 4):
+        lengths = sorted(r.seconds for r in reps)
+        typical = lengths[len(lengths) // 2]
+        peaks = sorted(r.peak_hr for r in reps if r.peak_hr)
+        avgs = sorted(r.avg_hr for r in reps if r.avg_hr)
+        peak_rel = peaks[len(peaks) // 2] / lthr if peaks else 0
+        avg_rel = avgs[len(avgs) // 2] / lthr if avgs else 0
+        desc = f"{len(reps)} × {_fmt_s(typical)} reps"
+        if typical < 90:
+            if work_s < 300 and bands and bands[0] >= 0.7 * sum(bands):
+                return tag("easy_strides", f"Easy running with {len(reps)} short pickups ({_fmt_s(typical)}).")
+            return tag("speed", f"{desc}: short, fast repeats where pace matters more than heart rate.")
+        if typical <= 360 and peak_rel >= 1.0:
+            return tag("intervals_vo2", f"{desc} peaking at {peak_rel:.0%} of threshold HR.")
+        if avg_rel >= 0.94 or peak_rel >= 0.97:
+            return tag("intervals_threshold", f"{desc} at about {avg_rel:.0%} of threshold HR.")
+        return tag("fartlek", f"{desc} below threshold intensity.")
+
+    if not bands:
+        if moving_s >= 75 * 60:
+            return tag("long", f"{_fmt_s(moving_s)} of running (no heart rate recorded).")
+        return tag("easy", "No heart rate recorded, so tagged by default.")
+
+    easy, tempo, threshold, vo2 = bands
+    total = sum(bands) or 1
+    hard = threshold + vo2
+    if hard >= 15 * 60:
+        return tag("threshold", f"{_fmt_s(hard)} at or above 95% of threshold HR.")
+    if tempo + hard >= 20 * 60 or (tempo + hard) / total >= 0.35:
+        first, _, last = _thirds_speed(t, gap if gap is not None else speed)
+        if first and last and last >= first * 1.06:
+            return tag("progression", f"Finished {last / first - 1:.0%} faster than you started, "
+                                      f"with {_fmt_s(tempo + hard)} at tempo or harder.")
+        if not (moving_s >= 75 * 60 and easy / total >= 0.5):
+            return tag("tempo", f"{_fmt_s(tempo + hard)} at 90% of threshold HR or higher.")
+        # A long easy run whose heart rate drifted up late is still a long run.
+        return tag("long", f"{_fmt_s(moving_s)}, mostly easy; heart rate drifted into tempo for "
+                           f"{_fmt_s(tempo + hard)} without you speeding up.")
+    if moving_s >= 75 * 60:
+        return tag("long", f"{_fmt_s(moving_s)} at mostly easy effort.")
+    avg_rel = (_mean(hr) or 0) / lthr
+    if avg_rel < 0.78 and moving_s <= 40 * 60:
+        return tag("recovery", f"Short and very easy: average HR {avg_rel:.0%} of threshold.")
+    return tag("easy", f"{easy / total:.0%} of the time below 90% of threshold HR.")
+
+
+def _fmt_s(seconds: float) -> str:
+    seconds = int(round(seconds))
+    h, m, s = seconds // 3600, seconds % 3600 // 60, seconds % 60
+    if h:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}" if s else f"{m} min"
+
+
+def pacing_stats(t, speed, hr, cadence) -> dict[str, Any]:
+    """First vs second half pace and HR, and early vs late cadence, while moving."""
+    pts = [(s, h, c) for s, h, c in zip(speed, hr, cadence) if s is not None and s > MOVING_SPEED_MPS]
+    if len(pts) < 600:
+        return {}
+    half, third = len(pts) // 2, len(pts) // 3
+    return {
+        "speed_halves": [_mean(p[0] for p in pts[:half]), _mean(p[0] for p in pts[half:])],
+        "hr_halves": [_mean(p[1] for p in pts[:half]), _mean(p[1] for p in pts[half:])],
+        "cadence_thirds": [_mean(p[2] for p in pts[:third]), _mean(p[2] for p in pts[-third:])],
+    }
+
+
 # ---------------------------------------------------------------- per activity
 
-def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[str, float],
-            external_hr: bool, intervals: bool = False) -> dict[str, Any]:
-    """All per-activity metrics, as stored in the ``activity_metrics`` table.
-
-    ``intervals`` marks a structured workout (work and rest laps); HR drift
-    only means something for steady efforts, so it's skipped for those.
-    """
+def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[str, Any],
+            external_hr: bool, laps: list[dict] | None = None, is_race: bool = False) -> dict[str, Any]:
+    """All per-activity metrics, as stored in the ``activity_metrics`` table."""
     t = streams["t"]
     hr = clean_hr(streams["hr"]) if not external_hr else [float(h) if h else None for h in streams["hr"]]
     zones = zones_for(settings)
     has_hr = any(h is not None for h in hr)
     run = is_run(activity_type)
+    lthr = settings.get("lthr") or 0.9 * settings["max_hr"]
+    structured = bool(laps) and any(l.get("intensity") in ("rest", "recovery") for l in laps)
 
     metrics: dict[str, Any] = {
         "external_hr": external_hr,
         "trimp": round(trimp(t, hr, settings["resting_hr"], settings["max_hr"], settings.get("male", True)), 1)
         if has_hr else None,
         "zone_seconds": time_in_zones(t, hr, zones) if has_hr else None,
+        "intensity_seconds": intensity_seconds(t, rolling_mean(hr, 30), lthr) if has_hr else None,
         "max_hr_30s": max((v for v in rolling_mean(hr, 30) if v is not None), default=None) if has_hr else None,
         "decoupling_pct": None,
         "efficiency": None,
         "cadence_lock": None,
         "best_efforts": {},
+        "workout": None,
+        "reps": [],
+        "pacing": {},
     }
     if run:
-        if not intervals:
+        cadence = streams["cadence"]
+        gap = grade_adjusted_speed(streams["speed"], grades(streams["distance"], streams["altitude"]))
+        workout = classify_workout(activity_type, t, streams["speed"], hr, streams["distance"], lthr, laps,
+                                   is_race, gap)
+        metrics["workout"] = workout
+        steady = workout and workout["type"] in ("easy", "long", "recovery", "tempo", "progression", "threshold")
+        if steady and not structured:
             metrics["decoupling_pct"] = aerobic_decoupling(t, streams["speed"], hr)
         metrics["efficiency"] = efficiency_factor(streams["speed"], hr)
+        metrics["pacing"] = pacing_stats(t, streams["speed"], hr, cadence)
+        metrics["reps"] = [
+            {"seconds": r.seconds, "meters": r.meters, "avg_hr": r.avg_hr, "peak_hr": r.peak_hr,
+             "start_t": t[r.start], "gap_mps": _mean(gap[r.start:r.end + 1])}
+            for r in detect_reps(t, streams["speed"], hr, streams["distance"], laps, gap)
+        ]
         if not external_hr:
-            metrics["cadence_lock"] = round(cadence_lock_fraction(hr, streams["cadence"]), 3)
+            metrics["cadence_lock"] = round(cadence_lock_fraction(hr, cadence), 3)
     if is_outdoor_run(activity_type):
         metrics["best_efforts"] = best_efforts(t, streams["distance"])
     return metrics

@@ -12,6 +12,7 @@ dependencies = [
     "keyring>=24",
     "fitdecode>=0.10",
     "flask>=3",
+    "anthropic>=1.11",
 ]
 
 [project.optional-dependencies]

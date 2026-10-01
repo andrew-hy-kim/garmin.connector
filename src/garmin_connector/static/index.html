@@ -18,18 +18,32 @@
 
   <section class="tiles" id="tiles"></section>
 
+  <section class="card">
+    <h2>Coach notes</h2>
+    <p class="hint">What your recent training says, worked out on your Mac from your data.</p>
+    <div class="notes" id="notes"></div>
+    <div class="ai-box" id="ai"></div>
+  </section>
+
   <section class="grid" style="margin-bottom:16px">
     <div class="card">
-      <h2>Training load</h2>
-      <p class="hint">Fitness is your 6-week training load and fatigue your 7-day load. Form is the gap between them: below zero means you're carrying fatigue, above means you're fresh. Every activity counts here, not only runs.</p>
+      <h2>Fitness, fatigue &amp; form</h2>
+      <div class="explain" id="explain"></div>
       <div class="legend"><span style="--c:var(--fitness)">Fitness</span><span style="--c:var(--fatigue)">Fatigue</span></div>
       <div class="chart-box"><canvas id="load" role="img" aria-label="Line chart of fitness and fatigue over the last 6 months"></canvas></div>
-      <div class="chart-box short" style="margin-top:8px"><canvas id="form" role="img" aria-label="Bar chart of daily form"></canvas></div>
+      <div class="legend" style="margin-top:12px" id="form-legend"></div>
+      <div class="chart-box short"><canvas id="form" role="img" aria-label="Bar chart of daily form, colored by state"></canvas></div>
     </div>
     <div class="card">
       <h2 id="weekly-title">Weekly distance</h2>
       <p class="hint">Last 26 weeks.</p>
       <div class="chart-box"><canvas id="weekly" role="img" aria-label="Bar chart of weekly distance"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Easy vs. hard running</h2>
+      <p class="hint">Weekly running minutes by intensity, relative to your threshold HR. Most runners improve fastest at roughly 80% easy.</p>
+      <div class="legend" id="mix-legend"></div>
+      <div class="chart-box"><canvas id="mix" role="img" aria-label="Stacked bar chart of weekly running minutes by intensity"></canvas></div>
     </div>
     <div class="card">
       <h2>Aerobic efficiency</h2>
@@ -55,11 +69,15 @@
     </div>
     <div class="card">
       <h2>Heart-rate settings</h2>
-      <p class="hint">These set your zones and training load. Each sync pulls them from your Garmin account; anything Garmin doesn't have is estimated from your data. Type a value only to override Garmin; clear the box to go back.</p>
+      <p class="hint">These set your zones, workout tags and training load. Each sync pulls them from your Garmin account; anything Garmin doesn't have is estimated from your data. Type a value only to override Garmin; clear the box to go back.</p>
       <form id="settings" class="stack" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));align-items:end">
         <label>Max HR<br><input type="number" name="max_hr" min="120" max="230"></label>
         <label>Resting HR<br><input type="number" name="resting_hr" min="30" max="100"></label>
         <label>Threshold HR<br><input type="number" name="lthr" min="100" max="220"></label>
+        <label>Zones<br><select name="zone_system" style="width:100%">
+          <option value="threshold">Threshold (COROS-style)</option>
+          <option value="garmin">Garmin's zones</option>
+        </select></label>
         <button type="submit">Save</button>
       </form>
       <div class="zones" id="zones"></div>
@@ -71,7 +89,7 @@
     <p class="hint">Click an activity for second-by-second detail.</p>
     <div class="table-wrap"><table>
       <thead><tr>
-        <th>Date</th><th>Name</th><th>Type</th><th class="num">Distance</th><th class="num">Time</th>
+        <th>Date</th><th>Name</th><th>Workout</th><th class="num">Distance</th><th class="num">Time</th>
         <th class="num">Pace</th><th class="num">Avg HR</th><th>HR sensor</th><th class="num">Load</th><th class="num">HR drift</th>
       </tr></thead>
       <tbody id="rows"></tbody>

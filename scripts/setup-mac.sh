@@ -6,7 +6,8 @@
 # It downloads (or updates) the app into ~/garmin.connector, installs a private copy
 # of Python with uv (no admin password needed, and the Python that comes with macOS
 # is left alone), installs the app, then logs you in, runs the first sync and opens
-# the dashboard. Safe to run again; it just updates everything.
+# the dashboard. Safe to run again: it updates the app and skips the login if
+# you're already logged in, so it doubles as the update command.
 set -euo pipefail
 
 REPO_URL="https://github.com/andrew-hy-kim/garmin.connector.git"
@@ -44,11 +45,15 @@ if ! grep -qs '.local/bin' "$HOME/.zshrc"; then
   echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
 fi
 
-step "Logging in to Garmin Connect"
-echo "Type your Garmin email and password. The password stays hidden while you type."
-garmin-connector login < /dev/tty
+if [[ -f "${GARMIN_CONNECTOR_HOME:-$HOME/.garmin-connector}/account.json" ]]; then
+  echo "Already logged in to Garmin Connect."
+else
+  step "Logging in to Garmin Connect"
+  echo "Type your Garmin email and password. The password stays hidden while you type."
+  garmin-connector login < /dev/tty
+fi
 
-step "Downloading your workouts (first time: about a second per workout)"
+step "Syncing your workouts (first time: about a second per workout)"
 garmin-connector sync
 
 step "Opening the dashboard"

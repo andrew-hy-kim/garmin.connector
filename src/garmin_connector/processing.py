@@ -17,6 +17,10 @@ log = logging.getLogger(__name__)
 
 DEFAULT_MAX_HR = 190.0
 DEFAULT_RESTING_HR = 60.0
+# Threshold HR is typically ~90% of max for runners; used only until a real value is known.
+LTHR_FROM_MAX = 0.90
+# Bump when the analysis changes, so every workout is re-analyzed once.
+ANALYSIS_VERSION = 3
 STREAM_KEYS = ("t", "hr", "speed", "distance", "cadence", "altitude", "power", "lat", "lon")
 
 
@@ -44,8 +48,11 @@ def effective_settings(conn: sqlite3.Connection) -> dict[str, Any]:
     """The heart-rate settings to use, and where each one came from.
 
     For each value: what you set in the dashboard wins, then what's in your
-    Garmin account, then an estimate from your data. Garmin's own zone
-    boundaries are used unless you've overridden max or threshold HR.
+    Garmin account, then an estimate from your data.
+
+    Zones are threshold-based by default (like COROS). With the "garmin" zone
+    system, Garmin's own zone boundaries are used instead, unless you've
+    overridden max or threshold HR.
     """
     chosen = db.get_settings(conn)
     garmin = db.get_garmin_profile(conn)
@@ -61,19 +68,21 @@ def effective_settings(conn: sqlite3.Connection) -> dict[str, Any]:
         elif key == "resting_hr":
             settings[key], source = DEFAULT_RESTING_HR, "default"
         else:
-            settings[key], source = None, "not set"
+            settings[key], source = round(LTHR_FROM_MAX * settings["max_hr"]), "estimated"
         settings["sources"][key] = source
     settings["estimated"] = [k for k, s in settings["sources"].items() if s in ("estimated", "default")]
 
+    settings["zone_system"] = db.get_text_setting(conn, "zone_system") or "threshold"
     overridden = "max_hr" in chosen or "lthr" in chosen
-    settings["zone_floors"] = garmin.get("zone_floors") if not overridden else None
+    use_garmin = settings["zone_system"] == "garmin" and not overridden
+    settings["zone_floors"] = garmin.get("zone_floors") if use_garmin else None
     settings["zone_method"] = garmin.get("zone_method") if settings["zone_floors"] else None
     settings["male"] = garmin.get("gender") != "FEMALE"
     return settings
 
 
 def _signature(settings: dict[str, Any]) -> str:
-    return json.dumps([settings["max_hr"], settings["resting_hr"], settings["lthr"],
+    return json.dumps([ANALYSIS_VERSION, settings["max_hr"], settings["resting_hr"], settings["lthr"],
                        settings["zone_floors"], settings["male"]])
 
 
@@ -82,12 +91,14 @@ def analyze_activity(conn: sqlite3.Connection, activity_id: int, settings: dict[
     if loaded is None:
         return
     streams, external_hr = loaded
-    activity_type = conn.execute(
-        "SELECT activity_type FROM activities WHERE activity_id = ?", (activity_id,)
-    ).fetchone()[0]
-    intensities = {r[0] for r in conn.execute("SELECT intensity FROM laps WHERE activity_id = ?", (activity_id,))}
-    intervals = "active" in intensities and bool(intensities & {"rest", "recovery"})
-    db.save_metrics(conn, activity_id, analysis.analyze(activity_type, streams, settings, external_hr, intervals))
+    activity_type, event_type = conn.execute(
+        "SELECT activity_type, json_extract(raw_json, '$.eventType.typeKey') FROM activities WHERE activity_id = ?",
+        (activity_id,),
+    ).fetchone()
+    laps = [dict(r) for r in conn.execute(
+        "SELECT start_t, elapsed_s, intensity FROM laps WHERE activity_id = ? ORDER BY idx", (activity_id,))]
+    db.save_metrics(conn, activity_id, analysis.analyze(
+        activity_type, streams, settings, external_hr, laps, is_race=event_type == "race"))
 
 
 def refresh(conn: sqlite3.Connection, force: bool = False) -> int:

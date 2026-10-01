@@ -172,7 +172,16 @@ def test_hr_settings_and_zones_come_from_garmin(conn):
     s = processing.effective_settings(conn)
     assert (s["max_hr"], s["resting_hr"], s["lthr"]) == (192, 48, 171)  # running zones win; LTHR from profile
     assert s["sources"] == {"max_hr": "garmin", "resting_hr": "garmin", "lthr": "garmin"}
-    assert s["male"] is False and s["zone_method"] == "HR_RESERVE"
+    assert s["male"] is False
+
+    # Default: threshold-based zones (COROS-style) around Garmin's threshold HR of 171.
+    assert s["zone_system"] == "threshold" and s["zone_floors"] is None
+    assert [z.high for z in analysis.zones_for(s)][:4] == [145, 154, 162, 171]
+
+    # Option: Garmin's own zone boundaries, exactly as Garmin defines them.
+    db.set_text_setting(conn, "zone_system", "garmin")
+    s = processing.effective_settings(conn)
+    assert s["zone_method"] == "HR_RESERVE"
     zones = analysis.zones_for(s)
     assert [(z.low, z.high) for z in zones] == [(0, 135), (135, 149), (149, 164), (164, 178), (178, 999)]
 

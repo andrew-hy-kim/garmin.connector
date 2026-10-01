@@ -164,3 +164,43 @@ def test_activity_detail_api(tmp_path):
     saved = client.post("/api/settings", json={"max_hr": 188, "lthr": 170}).get_json()
     assert saved["max_hr"] == 188 and saved["zones"][3]["high"] == 170
     assert list(client.get("/api/records").get_json())[0] == "400 m"
+
+
+def _streams(samples):
+    return {k: [s.get(k) for s in samples] for k in ("t", "speed", "hr", "distance", "cadence")}
+
+
+def test_classify_steady_runs():
+    lthr = 170
+    easy, _ = steady_run(minutes=45, start_hr=135, drift_bpm=5)
+    s = _streams(easy)
+    assert analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], lthr)["type"] == "easy"
+
+    long_run, _ = steady_run(minutes=95, start_hr=135, drift_bpm=8)
+    s = _streams(long_run)
+    assert analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], lthr)["type"] == "long"
+
+    tempo, _ = steady_run(minutes=40, start_hr=158, drift_bpm=2)  # ~93% of threshold
+    s = _streams(tempo)
+    tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], lthr)
+    assert tag["type"] == "tempo" and tag["quality"]
+
+    assert analysis.classify_workout("cycling", s["t"], s["speed"], s["hr"], s["distance"], lthr) is None
+    assert analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], lthr,
+                                     is_race=True)["type"] == "race"
+
+
+def test_classify_intervals_from_laps_and_from_pace():
+    samples, laps = intervals(reps=6, rep_s=180)  # reps at 178 bpm, 105% of 170
+    s = _streams(samples)
+    lap_dicts = [{"start_t": a, "elapsed_s": b, "intensity": c} for a, b, c in laps]
+    tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 170, lap_dicts)
+    assert tag["type"] == "intervals_vo2" and "6 × 3 min" in tag["reason"]
+
+    # Same session without workout laps (e.g. auto-lap every mile): found from the pace surges.
+    tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 170, [])
+    assert tag["type"] == "intervals_vo2"
+
+    # Same reps, but at 96% of a higher threshold HR -> threshold intervals.
+    tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 185, lap_dicts)
+    assert tag["type"] == "intervals_threshold"

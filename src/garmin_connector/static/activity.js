@@ -108,6 +108,11 @@ function renderHeader() {
   ].filter(Boolean).join(" · ");
 }
 
+function renderTagline() {
+  const w = D.metrics?.workout;
+  $("tagline").innerHTML = w ? `${tagHtml(w.label, w.quality)}<span class="hint" style="margin:0">${esc(w.reason)}</span>` : "";
+}
+
 function renderTiles() {
   const a = D.activity, m = D.metrics || {};
   const whole = S ? summarize(0, S.n - 1) : null;
@@ -572,7 +577,9 @@ function updateMapSelection() {
 
 function renderAll() {
   if (D.streams) { derive(); }
-  renderHeader(); renderWarnings(); renderTiles(); renderZones(); renderLaps(); renderSplits(); renderEfforts();
+  renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderZones(); renderLaps(); renderSplits(); renderEfforts();
+  renderNotes($("notes"), (D.insights || []).filter((n) => !n.title.startsWith("Tagged:")));
+  setupAiBox($("ai"), "activity", activityId);
   $("charts-card").style.display = D.streams ? "" : "none";
   if (D.streams) { buildPanels(); drawAll(); renderSelection(); }
 }

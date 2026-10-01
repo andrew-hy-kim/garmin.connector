@@ -26,6 +26,8 @@ def main(argv: list[str] | None = None) -> None:
     p_sync.add_argument("--no-fit", action="store_true", help="skip downloading .fit files (summaries only)")
 
     sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
+    sub.add_parser("set-api-key", help="save an Anthropic API key for 'Ask Claude' reviews (macOS Keychain)")
+    sub.add_parser("remove-api-key", help="forget the saved Anthropic API key")
 
     p_set = sub.add_parser("settings", help="show or change heart-rate settings used for zones and load")
     p_set.add_argument("--max-hr", type=float, help="your max heart rate (0 = use Garmin's / estimate)")
@@ -59,6 +61,21 @@ def main(argv: list[str] | None = None) -> None:
         with closing(db.connect(config.db_path())) as conn:
             sync.import_missing_streams(conn)
             print(f"Analyzed {processing.refresh(conn, force=True)} activities.")
+    elif args.command == "set-api-key":
+        import getpass
+
+        from . import ai
+
+        key = getpass.getpass("Anthropic API key (input hidden): ").strip()
+        if not key:
+            raise SystemExit("No key entered.")
+        ai.set_api_key(key)
+        print("Saved to your macOS Keychain. 'Ask Claude' is now available in the dashboard.")
+    elif args.command == "remove-api-key":
+        from . import ai
+
+        ai.remove_api_key()
+        print("Anthropic API key removed.")
     elif args.command == "settings":
         with closing(db.connect(config.db_path())) as conn:
             changes = {"max_hr": args.max_hr, "resting_hr": args.resting_hr, "lthr": args.lthr}

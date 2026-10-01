@@ -81,7 +81,8 @@ const ZONE_METHODS = { HR_MAX: "% of max HR", HR_RESERVE: "% of heart-rate reser
 // One line saying where the zones come from
 function zoneBasis(s) {
   if (s.zone_floors) return `Zones from your Garmin settings${ZONE_METHODS[s.zone_method] ? ` (${ZONE_METHODS[s.zone_method]})` : ""}`;
-  return s.lthr ? `Zones from threshold HR ${Math.round(s.lthr)}` : `Zones from max HR ${Math.round(s.max_hr)}`;
+  const est = s.sources && s.sources.lthr === "estimated" ? ", estimated as 90% of max HR until Garmin or you provide one" : "";
+  return `Zones built around your threshold HR of ${Math.round(s.lthr)}${est}`;
 }
 
 function zoneRows(zones, seconds) {
@@ -97,3 +98,63 @@ function zoneRows(zones, seconds) {
     </div>`;
   }).join("");
 }
+
+// ---------- coach notes & Claude reviews ----------
+const LEVEL_LABEL = { good: "Good", info: "Note", warn: "Watch" };
+function renderNotes(el, notes) {
+  el.innerHTML = notes.length ? notes.map((n) => `<div class="note lvl-${esc(n.level)}">
+      <div class="t"><span class="lvl">${LEVEL_LABEL[n.level] || ""}</span><span>${esc(n.title)}</span></div>
+      <div class="d">${esc(n.detail)}</div></div>`).join("")
+    : `<p class="hint">Nothing to flag yet. Notes appear as more runs are analyzed.</p>`;
+}
+
+// Minimal Markdown (headings, lists, bold/italic, paragraphs) for Claude's reviews. Escapes first.
+function markdown(src) {
+  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>");
+  const out = []; let list = null, para = [];
+  const flushPara = () => { if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; } };
+  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map((i) => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`); list = null; } };
+  for (const raw of src.split("\n")) {
+    const line = raw.trim();
+    let m;
+    if (!line) { flushPara(); flushList(); }
+    else if ((m = line.match(/^#{1,6}\s+(.*)/))) { flushPara(); flushList(); out.push(`<h4>${inline(m[1])}</h4>`); }
+    else if ((m = line.match(/^[-*]\s+(.*)/)) || (m = line.match(/^\d+[.)]\s+(.*)/))) {
+      flushPara();
+      const tag = /^\d/.test(line) ? "ol" : "ul";
+      if (!list || list.tag !== tag) { flushList(); list = { tag, items: [] }; }
+      list.items.push(m[1]);
+    } else { flushList(); para.push(line); }
+  }
+  flushPara(); flushList();
+  return out.join("");
+}
+
+// "Ask Claude" box: shows a saved review, or a button to request one.
+async function setupAiBox(el, scope, activityId) {
+  const params = () => new URLSearchParams({ scope, units: Units.get(), ...(activityId ? { activity_id: activityId } : {}) });
+  const show = (data) => {
+    if (!data.configured) {
+      el.innerHTML = `<p class="hint" style="margin:0">Want a written review from Claude? Add an Anthropic API key once with
+        <code>garmin-connector set-api-key</code>, then reload. Your workout summaries (no GPS) are only sent when you click the button, and each review costs a few cents.</p>`;
+      return;
+    }
+    const r = data.review;
+    el.innerHTML = (r ? `<div class="md">${markdown(r.text)}</div><div class="meta">Written by Claude on ${esc(r.created_at)} UTC. AI can make mistakes; it only sees the numbers here.</div>` : "") +
+      `<button class="ai-btn" style="margin-top:10px">${r ? "Get a fresh review" : "Ask Claude for a coach's review"}</button>`;
+    el.querySelector(".ai-btn").onclick = async (e) => {
+      e.target.disabled = true; e.target.textContent = "Claude is reviewing… (about 20–60 seconds)";
+      try {
+        show(await getJSON("/api/ai/review", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scope, activity_id: activityId, units: Units.get() }) }));
+      } catch (err) {
+        e.target.disabled = false; e.target.textContent = "Try again";
+        el.insertAdjacentHTML("afterbegin", `<div class="warn">${esc(err.message)}</div>`);
+      }
+    };
+  };
+  try { show(await getJSON(`/api/ai/review?${params()}`)); } catch (err) { el.innerHTML = ""; }
+}
+
+const tagHtml = (label, quality) => (label ? `<span class="tag ${quality ? "q" : ""}">${esc(label)}</span>` : "");
+const QUALITY = new Set(["race", "progression", "tempo", "threshold", "intervals_threshold", "intervals_vo2", "speed", "fartlek"]);

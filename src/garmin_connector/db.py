@@ -86,6 +86,13 @@ CREATE TABLE IF NOT EXISTS vo2max_checked (
     date  TEXT PRIMARY KEY
 );
 
+-- Saved Claude reviews (see ai.py), so each one is only paid for once.
+CREATE TABLE IF NOT EXISTS ai_reviews (
+    key         TEXT PRIMARY KEY,
+    created_at  TEXT NOT NULL,
+    text        TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key    TEXT PRIMARY KEY,
     value  TEXT
@@ -238,6 +245,19 @@ def get_garmin_profile(conn: sqlite3.Connection) -> dict[str, Any]:
 
 def set_garmin_profile(conn: sqlite3.Connection, profile: dict[str, Any]) -> None:
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('_garmin_profile', ?)", (json.dumps(profile),))
+    conn.commit()
+
+
+def get_text_setting(conn: sqlite3.Connection, key: str) -> str | None:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", ("_" + key,)).fetchone()
+    return row[0] if row else None
+
+
+def set_text_setting(conn: sqlite3.Connection, key: str, value: str | None) -> None:
+    if value is None:
+        conn.execute("DELETE FROM settings WHERE key = ?", ("_" + key,))
+    else:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ("_" + key, value))
     conn.commit()
 
 

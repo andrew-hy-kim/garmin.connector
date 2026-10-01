@@ -1,7 +1,16 @@
 // Overview page: training load, weekly volume, efficiency, VO2 max, records, activity list.
 
 const PAGE_SIZE = 25;
-const state = { activities: [], vo2: [], load: [], records: {}, settings: null, type: "run", shown: PAGE_SIZE };
+const state = { activities: [], vo2: [], load: [], records: {}, settings: null, insights: [], type: "run", shown: PAGE_SIZE };
+
+// Form as a share of fitness -> state. Mirrors insights.FORM_STATES.
+const FORM_STATES = [
+  { key: "fresh", min: 0.10, label: "Fresh", color: "--fitness", text: "Rested. Good for racing; weeks of this means losing fitness." },
+  { key: "neutral", min: -0.10, label: "Maintaining", color: "--elev", text: "Training and recovery balanced." },
+  { key: "productive", min: -0.30, label: "Productive training", color: "--gap", text: "Carrying the fatigue that builds fitness." },
+  { key: "overreaching", min: -Infinity, label: "Overreaching", color: "--hr", text: "Fatigue far above fitness; recover before more hard work." },
+];
+const formState = (d) => FORM_STATES.find((s) => (d.fitness > 1 ? d.form / d.fitness : 0) >= s.min);
 const charts = {};
 
 const filtered = () => state.activities.filter((a) =>
@@ -36,10 +45,16 @@ function renderTiles() {
       <div class="sub">${list.length} ${list.length === 1 ? "activity" : "activities"} · ${fmtDuration(secs) || "0:00"}</div></div>`;
   });
   const today = state.load.at(-1);
+  const weekAgo = state.load.at(-8);
+  const delta = (k) => {
+    if (!weekAgo) return "";
+    const d = today[k] - weekAgo[k];
+    return `${d >= 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(0)} vs last week`;
+  };
   const load = today ? [
-    ["Fitness", today.fitness.toFixed(0), "6-week load"],
-    ["Fatigue", today.fatigue.toFixed(0), "7-day load"],
-    ["Form", (today.form > 0 ? "+" : "") + today.form.toFixed(0), today.form < -25 ? "Very fatigued" : today.form < -10 ? "Building fitness" : today.form <= 5 ? "Balanced" : "Fresh"],
+    ["Fitness", today.fitness.toFixed(0), delta("fitness")],
+    ["Fatigue", today.fatigue.toFixed(0), delta("fatigue")],
+    ["Form", (today.form > 0 ? "+" : "") + today.form.toFixed(0), formState(today).label],
   ].map(([l, v, s]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`) : [];
   $("tiles").innerHTML = [...volume, ...load].join("");
 }
@@ -62,12 +77,78 @@ function renderLoad() {
   const formOpts = chartBase();
   formOpts.plugins.tooltip = { callbacks: { label: (i) => `Form: ${i.parsed.y > 0 ? "+" : ""}${i.parsed.y.toFixed(0)}` } };
   formOpts.scales.x.ticks.display = false;
-  const fresh = cssVar("--fitness"), tired = cssVar("--hr");
+  formOpts.plugins.tooltip.callbacks.afterLabel = (i) => formState(recent[i.dataIndex]).label;
+  $("form-legend").innerHTML = "<span style='color:var(--text-secondary)'>Form:</span>" +
+    FORM_STATES.map((st) => `<span style="--c:var(${st.color})">${st.label}</span>`).join("");
   drawChart("form", "form", {
     type: "bar",
     data: { labels, datasets: [{ label: "Form", data: recent.map((d) => d.form),
-      backgroundColor: recent.map((d) => (d.form >= 0 ? fresh : tired)), barPercentage: 1, categoryPercentage: 0.9 }] },
+      backgroundColor: recent.map((d) => cssVar(formState(d).color)), barPercentage: 1, categoryPercentage: 0.9 }] },
     options: formOpts,
+  });
+  renderExplain();
+}
+
+// Plain-language reading of the numbers, plus what resting would do.
+function renderExplain() {
+  const today = state.load.at(-1);
+  if (!today) { $("explain").innerHTML = `<p>Appears once workouts with heart rate are synced.</p>`; return; }
+  const st = formState(today);
+  const ago6 = state.load.at(-43);
+  const trend = ago6 ? today.fitness - ago6.fitness : null;
+  // Rest projection: no training, both averages decay
+  let f = today.fitness, a = today.fatigue, freshDay = null;
+  const proj = {};
+  for (let d = 1; d <= 14; d++) {
+    f -= f / 42; a -= a / 7;
+    if (d === 3 || d === 7) proj[d] = { form: f - a, fitness: f };
+    if (freshDay == null && (f - a) / f >= 0.10) freshDay = d;
+  }
+  const sign = (v) => `${v > 0 ? "+" : ""}${v.toFixed(0)}`;
+  $("explain").innerHTML = `
+    <div><b>Fitness ${today.fitness.toFixed(0)}</b> is the average training load you've carried per day over about
+      6 weeks: the endurance you've banked.${trend != null ? ` It's ${trend >= 0 ? "up" : "down"} ${Math.abs(trend).toFixed(0)} from 6 weeks ago.` : ""}
+      <b>Fatigue ${today.fatigue.toFixed(0)}</b> is the same over the last week: how tired that training has made you.
+      Each workout's load comes from how long you spent at each heart rate, with hard minutes counting much more than easy ones.</div>
+    <div><b>Form ${sign(today.form)}</b> is fitness minus fatigue. Right now that's <b>${st.label.toLowerCase()}</b>: ${st.text}</div>
+    <div class="scale">${FORM_STATES.map((s) => `<div style="--c:var(${s.color})" class="${s === st ? "now" : ""}"><b>${s.label}</b>${
+      s.key === "fresh" ? "above +10%" : s.key === "neutral" ? "−10% to +10%" : s.key === "productive" ? "−30% to −10%" : "below −30%"} of fitness</div>`).join("")}</div>
+    <div>If you rested completely: form would be <b>${sign(proj[3].form)}</b> in 3 days and <b>${sign(proj[7].form)}</b> in 7
+      ${freshDay ? `(fresh after about ${freshDay} day${freshDay > 1 ? "s" : ""})` : ""}, while fitness would slip to ${proj[7].fitness.toFixed(0)}.
+      That trade-off is what a taper before a race manages.</div>`;
+}
+
+// ---------- intensity mix ----------
+const MIX = [["Easy", "--z1"], ["Tempo", "--z3"], ["Threshold", "--z4"], ["VO2 max", "--z5"]];
+function renderMix() {
+  const weeks = [];
+  const w = startOfWeek(new Date());
+  for (let i = 0; i < 12; i++) { weeks.unshift(new Date(w)); w.setDate(w.getDate() - 7); }
+  const idx = new Map(weeks.map((d, i) => [d.getTime(), i]));
+  const mins = MIX.map(() => weeks.map(() => 0));
+  for (const a of state.activities) {
+    if (!isRun(a.activity_type) || !a.intensity_seconds) continue;
+    const i = idx.get(startOfWeek(localDate(a.start_time_local)).getTime());
+    if (i == null) continue;
+    a.intensity_seconds.forEach((s, b) => { mins[b][i] += s / 60; });
+  }
+  $("mix-legend").innerHTML = MIX.map(([l, c]) => `<span style="--c:var(${c})">${l}</span>`).join("");
+  const opts = chartBase();
+  opts.scales.x.stacked = true; opts.scales.y.stacked = true;
+  opts.scales.y.ticks.callback = (v) => `${v} min`;
+  opts.plugins.tooltip = { callbacks: {
+    title: (i) => `Week of ${i[0].label}`,
+    label: (i) => {
+      const total = mins.reduce((t, m) => t + m[i.dataIndex], 0) || 1;
+      return `${i.dataset.label}: ${Math.round(i.parsed.y)} min (${Math.round((i.parsed.y / total) * 100)}%)`;
+    },
+  } };
+  drawChart("mix", "mix", {
+    type: "bar",
+    data: { labels: weeks.map((d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" })),
+      datasets: MIX.map(([label, c], b) => ({ label, data: mins[b], backgroundColor: cssVar(c),
+        borderColor: cssVar("--surface-1"), borderWidth: { top: 2 }, maxBarThickness: 22 })) },
+    options: opts,
   });
 }
 
@@ -176,6 +257,7 @@ function renderSettings() {
     const label = { garmin: "Garmin", estimated: "est.", default: "default" }[source];
     input.placeholder = s[key] && label ? `${Math.round(s[key])} (${label})` : "not set";
   }
+  form.elements.zone_system.value = s.zone_system || "threshold";
   $("zones").innerHTML = `<p class="hint" style="margin-top:12px">${zoneBasis(s)}.</p>` +
     s.zones.map((z, i) => {
       const range = i === 0 ? `< ${z.high}` : i === s.zones.length - 1 ? `≥ ${z.low}` : `${z.low}–${z.high - 1}`;
@@ -188,6 +270,7 @@ $("settings").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target.elements;
   const body = Object.fromEntries(["max_hr", "resting_hr", "lthr"].map((k) => [k, f[k].value ? Number(f[k].value) : null]));
+  body.zone_system = f.zone_system.value;
   setStatus("Saving and re-analyzing…");
   try {
     state.settings = await getJSON("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -204,7 +287,7 @@ function renderTable() {
   $("rows").innerHTML = list.length ? list.map((a) => `<tr class="${a.has_streams ? "clickable" : ""}" data-id="${a.activity_id}">
       <td>${fmtDate(a.start_time_local)}</td>
       <td class="name">${esc(a.name)}</td>
-      <td>${esc(prettyType(a.activity_type))}</td>
+      <td>${a.workout_label ? tagHtml(a.workout_label, QUALITY.has(a.workout_type)) : esc(prettyType(a.activity_type))}</td>
       <td class="num">${fmtDist(a.distance_m)}</td>
       <td class="num">${fmtDuration(a.duration_s)}</td>
       <td class="num">${fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)}</td>
@@ -232,14 +315,16 @@ function populateTypes() {
 }
 
 function render() {
-  renderTiles(); renderLoad(); renderWeekly(); renderEfficiency(); renderVo2(); renderRecords(); renderSettings(); renderTable();
+  renderTiles(); renderNotes($("notes"), state.insights); renderLoad(); renderWeekly(); renderMix(); renderEfficiency();
+  renderVo2(); renderRecords(); renderSettings(); renderTable();
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings] = await Promise.all(
-    ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings"].map((u) => getJSON(u)));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings });
+  const [acts, vo2, loadSeries, records, settings, notes] = await Promise.all(
+    ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights"].map((u) => getJSON(u)));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes });
   populateTypes(); render();
+  setupAiBox($("ai"), "overview");
 }
 
 $("sync").addEventListener("click", async () => {

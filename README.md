@@ -4,9 +4,21 @@ Pulls your Garmin Connect workouts onto your Mac, down to the second-by-second
 heart rate, pace, cadence and elevation, and analyzes them in a browser dashboard
 built for running.
 
+**Workout tags:** every run is tagged by what it actually was, using heart rate relative to
+your threshold (the COROS approach) plus the watch's workout laps and pace surges: Recovery,
+Easy, Easy + strides, Long, Progression, Tempo, Threshold, Threshold intervals, VO2 max
+intervals, Speed session, Fartlek, Race. Each tag comes with the reason.
+
+**Coach notes:** feedback on each workout and on your training overall (easy days drifting
+too hard, HR drift, rep pacing, efficiency vs. your usual, 80/20 balance, mileage jumps,
+ramp rate, new bests), worked out on your Mac. Optionally, **Ask Claude** for a written
+coach's review (see below).
+
 **Overview page**
-- **Training load:** fitness (6-week load), fatigue (7-day load) and form, from
-  heart-rate-based load (TRIMP) across every activity
+- **Fitness, fatigue & form** explained in plain language: what the numbers mean, your
+  current form state (fresh / maintaining / productive / overreaching), and what resting
+  would do
+- **Easy vs. hard running:** weekly minutes by intensity
 - Weekly distance, VO2 max trend, and **aerobic efficiency** (distance per heartbeat on
   easy runs), which shows whether your aerobic base is improving
 - **Personal records** at 400 m, 1 km, mile, 5K, 10K, half and marathon, taken from the fastest
@@ -77,6 +89,25 @@ Your password goes in the macOS Keychain and Garmin's login tokens in
 | `garmin-connector analyze` | Re-run the analysis on every downloaded workout |
 | `garmin-connector logout` | Forget the saved password and tokens |
 
+### Ask Claude (optional)
+
+The coach notes work without this. For a written coach's review of a workout or of your
+recent training, add an [Anthropic API key](https://console.anthropic.com/) once:
+
+```bash
+garmin-connector set-api-key     # stored in your macOS Keychain
+```
+
+Then click **Ask Claude** in the dashboard. Only then is a summary of your training sent to
+Anthropic: workout tags, distances, paces, heart rate, load and the coach notes. No GPS
+data is sent. Each review costs a few cents and is saved, so reopening it is free.
+`garmin-connector remove-api-key` turns it off.
+
+### Updating
+
+Rerun the setup line. It updates the app, skips the login if you're logged in, syncs, and
+opens the dashboard.
+
 ### Sync automatically every day
 
 ```bash
@@ -98,9 +129,9 @@ Everything is in `~/.garmin-connector/` (set `GARMIN_CONNECTOR_HOME` to move it)
   changes something
 - `tokens/`: login tokens (private to your user account)
 
-Your data is only sent to Garmin, to fetch it. The one exception is the route map, which
-loads map tiles from OpenStreetMap, so OpenStreetMap sees roughly which area you ran in
-(not your data). The dashboard only listens on `127.0.0.1`, so it's reachable only from your Mac.
+Your data is only sent to Garmin, to fetch it, with two exceptions: the route map loads
+map tiles from OpenStreetMap, so OpenStreetMap sees roughly which area you ran in, and if
+you set up **Ask Claude**, a training summary goes to Anthropic each time you click it. The dashboard only listens on `127.0.0.1`, so it's reachable only from your Mac.
 
 ## Development
 
