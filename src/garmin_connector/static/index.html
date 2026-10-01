@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garmin Activities</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f4f3f0;
+    --surface-1: #fcfcfb;
+    --border: #e2e0da;
+    --grid: #ebe9e4;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #77756f;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --accent: #2a78d6;
+    --danger: #c03a39;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-0: #111110;
+      --surface-1: #1a1a19;
+      --border: #2e2e2c;
+      --grid: #2a2a28;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #96958c;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --accent: #3987e5;
+      --danger: #e66767;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #111110; --surface-1: #1a1a19; --border: #2e2e2c; --grid: #2a2a28;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #96958c;
+    --series-1: #3987e5; --series-2: #d95926; --accent: #3987e5; --danger: #e66767;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--surface-0); color: var(--text-primary);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
+  h1 { font-size: 22px; margin: 0 auto 0 0; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: var(--text-secondary); font-weight: 600; }
+  select, button {
+    font: inherit; color: var(--text-primary); background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: progress; }
+  #status { color: var(--text-secondary); font-size: 13px; width: 100%; text-align: right; min-height: 1em; }
+  #status.error { color: var(--danger); }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .tile .label { color: var(--text-secondary); font-size: 13px; }
+  .tile .value { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .tile .sub { color: var(--text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .chart-box { position: relative; height: 260px; }
+  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); margin: -4px 0 8px; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th { color: var(--text-secondary); font-weight: 600; font-size: 13px; }
+  td.num, th.num { text-align: right; }
+  td.name { white-space: normal; min-width: 160px; }
+  .empty { color: var(--text-secondary); text-align: center; padding: 40px 16px; }
+  code { background: var(--grid); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Garmin Activities</h1>
+    <label>Type <select id="type"><option value="">All activities</option></select></label>
+    <label>Units <select id="units"><option value="mi">Miles</option><option value="km">Kilometers</option></select></label>
+    <button id="sync" class="primary">Sync now</button>
+    <div id="status" role="status" aria-live="polite"></div>
+  </header>
+
+  <div id="content">
+    <section class="tiles" id="tiles"></section>
+    <section class="charts">
+      <div class="card">
+        <h2 id="weekly-title">Weekly distance, last 26 weeks</h2>
+        <div class="chart-box"><canvas id="weekly" role="img" aria-label="Bar chart of weekly distance"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>VO2 max</h2>
+        <div class="legend" id="vo2-legend"></div>
+        <div class="chart-box"><canvas id="vo2" role="img" aria-label="Line chart of VO2 max over time"></canvas></div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Activities</h2>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Date</th><th>Name</th><th>Type</th><th class="num">Distance</th><th class="num">Time</th>
+          <th class="num">Pace / speed</th><th class="num">Avg HR</th><th class="num">Elev. gain</th><th class="num">VO2 max</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+    </section>
+  </div>
+</main>
+
+<script src="/static/chart.umd.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const state = { activities: [], vo2: [], type: "", units: "mi" };
+const charts = {};
+
+// ---------- formatting ----------
+const M_PER = { mi: 1609.344, km: 1000 };
+const PACE_TYPES = /running|walking|hiking/;
+const dist = (m) => (m || 0) / M_PER[state.units];
+const fmtDist = (m) => m ? `${dist(m).toFixed(2)} ${state.units}` : "";
+function fmtDuration(s) {
+  if (!s) return "";
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.round(s % 60);
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`;
+}
+function fmtPace(a) {
+  if (!a.avg_speed_mps) return "";
+  if (PACE_TYPES.test(a.activity_type || "")) {
+    const secPer = M_PER[state.units] / a.avg_speed_mps;
+    return `${Math.floor(secPer / 60)}:${String(Math.round(secPer % 60)).padStart(2, "0")} /${state.units}`;
+  }
+  const perHour = a.avg_speed_mps * 3600 / M_PER[state.units];
+  return `${perHour.toFixed(1)} ${state.units === "mi" ? "mph" : "km/h"}`;
+}
+const fmtElev = (m) => m == null ? "" : state.units === "mi" ? `${Math.round(m * 3.28084)} ft` : `${Math.round(m)} m`;
+const prettyType = (t) => (t || "other").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const localDate = (s) => new Date(s.replace(" ", "T"));
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function startOfWeek(d) { // Monday
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+
+// ---------- rendering ----------
+const filtered = () => state.activities.filter((a) => !state.type || a.activity_type === state.type);
+
+function renderTiles() {
+  const now = new Date();
+  const periods = [
+    ["This week", startOfWeek(now)],
+    ["This month", new Date(now.getFullYear(), now.getMonth(), 1)],
+    ["This year", new Date(now.getFullYear(), 0, 1)],
+  ];
+  $("tiles").innerHTML = periods.map(([label, from]) => {
+    const list = filtered().filter((a) => localDate(a.start_time_local) >= from);
+    const meters = list.reduce((t, a) => t + (a.distance_m || 0), 0);
+    const secs = list.reduce((t, a) => t + (a.duration_s || 0), 0);
+    return `<div class="card tile"><div class="label">${label}</div>
+      <div class="value">${dist(meters).toFixed(1)} ${state.units}</div>
+      <div class="sub">${list.length} ${list.length === 1 ? "activity" : "activities"} · ${fmtDuration(secs) || "0:00"}</div></div>`;
+  }).join("");
+}
+
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function baseOptions() {
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, border: { color: cssVar("--border") }, ticks: { color: cssVar("--text-muted"), maxRotation: 0, autoSkipPadding: 12 } },
+      y: { grid: { color: cssVar("--grid") }, border: { display: false }, ticks: { color: cssVar("--text-muted") } },
+    },
+  };
+}
+
+function renderWeekly() {
+  const weeks = [];
+  let w = startOfWeek(new Date());
+  for (let i = 0; i < 26; i++) { weeks.unshift(new Date(w)); w.setDate(w.getDate() - 7); }
+  const totals = new Map(weeks.map((d) => [d.getTime(), 0]));
+  for (const a of filtered()) {
+    const key = startOfWeek(localDate(a.start_time_local)).getTime();
+    if (totals.has(key)) totals.set(key, totals.get(key) + dist(a.distance_m));
+  }
+  const labels = weeks.map((d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" }));
+  const opts = baseOptions();
+  opts.plugins.tooltip = { callbacks: {
+    title: (items) => `Week of ${items[0].label}`,
+    label: (item) => `${item.parsed.y.toFixed(1)} ${state.units}`,
+  } };
+  opts.scales.y.ticks.callback = (v) => `${v} ${state.units}`;
+  charts.weekly?.destroy();
+  charts.weekly = new Chart($("weekly"), {
+    type: "bar",
+    data: { labels, datasets: [{ data: [...totals.values()], backgroundColor: cssVar("--series-1"),
+      borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 18 }] },
+    options: opts,
+  });
+}
+
+function renderVo2() {
+  const sports = [["running", "Running", "--series-1"], ["cycling", "Cycling", "--series-2"]]
+    .filter(([key]) => state.vo2.some((r) => r.sport === key));
+  $("vo2-legend").innerHTML = sports.length > 1
+    ? sports.map(([, label, c]) => `<span style="--c: var(${c})">${label}</span>`).join("") : "";
+  const opts = baseOptions();
+  opts.interaction = { mode: "nearest", intersect: false };
+  opts.scales.x.type = "linear";
+  opts.scales.x.ticks.callback = (v) => new Date(v).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+  opts.scales.y.grace = "10%";
+  opts.plugins.tooltip = { callbacks: {
+    title: (items) => new Date(items[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
+    label: (item) => `${item.dataset.label}: ${item.parsed.y.toFixed(1)}`,
+  } };
+  charts.vo2?.destroy();
+  charts.vo2 = new Chart($("vo2"), {
+    type: "line",
+    data: { datasets: sports.map(([key, label, c]) => ({
+      label, borderColor: cssVar(c), backgroundColor: cssVar(c), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5,
+      tension: 0.2, data: state.vo2.filter((r) => r.sport === key).map((r) => ({ x: new Date(r.date + "T12:00").getTime(), y: r.value })),
+    })) },
+    options: opts,
+  });
+}
+
+function renderTable() {
+  const list = filtered();
+  $("rows").innerHTML = list.length ? list.map((a) => `<tr>
+      <td>${localDate(a.start_time_local).toLocaleDateString(undefined, { dateStyle: "medium" })}</td>
+      <td class="name">${esc(a.name)}</td>
+      <td>${esc(prettyType(a.activity_type))}</td>
+      <td class="num">${fmtDist(a.distance_m)}</td>
+      <td class="num">${fmtDuration(a.duration_s)}</td>
+      <td class="num">${fmtPace(a)}</td>
+      <td class="num">${a.avg_hr ? Math.round(a.avg_hr) : ""}</td>
+      <td class="num">${fmtElev(a.elevation_gain_m)}</td>
+      <td class="num">${a.vo2max ?? ""}</td>
+    </tr>`).join("")
+    : `<tr><td colspan="9" class="empty">No activities yet. Click <b>Sync now</b>, or run <code>garmin-connector sync</code>.</td></tr>`;
+}
+
+function render() { renderTiles(); renderWeekly(); renderVo2(); renderTable(); }
+
+function populateTypes() {
+  const types = [...new Set(state.activities.map((a) => a.activity_type).filter(Boolean))].sort();
+  $("type").innerHTML = `<option value="">All activities</option>` +
+    types.map((t) => `<option value="${esc(t)}"${t === state.type ? " selected" : ""}>${esc(prettyType(t))}</option>`).join("");
+}
+
+// ---------- data ----------
+async function load() {
+  const [acts, vo2] = await Promise.all([fetch("/api/activities").then((r) => r.json()), fetch("/api/vo2max").then((r) => r.json())]);
+  state.activities = acts; state.vo2 = vo2;
+  populateTypes(); render();
+}
+
+function setStatus(msg, isError = false) { $("status").textContent = msg; $("status").classList.toggle("error", isError); }
+
+$("sync").addEventListener("click", async () => {
+  $("sync").disabled = true; setStatus("Syncing with Garmin Connect…");
+  try {
+    const res = await fetch("/api/sync", { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || res.statusText);
+    setStatus(`Synced ${body.activities} activities and ${body.vo2max_readings} VO2 max readings.`);
+    await load();
+  } catch (err) { setStatus(err.message, true); }
+  finally { $("sync").disabled = false; }
+});
+
+try { state.units = localStorage.getItem("units") || "mi"; } catch {}
+$("units").value = state.units;
+$("units").addEventListener("change", (e) => { state.units = e.target.value; try { localStorage.setItem("units", state.units); } catch {} render(); });
+$("type").addEventListener("change", (e) => { state.type = e.target.value; render(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+
+load().catch((err) => setStatus(`Couldn't load data: ${err.message}`, true));
+</script>
+</body>
+</html>
