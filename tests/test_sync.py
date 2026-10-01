@@ -143,5 +143,6 @@ def test_vo2max_only_for_run_and_ride_days_and_resumes(conn):
 
     # An interrupted sync left a day unchecked: the next sync picks it up.
     conn.execute("DELETE FROM vo2max_checked WHERE date = ?", (days_ago(20),))
+    conn.execute("DELETE FROM vo2max WHERE date = ?", (days_ago(20),))
     sync.sync(client, conn, download_fit=False)
     assert client.metric_days == [days_ago(20)]
