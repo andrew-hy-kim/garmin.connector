@@ -16,7 +16,7 @@ from typing import Any
 
 from . import analysis, processing
 
-EASY_TYPES = {"easy", "recovery", "long", "easy_strides", "run_walk"}
+EASY_TYPES = {"easy", "recovery", "long", "easy_strides"}
 BREAK_DAYS = 21       # this long without running counts as a break (injury, illness, off-season)
 COMEBACK_DAYS = 56    # comeback notes for 8 weeks after returning
 
@@ -49,9 +49,6 @@ def _runs(conn: sqlite3.Connection, since: str | None = None) -> list[dict[str, 
 # ---------------------------------------------------------------- comeback after a break
 
 def _running_seconds(run: dict[str, Any]) -> float:
-    """Time actually running: for run/walk, only the running segments."""
-    if run["workout"] == "run_walk" and run["metrics"].get("reps"):
-        return sum(r["seconds"] for r in run["metrics"]["reps"])
     return run["duration_s"] or 0
 
 
@@ -122,16 +119,6 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
             notes.append(_note("good", "Comeback on track",
                                f"{detail}{f' (vs {round(prev)} the week before)' if prev >= 10 else ''}. "
                                f"Steady, gradual build."))
-    if kind == "run_walk":
-        reps_ = m.get("reps") or []
-        running = sum(r["seconds"] for r in reps_)
-        total = conn.execute("SELECT duration_s FROM activities WHERE activity_id = ?",
-                                            (activity_id,)).fetchone()[0] or 0
-        if running and total:
-            notes.append(_note("info", f"Ran {round(running / 60)} of {round(total / 60)} minutes",
-                               f"{len(reps_)} running segments. A common next step is fewer, longer running "
-                               f"segments before cutting the walk breaks."))
-
     # Easy days should stay easy
     bands = m.get("intensity_seconds")
     if kind in EASY_TYPES and bands:

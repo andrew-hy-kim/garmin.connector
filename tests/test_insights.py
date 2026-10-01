@@ -105,12 +105,8 @@ def test_comeback_after_injury(tmp_path):
                  *run_walk(reps=4 + n, run_s=300 - n * 60))
     processing.refresh(conn)
 
-    tag = json.loads(conn.execute("SELECT data FROM activity_metrics WHERE activity_id = 20").fetchone()[0])["workout"]
-    assert tag["type"] == "run_walk"
-
     first = [n["title"] for n in insights.workout_insights(conn, 20)]
     assert "First run back after 13 weeks off" in first
-    assert any(t.startswith("Ran ") and "minutes" in t for t in first)
     latest = [n["title"] for n in insights.workout_insights(conn, 22)]
     assert any(t.startswith("Comeback") for t in latest)
 

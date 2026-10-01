@@ -5,10 +5,9 @@ heart rate, pace, cadence and elevation, and analyzes them in a browser dashboar
 built for running.
 
 **Workout tags:** every run is tagged by what it actually was, using heart rate relative to
-your threshold (the COROS approach) plus the watch's workout laps, pace surges and walking
-breaks: Recovery, Easy, Easy + strides, Run/walk, Long, Progression, Tempo, Threshold,
-Threshold intervals, VO2 max intervals, Speed session, Fartlek, Race. Each tag comes with
-the reason.
+your threshold (the COROS approach) plus the watch's workout laps and pace surges: Recovery,
+Easy, Easy + strides, Long, Progression, Tempo, Threshold, Threshold intervals, VO2 max
+intervals, Speed session, Fartlek, Race. Each tag comes with the reason.
 
 **Coach notes:** feedback on each workout and on your training overall (easy days drifting
 too hard, HR drift, rep pacing, efficiency vs. your usual, 80/20 balance, mileage jumps,

@@ -374,7 +374,6 @@ const WORKOUT_FILTERS = [
   ["all", "All workouts", null],
   ["easy", "Easy & recovery", ["easy", "recovery", "easy_strides"]],
   ["long", "Long runs", ["long"]],
-  ["run_walk", "Run/walk", ["run_walk"]],
   ["quality", "Any hard session", [...QUALITY]],
   ["tempo", "Tempo & threshold", ["tempo", "threshold", "progression", "intervals_threshold"]],
   ["vo2", "VO2 max & speed", ["intervals_vo2", "speed", "fartlek"]],
