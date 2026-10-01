@@ -75,11 +75,10 @@ def sync(
 
 
 def vo2max_days_to_check(conn: sqlite3.Connection) -> list[str]:
-    """Run and ride days not yet checked for VO2 max (only those activities update it)."""
+    """Run days not yet checked for VO2 max (runs are what update your running VO2 max)."""
     return [r[0] for r in conn.execute(
         "SELECT DISTINCT substr(start_time_local, 1, 10) AS day FROM activities "
-        "WHERE (activity_type LIKE '%run%' OR activity_type LIKE '%cycl%' OR activity_type LIKE '%bik%' "
-        "OR activity_type LIKE '%ride%') AND start_time_local IS NOT NULL "
+        "WHERE activity_type LIKE '%run%' AND start_time_local IS NOT NULL "
         "AND day NOT IN (SELECT date FROM vo2max_checked) "
         "AND day NOT IN (SELECT date FROM vo2max WHERE date < date('now', '-2 days')) ORDER BY day"
     )]
