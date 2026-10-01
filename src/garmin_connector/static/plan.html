@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Plan</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<main>
+  <header>
+    <div style="margin-right:auto">
+      <nav class="nav"><a href="/">Dashboard</a><a href="/plan" aria-current="page">Training plan</a></nav>
+      <h1 style="margin-top:6px">Training plan</h1>
+    </div>
+    <div class="seg" id="units" aria-label="Units"></div>
+    <div id="status" role="status" aria-live="polite"></div>
+  </header>
+
+  <section class="card" id="setup" hidden>
+    <h2>Pick a goal</h2>
+    <p class="hint">The plan is built from your recent running time, how often you run, your fitness and form,
+      any comeback from a break, your threshold HR and your recent best efforts. You can change it any time.</p>
+    <form id="plan-form">
+      <div class="goals" id="goals"></div>
+      <div class="filters">
+        <label>Weeks <select name="weeks"><option>4</option><option selected>6</option><option>8</option><option>12</option></select></label>
+        <label>Runs per week <select name="runs_per_week"><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
+        <label>Long run on <select name="long_day"><option value="Sun">Sunday</option><option value="Sat">Saturday</option></select></label>
+        <button type="submit" class="primary">Create plan</button>
+        <button type="button" id="cancel" hidden>Cancel</button>
+      </div>
+    </form>
+  </section>
+
+  <div id="plan" hidden>
+    <section class="card">
+      <div class="toolbar">
+        <h2 style="margin:0" id="plan-title"></h2>
+        <span class="spacer"></span>
+        <button id="change">Change goal</button>
+        <button id="remove">Remove plan</button>
+      </div>
+      <p class="hint" id="plan-sub"></p>
+      <div id="plan-notes" class="notes"></div>
+      <h2 style="margin-top:14px">Based on</h2>
+      <div class="kv" id="based-on"></div>
+      <h2>How to run it</h2>
+      <ul id="guidance" style="margin:6px 0 0;padding-left:20px;color:var(--text-secondary);font-size:14px"></ul>
+      <div class="ai-box" id="ai"></div>
+    </section>
+    <div id="weeks"></div>
+  </div>
+</main>
+
+<script src="/static/common.js"></script>
+<script src="/static/plan.js"></script>
+</body>
+</html>

@@ -493,15 +493,38 @@ function renderCharts() {
   renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderRecords();
 }
 
+// This week of the training plan, or a prompt to set one up.
+function renderWeekPlan() {
+  const el = $("week-plan");
+  const p = state.plan && state.plan.plan;
+  if (!p) {
+    el.innerHTML = `<h2>Training plan</h2><p class="hint" style="margin:0">Pick a goal (aerobic base, VO2 max, threshold,
+      coming back from a break…) and get a week-by-week plan built from your recent training. <a href="/plan?new">Set one up →</a></p>`;
+    return;
+  }
+  const prog = state.plan.progress;
+  const i = Math.max(0, prog.findIndex((w) => w.status === "current"));
+  const upcoming = prog.every((w) => w.status === "upcoming");
+  const finished = prog.every((w) => w.status === "past");
+  const w = p.weeks[finished ? p.weeks.length - 1 : upcoming ? 0 : i], pr = prog[w.week - 1];
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  el.innerHTML = `<div class="toolbar"><h2 style="margin:0">${finished ? "Plan finished" : upcoming ? `Your plan starts ${new Date(p.start + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}` : "This week's plan"}:
+      ${esc(p.goal_label)}, week ${w.week} of ${p.weeks.length}</h2><span class="spacer"></span><a href="/plan">Full plan →</a></div>
+    <p class="hint" style="margin:0">${esc(w.focus)} · ${w.minutes} min planned${pr.status === "upcoming" ? ""
+      : ` · ${pr.done_minutes} min done, ${pr.done_runs}/${pr.planned_runs} runs`}${finished ? ". Pick a new goal on the plan page." : ""}</p>
+    <div class="this-week">${w.days.map((d, k) => `<div class="${d.type === "rest" ? "rest" : ""} ${!upcoming && !finished && k === todayIdx ? "today" : ""}">
+      <b>${d.day}</b>${esc(d.title)}${d.minutes ? `<br>${d.minutes} min` : ""}</div>`).join("")}</div>`;
+}
+
 function render() {
-  renderTiles(); renderNotes($("notes"), state.insights); renderExplain(); renderCompare();
+  renderTiles(); renderNotes($("notes"), state.insights); renderWeekPlan(); renderExplain(); renderCompare();
   renderCharts(); renderSettings(); renderTable();
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes] = await Promise.all(
-    ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights"].map((u) => getJSON(u)));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes });
+  const [acts, vo2, loadSeries, records, settings, notes, plan] = await Promise.all(
+    ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u)));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan });
   populateTypes(); render();
   setupAiBox($("ai"), "overview");
 }

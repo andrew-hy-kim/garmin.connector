@@ -15,6 +15,14 @@ ramp rate, new bests, and how you're building back after a break of 3+ weeks), w
 on your Mac. Optionally, **Ask Claude** for a written
 coach's review (see below).
 
+**Training plan:** pick a goal (build aerobic base, improve VO2 max, raise threshold, return
+from a break, or maintain), how many weeks, runs per week and your long-run day. The plan is
+built from your recent running time, run frequency, fitness and form, any comeback from a
+break, your threshold HR and recent best efforts: mostly easy running, volume growing gradually,
+a lighter week every fourth week, progressing workouts with HR and pace targets, and no hard
+sessions until you've been consistent for about four weeks after a break. Each week shows
+planned vs. done, the overview shows this week's plan, and you can **Ask Claude** to review it.
+
 **Overview page** (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the time range for every chart)
 - **Fitness, fatigue & form** explained in plain language: what the numbers mean, your
   current form state (fresh / maintaining / productive / overreaching), and what resting

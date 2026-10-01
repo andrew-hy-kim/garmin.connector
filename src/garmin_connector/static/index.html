@@ -9,7 +9,10 @@
 <body>
 <main>
   <header>
-    <h1>Running Dashboard</h1>
+    <div style="margin-right:auto">
+      <nav class="nav"><a href="/" aria-current="page">Dashboard</a><a href="/plan">Training plan</a></nav>
+      <h1 style="margin-top:6px">Running Dashboard</h1>
+    </div>
     <label>Show <select id="type"></select></label>
     <div class="seg" id="range" aria-label="Time range for charts"></div>
     <div class="seg" id="units" aria-label="Units"></div>
@@ -25,6 +28,8 @@
     <div class="notes" id="notes"></div>
     <div class="ai-box" id="ai"></div>
   </section>
+
+  <section class="card" id="week-plan"></section>
 
   <section class="card wide">
     <div class="head"><h2>Fitness, fatigue &amp; form</h2></div>

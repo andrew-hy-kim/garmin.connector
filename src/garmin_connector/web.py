@@ -12,7 +12,7 @@ from pathlib import Path
 import anthropic
 from flask import Flask, abort, jsonify, request, send_from_directory
 
-from . import ai, analysis, auth, config, db, insights, processing, sync
+from . import ai, analysis, auth, config, db, insights, planner, processing, sync
 
 log = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / "static"
@@ -30,6 +30,46 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     @app.get("/")
     def index():
         return send_from_directory(STATIC, "index.html")
+
+    @app.get("/plan")
+    def plan_page():
+        return send_from_directory(STATIC, "plan.html")
+
+    def plan_response(c):
+        plan = planner.load(c)
+        ctx = planner.context(c)
+        return {
+            "plan": plan,
+            "progress": planner.progress(c, plan) if plan else None,
+            "goals": {k: {"label": v["label"], "blurb": v["blurb"]} for k, v in planner.GOALS.items()},
+            "defaults": {"runs_per_week": max(3, min(6, round(ctx["runs_per_week_4wk"]) or 3)), "long_day": "Sun",
+                         "weeks": 6, "goal": "return" if ctx["comeback"] else "base"},
+            "context": ctx,
+        }
+
+    @app.get("/api/plan")
+    def get_plan():
+        with conn() as c:
+            return jsonify(plan_response(c))
+
+    @app.post("/api/plan")
+    def make_plan():
+        body = request.get_json(force=True) or {}
+        goal = body.get("goal")
+        if goal not in planner.GOALS:
+            return jsonify({"error": "Pick a goal."}), 400
+        with conn() as c:
+            plan = planner.generate(c, goal, weeks=int(body.get("weeks") or 6),
+                                    runs_per_week=int(body.get("runs_per_week") or 0) or None,
+                                    long_day="Sat" if body.get("long_day") == "Sat" else "Sun")
+            planner.save(c, plan)
+            return jsonify(plan_response(c))
+
+    @app.delete("/api/plan")
+    def delete_plan():
+        with conn() as c:
+            planner.delete(c)
+            return jsonify(plan_response(c))
 
     @app.get("/activity/<int:activity_id>")
     def activity_page(activity_id):
@@ -215,7 +255,7 @@ def create_app(db_path: Path | str | None = None) -> Flask:
 
 
 def _review_args(args) -> tuple[str, int | None, str]:
-    scope = "activity" if args.get("scope") == "activity" else "overview"
+    scope = args.get("scope") if args.get("scope") in ("activity", "plan") else "overview"
     activity_id = int(args["activity_id"]) if scope == "activity" else None
     units = "km" if args.get("units") == "km" else "mi"
     return scope, activity_id, units
