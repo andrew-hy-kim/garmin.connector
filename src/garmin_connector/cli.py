@@ -8,7 +8,7 @@ import webbrowser
 from contextlib import closing
 from datetime import date
 
-from . import auth, config, db, sync
+from . import auth, config, db, processing, sync
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -23,7 +23,14 @@ def main(argv: list[str] | None = None) -> None:
 
     p_sync = sub.add_parser("sync", help="pull new activities into the local database")
     p_sync.add_argument("--since", type=date.fromisoformat, help="re-sync from this date (YYYY-MM-DD)")
-    p_sync.add_argument("--fit", action="store_true", help="also download the original .fit files")
+    p_sync.add_argument("--no-fit", action="store_true", help="skip downloading .fit files (summaries only)")
+
+    sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
+
+    p_set = sub.add_parser("settings", help="show or change heart-rate settings used for zones and load")
+    p_set.add_argument("--max-hr", type=float, help="your max heart rate (0 = estimate from your data)")
+    p_set.add_argument("--resting-hr", type=float, help="your resting heart rate (0 = use the default of 60)")
+    p_set.add_argument("--lthr", type=float, help="lactate-threshold heart rate; zones are based on it if set (0 = unset)")
 
     p_dash = sub.add_parser("dashboard", help="open the dashboard in your browser")
     p_dash.add_argument("--port", type=int, default=8765)
@@ -43,12 +50,28 @@ def main(argv: list[str] | None = None) -> None:
         print("Saved password and tokens removed.")
     elif args.command == "sync":
         with closing(db.connect(config.db_path())) as conn:
-            result = sync.sync(auth.get_client(), conn, since=args.since, download_fit=args.fit)
+            result = sync.sync(auth.get_client(), conn, since=args.since, download_fit=not args.no_fit)
         print(
-            f"Synced {result['activities']} activities, {result['vo2max_readings']} VO2 max readings"
-            + (f", {result['fit_files']} FIT files" if args.fit else "")
-            + "."
+            f"Synced {result['activities']} activities, {result['vo2max_readings']} VO2 max readings, "
+            f"{result['fit_files']} new .fit files; analyzed {result['analyzed']} activities."
         )
+    elif args.command == "analyze":
+        with closing(db.connect(config.db_path())) as conn:
+            sync.import_missing_streams(conn)
+            print(f"Analyzed {processing.refresh(conn, force=True)} activities.")
+    elif args.command == "settings":
+        with closing(db.connect(config.db_path())) as conn:
+            changes = {"max_hr": args.max_hr, "resting_hr": args.resting_hr, "lthr": args.lthr}
+            for key, value in changes.items():
+                if value is not None:
+                    db.set_setting(conn, key, value or None)
+            if any(v is not None for v in changes.values()):
+                processing.refresh(conn)
+            current = processing.effective_settings(conn)
+        for key, label in (("max_hr", "Max HR"), ("resting_hr", "Resting HR"), ("lthr", "Threshold HR")):
+            value = current[key]
+            note = " (estimated)" if key in current["estimated"] else ""
+            print(f"{label}: {round(value) if value else 'not set'}{note}")
     elif args.command == "dashboard":
         from .web import create_app
 

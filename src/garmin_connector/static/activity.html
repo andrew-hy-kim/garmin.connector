@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workout Detail</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/leaflet.css">
+</head>
+<body>
+<main>
+  <header>
+    <div style="margin-right:auto">
+      <a href="/">← All activities</a>
+      <h1 id="title" style="margin-top:6px">Loading…</h1>
+      <div class="hint" id="subtitle" style="margin:2px 0 0"></div>
+    </div>
+    <div class="seg" id="units" aria-label="Units"></div>
+    <div id="status" role="status" aria-live="polite"></div>
+  </header>
+
+  <div id="warnings"></div>
+  <section class="tiles" id="tiles"></section>
+
+  <section class="card" id="charts-card">
+    <div class="toolbar">
+      <h2 style="margin:0">Workout timeline</h2>
+      <span class="spacer"></span>
+      <span class="hint" style="margin:0">X axis</span>
+      <div class="seg" id="xaxis">
+        <button data-x="time" aria-pressed="true">Time</button><button data-x="distance" aria-pressed="false">Distance</button>
+      </div>
+    </div>
+    <p class="hint">Hover to read every metric at that moment. Drag across a stretch (or click a lap or split) to analyze just that part.</p>
+    <div class="readout" id="readout"></div>
+    <div class="panels" id="panels"></div>
+    <div class="selection" id="selection"></div>
+  </section>
+
+  <section class="grid" style="margin-bottom:16px">
+    <div class="card">
+      <h2>Time in heart-rate zones</h2>
+      <p class="hint" id="zones-hint"></p>
+      <div class="zones" id="zones"></div>
+    </div>
+    <div class="card">
+      <h2>Route</h2>
+      <p class="hint">Colored by heart-rate zone.</p>
+      <div id="map"></div>
+    </div>
+  </section>
+
+  <section class="card" id="laps-card" hidden>
+    <h2>Laps</h2>
+    <p class="hint" id="laps-hint"></p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Type</th><th class="num">Time</th><th class="num">Distance</th><th class="num">Pace</th>
+        <th class="num">Avg HR</th><th class="num">Max HR</th><th class="num">Cadence</th></tr></thead>
+      <tbody id="laps"></tbody>
+    </table></div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h2 id="splits-title">Splits</h2>
+      <p class="hint">Grade-adjusted pace (GAP) is the flat-ground equivalent of each split's effort.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th id="split-unit">Mile</th><th class="num">Pace</th><th class="num">GAP</th><th class="num">Avg HR</th>
+          <th class="num">Cadence</th><th class="num">Elev.</th></tr></thead>
+        <tbody id="splits"></tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <h2>Best efforts in this run</h2>
+      <p class="hint">Fastest stretch of each distance within this activity.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Distance</th><th class="num">Time</th><th class="num">Pace</th><th class="num">Starts at</th></tr></thead>
+        <tbody id="efforts"></tbody>
+      </table></div>
+    </div>
+  </section>
+</main>
+
+<script src="/static/leaflet.js"></script>
+<script src="/static/common.js"></script>
+<script src="/static/activity.js"></script>
+</body>
+</html>

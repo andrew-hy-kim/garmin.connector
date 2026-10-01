@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import zlib
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -43,6 +44,46 @@ CREATE TABLE IF NOT EXISTS vo2max (
     value     REAL NOT NULL,
     raw_json  TEXT,
     PRIMARY KEY (date, sport)
+);
+
+-- Second-by-second data from the .fit file, stored compressed (one row per
+-- activity) because it's always read a whole activity at a time.
+CREATE TABLE IF NOT EXISTS streams (
+    activity_id  INTEGER PRIMARY KEY REFERENCES activities (activity_id),
+    external_hr  INTEGER NOT NULL,     -- 1 if a chest strap / arm band was connected
+    data         BLOB NOT NULL         -- zlib-compressed JSON {t: [...], hr: [...], ...}
+);
+
+CREATE TABLE IF NOT EXISTS laps (
+    activity_id  INTEGER NOT NULL REFERENCES activities (activity_id),
+    idx          INTEGER NOT NULL,
+    start_t      INTEGER,
+    elapsed_s    REAL,
+    timer_s      REAL,
+    distance_m   REAL,
+    avg_hr       REAL,
+    max_hr       REAL,
+    avg_speed    REAL,
+    avg_cadence  REAL,
+    intensity    TEXT,
+    lap_trigger  TEXT,
+    PRIMARY KEY (activity_id, idx)
+);
+
+-- Results of analysis.analyze(); recomputed when settings change.
+CREATE TABLE IF NOT EXISTS activity_metrics (
+    activity_id     INTEGER PRIMARY KEY REFERENCES activities (activity_id),
+    trimp           REAL,
+    decoupling_pct  REAL,
+    efficiency      REAL,
+    cadence_lock    REAL,
+    max_hr_30s      REAL,
+    data            TEXT NOT NULL      -- full metrics as JSON
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key    TEXT PRIMARY KEY,
+    value  TEXT
 );
 """
 
@@ -136,4 +177,63 @@ def latest_activity_date(conn: sqlite3.Connection) -> str | None:
 
 def set_fit_path(conn: sqlite3.Connection, activity_id: int, path: str) -> None:
     conn.execute("UPDATE activities SET fit_path = ? WHERE activity_id = ?", (path, activity_id))
+    conn.commit()
+
+
+# ---------------------------------------------------------------- streams
+
+_ROUNDING = {"speed": 3, "distance": 1, "altitude": 1, "cadence": 1, "lat": 6, "lon": 6}
+
+
+def save_streams(conn: sqlite3.Connection, activity_id: int, streams: dict[str, list], external_hr: bool) -> None:
+    compact = {
+        key: [round(v, _ROUNDING[key]) if v is not None and key in _ROUNDING else v for v in values]
+        for key, values in streams.items()
+    }
+    blob = zlib.compress(json.dumps(compact, separators=(",", ":")).encode())
+    conn.execute(
+        "INSERT OR REPLACE INTO streams (activity_id, external_hr, data) VALUES (?, ?, ?)",
+        (activity_id, int(external_hr), blob),
+    )
+
+
+def load_streams(conn: sqlite3.Connection, activity_id: int) -> tuple[dict[str, list], bool] | None:
+    row = conn.execute("SELECT data, external_hr FROM streams WHERE activity_id = ?", (activity_id,)).fetchone()
+    if row is None:
+        return None
+    return json.loads(zlib.decompress(row[0])), bool(row[1])
+
+
+def save_laps(conn: sqlite3.Connection, activity_id: int, laps: list[dict[str, Any]]) -> None:
+    conn.execute("DELETE FROM laps WHERE activity_id = ?", (activity_id,))
+    conn.executemany(
+        "INSERT INTO laps (activity_id, idx, start_t, elapsed_s, timer_s, distance_m, avg_hr, max_hr, "
+        "avg_speed, avg_cadence, intensity, lap_trigger) VALUES (:activity_id, :index, :start_t, :elapsed_s, "
+        ":timer_s, :distance_m, :avg_hr, :max_hr, :avg_speed, :avg_cadence, :intensity, :trigger)",
+        [{"activity_id": activity_id, **lap} for lap in laps],
+    )
+
+
+def save_metrics(conn: sqlite3.Connection, activity_id: int, metrics: dict[str, Any]) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO activity_metrics (activity_id, trimp, decoupling_pct, efficiency, "
+        "cadence_lock, max_hr_30s, data) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (activity_id, metrics.get("trimp"), metrics.get("decoupling_pct"), metrics.get("efficiency"),
+         metrics.get("cadence_lock"), metrics.get("max_hr_30s"), json.dumps(metrics)),
+    )
+
+
+# ---------------------------------------------------------------- settings
+
+def get_settings(conn: sqlite3.Connection) -> dict[str, float]:
+    """Settings the user chose; missing keys mean 'estimate it'."""
+    rows = conn.execute("SELECT key, value FROM settings WHERE key NOT LIKE '\\_%' ESCAPE '\\'")
+    return {k: float(v) for k, v in rows if v not in (None, "")}
+
+
+def set_setting(conn: sqlite3.Connection, key: str, value: float | None) -> None:
+    if value is None:
+        conn.execute("DELETE FROM settings WHERE key = ?", (key,))
+    else:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, str(value)))
     conn.commit()

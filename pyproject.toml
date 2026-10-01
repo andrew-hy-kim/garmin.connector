@@ -10,11 +10,12 @@ requires-python = ">=3.10"
 dependencies = [
     "garminconnect>=0.3.2,<0.4",
     "keyring>=24",
+    "fitdecode>=0.10",
     "flask>=3",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "fit-tool>=0.9.13"]
 
 [project.scripts]
 garmin-connector = "garmin_connector.cli:main"
@@ -27,3 +28,4 @@ garmin_connector = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]

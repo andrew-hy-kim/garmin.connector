@@ -12,7 +12,7 @@ from pathlib import Path
 
 from garminconnect import Garmin
 
-from . import config, db
+from . import config, db, processing
 
 log = logging.getLogger(__name__)
 
@@ -28,13 +28,14 @@ def sync(
     client: Garmin,
     conn: sqlite3.Connection,
     since: date | None = None,
-    download_fit: bool = False,
+    download_fit: bool = True,
     fit_dir: Path | None = None,
 ) -> dict[str, int]:
     """Fetch activities (and VO2 max on the days you trained) since ``since``.
 
     With no ``since``, continues from the newest activity already stored, or
-    pulls the whole history on the very first run.
+    pulls the whole history on the very first run. Each activity's .fit file is
+    downloaded and analyzed so the second-by-second data is available.
     """
     if since is None:
         latest = db.latest_activity_date(conn)
@@ -58,15 +59,39 @@ def sync(
     n_fit = 0
     if download_fit:
         n_fit = download_missing_fit(client, conn, fit_dir or config.fit_dir())
+    import_missing_streams(conn)
+    n_analyzed = processing.refresh(conn)
 
-    return {"activities": n_activities, "vo2max_readings": n_vo2, "fit_files": n_fit}
+    return {"activities": n_activities, "vo2max_readings": n_vo2, "fit_files": n_fit, "analyzed": n_analyzed}
+
+
+def import_missing_streams(conn: sqlite3.Connection) -> int:
+    """Parse every downloaded .fit file that hasn't been read into the database yet."""
+    rows = conn.execute(
+        "SELECT a.activity_id, a.fit_path FROM activities a LEFT JOIN streams s USING (activity_id) "
+        "WHERE a.fit_path IS NOT NULL AND s.activity_id IS NULL"
+    ).fetchall()
+    count = 0
+    for activity_id, path in rows:
+        try:
+            processing.import_fit(conn, activity_id, path)
+            count += 1
+        except Exception as err:
+            log.warning("Couldn't read %s: %s", path, err)
+    return count
 
 
 def download_missing_fit(client: Garmin, conn: sqlite3.Connection, fit_dir: Path) -> int:
     """Download the original .fit file for every activity that doesn't have one yet."""
-    missing = [r[0] for r in conn.execute("SELECT activity_id FROM activities WHERE fit_path IS NULL")]
+    # Manually entered activities have no .fit file to download.
+    missing = [r[0] for r in conn.execute(
+        "SELECT activity_id FROM activities WHERE fit_path IS NULL "
+        "AND coalesce(json_extract(raw_json, '$.manualActivity'), 0) = 0"
+    )]
     count = 0
-    for activity_id in missing:
+    for n, activity_id in enumerate(missing, 1):
+        if n % 25 == 0:
+            log.info("Downloaded %d of %d .fit files", n, len(missing))
         try:
             data = client.download_activity(activity_id, dl_fmt=Garmin.ActivityDownloadFormat.ORIGINAL)
             path = _save_fit(data, activity_id, fit_dir)
