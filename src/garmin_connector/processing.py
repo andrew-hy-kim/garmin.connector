@@ -89,6 +89,8 @@ def refresh(conn: sqlite3.Connection, force: bool = False) -> int:
     settings = effective_settings(conn)
     previous = conn.execute("SELECT value FROM settings WHERE key = '_analyzed_with'").fetchone()
     count = len(pending)
+    if pending:
+        log.info("Analyzed %d new workouts", len(pending))
     if force or previous is None or previous[0] != _signature(settings):
         ids = [r[0] for r in conn.execute("SELECT activity_id FROM streams")]
         for activity_id in ids:

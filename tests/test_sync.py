@@ -125,3 +125,23 @@ def test_dashboard_api(tmp_path):
     acts = client.get("/api/activities").get_json()
     assert acts[0]["name"] == "Run 1" and "raw_json" not in acts[0]
     assert client.get("/api/vo2max").get_json()[0]["sport"] == "running"
+
+
+def test_vo2max_only_for_run_and_ride_days_and_resumes(conn):
+    client = FakeGarmin([
+        make_activity(1, days_ago(20)),
+        make_activity(2, days_ago(15), activityType={"typeKey": "strength_training"}),
+        make_activity(3, days_ago(10), activityType={"typeKey": "road_biking"}),
+    ])
+    sync.sync(client, conn, download_fit=False)
+    assert client.metric_days == [days_ago(20), days_ago(10)]  # no strength-day request
+
+    # Nothing new: the old days aren't asked for again.
+    client.metric_days.clear()
+    sync.sync(client, conn, download_fit=False)
+    assert client.metric_days == []
+
+    # An interrupted sync left a day unchecked: the next sync picks it up.
+    conn.execute("DELETE FROM vo2max_checked WHERE date = ?", (days_ago(20),))
+    sync.sync(client, conn, download_fit=False)
+    assert client.metric_days == [days_ago(20)]

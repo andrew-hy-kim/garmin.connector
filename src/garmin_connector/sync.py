@@ -42,18 +42,27 @@ def sync(
         since = date.fromisoformat(latest) - timedelta(days=OVERLAP_DAYS) if latest else EARLIEST
     today = date.today()
 
-    log.info("Fetching activities from %s to %s", since, today)
+    log.info("Fetching activity list from %s to %s", since, today)
     activities = client.get_activities_by_date(since.isoformat(), today.isoformat())
     n_activities = db.upsert_activities(conn, activities)
+    log.info("Found %d activities", n_activities)
 
-    # You only wear the watch for workouts, so VO2 max only changes on activity days.
-    activity_days = sorted({a["startTimeLocal"][:10] for a in activities if a.get("startTimeLocal")})
+    # Recent days are re-checked in case a new run updated VO2 max.
+    recheck_from = (today - timedelta(days=OVERLAP_DAYS)).isoformat()
+    conn.execute("DELETE FROM vo2max_checked WHERE date >= ?", (recheck_from,))
+    days = vo2max_days_to_check(conn)
+    if days:
+        log.info("Fetching VO2 max for %d workout days", len(days))
     n_vo2 = 0
-    for day in activity_days:
+    for n, day in enumerate(days, 1):
         try:
             n_vo2 += db.upsert_vo2max(conn, db.vo2max_rows(client.get_max_metrics(day)))
+            conn.execute("INSERT OR IGNORE INTO vo2max_checked (date) VALUES (?)", (day,))
+            conn.commit()
         except Exception as err:  # one bad day shouldn't stop the whole sync
             log.warning("Couldn't fetch VO2 max for %s: %s", day, err)
+        if n % 25 == 0:
+            log.info("VO2 max: checked %d of %d days", n, len(days))
         time.sleep(REQUEST_PAUSE_S)
 
     n_fit = 0
@@ -63,6 +72,17 @@ def sync(
     n_analyzed = processing.refresh(conn)
 
     return {"activities": n_activities, "vo2max_readings": n_vo2, "fit_files": n_fit, "analyzed": n_analyzed}
+
+
+def vo2max_days_to_check(conn: sqlite3.Connection) -> list[str]:
+    """Run and ride days not yet checked for VO2 max (only those activities update it)."""
+    return [r[0] for r in conn.execute(
+        "SELECT DISTINCT substr(start_time_local, 1, 10) AS day FROM activities "
+        "WHERE (activity_type LIKE '%run%' OR activity_type LIKE '%cycl%' OR activity_type LIKE '%bik%' "
+        "OR activity_type LIKE '%ride%') AND start_time_local IS NOT NULL "
+        "AND day NOT IN (SELECT date FROM vo2max_checked) "
+        "AND day NOT IN (SELECT date FROM vo2max WHERE date < date('now', '-2 days')) ORDER BY day"
+    )]
 
 
 def import_missing_streams(conn: sqlite3.Connection) -> int:
@@ -89,9 +109,11 @@ def download_missing_fit(client: Garmin, conn: sqlite3.Connection, fit_dir: Path
         "AND coalesce(json_extract(raw_json, '$.manualActivity'), 0) = 0"
     )]
     count = 0
+    if missing:
+        log.info("Downloading %d workout files", len(missing))
     for n, activity_id in enumerate(missing, 1):
         if n % 25 == 0:
-            log.info("Downloaded %d of %d .fit files", n, len(missing))
+            log.info("Downloaded %d of %d workout files", n, len(missing))
         try:
             data = client.download_activity(activity_id, dl_fmt=Garmin.ActivityDownloadFormat.ORIGINAL)
             path = _save_fit(data, activity_id, fit_dir)

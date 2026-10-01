@@ -81,6 +81,11 @@ CREATE TABLE IF NOT EXISTS activity_metrics (
     data            TEXT NOT NULL      -- full metrics as JSON
 );
 
+-- Days we've already asked Garmin for VO2 max, so an interrupted sync resumes.
+CREATE TABLE IF NOT EXISTS vo2max_checked (
+    date  TEXT PRIMARY KEY
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key    TEXT PRIMARY KEY,
     value  TEXT
