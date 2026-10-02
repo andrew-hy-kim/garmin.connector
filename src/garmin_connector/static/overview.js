@@ -90,13 +90,21 @@ function renderTiles() {
     return { n: list.length, meters: list.reduce((t, a) => t + (a.distance_m || 0), 0), secs: list.reduce((t, a) => t + (a.duration_s || 0), 0) };
   };
   const distText = (m) => { const v = dist(m); return fmtNum(v, v >= 100 ? 0 : 1); };
-  const volume = periods.map(([label, from, prevFrom, prevName]) => {
+  // With a plan running, this week's tile gets a ring: minutes done vs planned
+  const planWeek = state.plan?.progress?.find((w) => w.status === "current");
+  const volume = periods.map(([label, from, prevFrom, prevName], i) => {
     const t = total(from);
     const prev = total(prevFrom, from);
-    const sub = t.n ? `${t.n} ${noun(t.n)} · ${fmtTotal(t.secs)}`
+    let sub = t.n ? `${t.n} ${noun(t.n)} · ${fmtTotal(t.secs)}`
       : `Nothing yet${prev.n ? ` · ${prevName} ${distText(prev.meters)} ${u}` : ""}`;
-    return `<div class="tile"><div class="label">${label}</div>
-      <div class="value">${distText(t.meters)}<small>${u}</small></div><div class="sub">${sub}</div></div>`;
+    let ring = "";
+    if (i === 0 && planWeek) {
+      const share = Math.min(1, planWeek.done_minutes / (planWeek.planned_minutes || 1));
+      ring = progressRing(share);
+      sub = `${planWeek.done_minutes} of ${planWeek.planned_minutes} min planned`;
+    }
+    return `<div class="tile ${ring ? "with-ring" : ""}"><div><div class="label">${label}</div>
+      <div class="value">${distText(t.meters)}<small>${u}</small></div><div class="sub">${sub}</div></div>${ring}</div>`;
   });
   const today = state.load.at(-1);
   const weekAgo = state.load.at(-8);
@@ -114,6 +122,15 @@ function renderTiles() {
   ] : [];
   $("tiles").innerHTML = [...volume, ...load].join("");
   $("tiles").classList.toggle("six", volume.length + load.length === 6);
+}
+
+// A small Apple-Activity-style ring for a 0..1 share
+function progressRing(share) {
+  const r = 17, c = 2 * Math.PI * r;
+  return `<svg class="ring" viewBox="0 0 44 44" role="img" aria-label="${Math.round(share * 100)}% of planned minutes">
+    <circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--fill-strong)" stroke-width="6"/>
+    <circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--good)" stroke-width="6" stroke-linecap="round"
+      stroke-dasharray="${(share * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/></svg>`;
 }
 
 // ---------- training load ----------

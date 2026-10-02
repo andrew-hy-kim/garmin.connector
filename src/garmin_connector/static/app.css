@@ -169,6 +169,9 @@ tr.muted .pbar { opacity: .4; }
 .tile .sub { color: var(--text-muted); font-size: 13px; margin-top: 3px; }
 .tile .sub .up { color: var(--good); font-weight: 600; }
 .tile.state .value { color: var(--c); }
+.tile.with-ring { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.tile.with-ring > div { min-width: 0; }
+.tile .ring { width: 40px; height: 40px; flex: none; margin-top: 2px; }
 /* secondary stats under the main tiles of a workout */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); background: var(--surface-1);
   border-radius: 16px; margin: -8px 0 20px; box-shadow: var(--shadow); overflow: hidden; }
