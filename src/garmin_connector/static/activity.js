@@ -413,13 +413,18 @@ function renderSelection() {
   el.innerHTML = parts.filter(([, v]) => v).map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join("") +
     `<button id="clear-sel" style="margin-left:auto">Clear</button>`;
   el.classList.add("show");
-  $("clear-sel").onclick = () => { selection = null; drawOverlay(); renderSelection(); };
+  $("clear-sel").onclick = () => {
+    selection = null; drawOverlay(); renderSelection();
+    if (map && mapLayers.route) map.fitBounds(mapLayers.route.getBounds(), { padding: [12, 12] });
+  };
   updateMapSelection();
 }
 
 function selectRange(i0, i1) {
   selection = [Math.max(0, Math.min(i0, i1)), Math.min(S.n - 1, Math.max(i0, i1))];
   drawOverlay(); renderSelection();
+  // zoom the map to that stretch
+  if (map && mapLayers.selection) map.fitBounds(mapLayers.selection.getBounds(), { padding: [30, 30], maxZoom: 17 });
   $("charts-card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
