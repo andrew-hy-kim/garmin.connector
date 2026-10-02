@@ -403,6 +403,15 @@ button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14p
   .this-week > div.today { outline: 0; background: var(--select); }
 }
 
+/* six summary tiles: one row on wide screens, two rows of three in between (never an orphan) */
+.tiles.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1060px) { .tiles.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* activity table: drop the least important columns as the window narrows */
+@media (max-width: 1060px) { #table-head th:nth-child(8), #rows td:nth-child(8) { display: none; } }
+@media (max-width: 900px) { #table-head th:nth-child(10), #rows td:nth-child(10) { display: none; } }
+@media (max-width: 780px) { #table-head th:nth-child(7), #rows td:nth-child(7), #table-head th:nth-child(9), #rows td:nth-child(9) { display: none; } }
+
 /* activity list on phones: two-line rows instead of a wide table */
 @media (min-width: 601px) { .narrow-only { display: none !important; } }
 @media (max-width: 600px) {
@@ -425,7 +434,7 @@ button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14p
 @media (max-width: 600px) {
   main { padding: 0 12px 40px; }
   .card { padding: 14px; border-radius: 12px; }
-  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 12px; }
+  .tiles, .tiles.six { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 12px; }
   .tile { padding: 12px 14px; }
   .tile .value { font-size: 22px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -113,6 +113,7 @@ function renderTiles() {
     `<div class="tile state" style="--c:var(${st.color})"><div class="label">Form</div><div class="value">${(today.form > 0 ? "+" : "") + today.form.toFixed(0)}</div><div class="sub">${st.label}</div></div>`,
   ] : [];
   $("tiles").innerHTML = [...volume, ...load].join("");
+  $("tiles").classList.toggle("six", volume.length + load.length === 6);
 }
 
 // ---------- training load ----------
