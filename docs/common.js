@@ -155,6 +155,9 @@ function zoneRows(zones, seconds) {
 const LEVEL_LABEL = { good: "Good", info: "Note", warn: "Watch" };
 const LEVEL_ICON = { good: "✓", info: "i", warn: "!" };
 function renderNotes(el, notes, emptyText = "Nothing to flag yet. Notes appear as more runs are analyzed.") {
+  // Things to watch first, then notes, then good news
+  const rank = { warn: 0, info: 1, good: 2 };
+  notes = [...notes].sort((a, b) => (rank[a.level] ?? 1) - (rank[b.level] ?? 1));
   el.innerHTML = notes.length ? notes.map((n) => `<div class="note lvl-${esc(n.level)}">
       <span class="ico" role="img" aria-label="${LEVEL_LABEL[n.level] || ""}">${LEVEL_ICON[n.level] || "i"}</span>
       <div class="t">${esc(n.title)}</div>
