@@ -465,6 +465,14 @@ summary.week-head::-webkit-details-marker { display: none; }
 .milestones .dim + .dim { grid-column: 2 / -1; }
 @media (max-width: 600px) { .milestones > div { grid-template-columns: 1fr auto; } .milestones .dim { grid-column: 1 / -1; } }
 
+/* chart headline: current value and change over the range */
+.headline { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 10px; }
+.headline .big { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+.headline .big small { font-size: 14px; color: var(--text-muted); font-weight: 600; margin-left: 3px; }
+.headline .chg { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.headline .chg.up { color: var(--good); }
+.headline .dim { font-size: 13px; }
+
 /* six summary tiles: one row on wide screens, two rows of three in between (never an orphan) */
 .tiles.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1060px) { .tiles.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

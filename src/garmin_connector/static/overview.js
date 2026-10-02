@@ -448,6 +448,8 @@ function renderEfficiency() {
       ? `${i.raw.a.name}: ${i.parsed.y.toFixed(2)} m/beat at ${Math.round(i.raw.a.avg_hr)} bpm`
       : `30-day average: ${i.parsed.y.toFixed(2)} m/beat`,
   } };
+  $("eff-head").innerHTML = trend.length > 1 ? headline(`${trend.at(-1).y.toFixed(2)}<small>m/beat</small>`,
+    ((trend.at(-1).y / trend[0].y) - 1) * 100, (v) => `${Math.abs(v).toFixed(0)}%`, "30-day average") : "";
   drawChart("efficiency", "efficiency", {
     type: "scatter",
     data: { datasets: [
@@ -456,6 +458,14 @@ function renderEfficiency() {
     ] },
     options: opts,
   });
+}
+
+// Big current value plus its change over the selected range
+function headline(value, change, fmt, what) {
+  const since = state.range === "All" ? "since you started" : `over ${state.range}`;
+  const flat = Math.abs(change) < 0.05;
+  return `<span class="big">${value}</span><span class="chg ${change > 0 && !flat ? "up" : ""}">${flat ? "Steady" : `${change > 0 ? "▲" : "▼"} ${fmt(change)}`} ${since}</span>
+    <span class="dim">${what}</span>`;
 }
 
 // ---------- VO2 max ----------
@@ -470,6 +480,8 @@ function renderVo2() {
     title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
     label: (i) => `${i.dataset.label}: ${i.parsed.y.toFixed(1)}`,
   } };
+  const run = state.vo2.filter((r) => r.sport === "running" && inRange(r.date));
+  $("vo2-head").innerHTML = run.length > 1 ? headline(run.at(-1).value.toFixed(1), run.at(-1).value - run[0].value, (v) => v.toFixed(1), "running") : "";
   drawChart("vo2", "vo2", {
     type: "line",
     data: { datasets: sports.map(([k, label, c]) => ({
