@@ -56,7 +56,7 @@ function buckets() {
     list.push(d);
   }
   const index = new Map(list.map((d, i) => [d.getTime(), i]));
-  const label = (d) => d.toLocaleDateString(undefined, monthly ? { month: "short", year: "2-digit" } : { month: "short", day: "numeric" });
+  const label = (d) => (monthly ? fmtMonthYear(d) : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }));
   return { monthly, list, labels: list.map(label), indexOf: (date) => index.get(keyOf(date).getTime()) };
 }
 
@@ -77,32 +77,41 @@ function setupRange() {
 // ---------- tiles ----------
 function renderTiles() {
   const now = new Date();
+  const week = startOfWeek(now);
   const periods = [
-    ["This week", startOfWeek(now)],
-    ["This month", startOfMonth(now)],
-    ["This year", new Date(now.getFullYear(), 0, 1)],
+    ["This week", week, new Date(week.getFullYear(), week.getMonth(), week.getDate() - 7), "last week"],
+    ["This month", startOfMonth(now), new Date(now.getFullYear(), now.getMonth() - 1, 1), "last month"],
+    ["This year", new Date(now.getFullYear(), 0, 1), new Date(now.getFullYear() - 1, 0, 1), "last year"],
   ];
   const u = Units.get();
-  const volume = periods.map(([label, from]) => {
-    const list = filtered().filter((a) => localDate(a.start_time_local) >= from);
-    const meters = list.reduce((t, a) => t + (a.distance_m || 0), 0);
-    const secs = list.reduce((t, a) => t + (a.duration_s || 0), 0);
+  const noun = (n) => (state.type === "run" ? (n === 1 ? "run" : "runs") : n === 1 ? "activity" : "activities");
+  const total = (from, to) => {
+    const list = filtered().filter((a) => { const d = localDate(a.start_time_local); return d >= from && (!to || d < to); });
+    return { n: list.length, meters: list.reduce((t, a) => t + (a.distance_m || 0), 0), secs: list.reduce((t, a) => t + (a.duration_s || 0), 0) };
+  };
+  const distText = (m) => { const v = dist(m); return fmtNum(v, v >= 100 ? 0 : 1); };
+  const volume = periods.map(([label, from, prevFrom, prevName]) => {
+    const t = total(from);
+    const prev = total(prevFrom, from);
+    const sub = t.n ? `${t.n} ${noun(t.n)} · ${fmtTotal(t.secs)}`
+      : `Nothing yet${prev.n ? ` · ${prevName} ${distText(prev.meters)} ${u}` : ""}`;
     return `<div class="tile"><div class="label">${label}</div>
-      <div class="value">${dist(meters).toFixed(1)} ${u}</div>
-      <div class="sub">${list.length} ${list.length === 1 ? "activity" : "activities"} · ${fmtDuration(secs) || "0:00"}</div></div>`;
+      <div class="value">${distText(t.meters)}<small>${u}</small></div><div class="sub">${sub}</div></div>`;
   });
   const today = state.load.at(-1);
   const weekAgo = state.load.at(-8);
-  const delta = (k) => {
+  const delta = (k, goodWhenUp) => {
     if (!weekAgo) return "";
-    const d = today[k] - weekAgo[k];
-    return `${d >= 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(0)} vs last week`;
+    const d = Math.round(today[k] - weekAgo[k]);
+    if (!d) return "Same as last week";
+    return `<span class="${goodWhenUp && d > 0 ? "up" : ""}">${d > 0 ? "▲" : "▼"} ${Math.abs(d)}</span> vs last week`;
   };
+  const st = today && formState(today);
   const load = today ? [
-    ["Fitness", today.fitness.toFixed(0), delta("fitness")],
-    ["Fatigue", today.fatigue.toFixed(0), delta("fatigue")],
-    ["Form", (today.form > 0 ? "+" : "") + today.form.toFixed(0), formState(today).label],
-  ].map(([l, v, s]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`) : [];
+    `<div class="tile"><div class="label">Fitness</div><div class="value">${today.fitness.toFixed(0)}</div><div class="sub">${delta("fitness", true)}</div></div>`,
+    `<div class="tile"><div class="label">Fatigue</div><div class="value">${today.fatigue.toFixed(0)}</div><div class="sub">${delta("fatigue")}</div></div>`,
+    `<div class="tile state" style="--c:var(${st.color})"><div class="label">Form</div><div class="value">${(today.form > 0 ? "+" : "") + today.form.toFixed(0)}</div><div class="sub">${st.label}</div></div>`,
+  ] : [];
   $("tiles").innerHTML = [...volume, ...load].join("");
 }
 
@@ -111,7 +120,7 @@ function renderLoad() {
   const startDay = isoDay(rangeStart());
   const recent = state.load.filter((d) => d.date >= startDay);
   const long = recent.length > 400;
-  const label = (d) => new Date(d.date + "T12:00").toLocaleDateString(undefined, long ? { month: "short", year: "2-digit" } : { month: "short", day: "numeric" });
+  const label = (d) => (long ? fmtMonthYear(new Date(d.date + "T12:00")) : new Date(d.date + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }));
   const opts = chartBase();
   opts.plugins.tooltip = { callbacks: {
     title: (i) => new Date(recent[i[0].dataIndex].date + "T12:00").toLocaleDateString(undefined, { dateStyle: "medium" }),
@@ -120,14 +129,19 @@ function renderLoad() {
   drawChart("load", "load", {
     type: "line",
     data: { labels: recent.map(label), datasets: [
-      { label: "Fitness", data: recent.map((d) => d.fitness), borderColor: cssVar("--fitness"), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 },
-      { label: "Fatigue", data: recent.map((d) => d.fatigue), borderColor: cssVar("--fatigue"), borderWidth: long ? 1 : 2, pointRadius: 0, pointHoverRadius: 4 },
+      { label: "Fitness", data: recent.map((d) => d.fitness), borderColor: cssVar("--fitness"), backgroundColor: cssVar("--fitness") + "1f",
+        fill: "origin", borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 4, order: 0 },
+      // Fatigue jumps every workout; drawn lighter so the slower fitness trend stays readable
+      { label: "Fatigue", data: recent.map((d) => d.fatigue), borderColor: cssVar("--fatigue") + "b3", borderWidth: long ? 1 : 1.5,
+        pointRadius: 0, pointHoverRadius: 4, order: 1 },
     ] },
     options: opts,
   });
 
+  // Fitness needs about 6 weeks of history before form means anything; grey out that stretch.
+  const warmupEnd = state.load.length ? isoDay(new Date(new Date(state.load[0].date + "T12:00").getTime() + 42 * 864e5)) : "";
   // Daily form bars, or weekly averages over long ranges so bars stay readable.
-  let bars = recent;
+  let bars = recent.map((d) => ({ ...d, warmup: d.date < warmupEnd }));
   if (long) {
     const weeks = new Map();
     for (const d of recent) {
@@ -136,21 +150,21 @@ function renderLoad() {
       w.form += d.form; w.fitness += d.fitness; w.n += 1;
       weeks.set(k, w);
     }
-    bars = [...weeks.values()].map((w) => ({ date: w.date, form: w.form / w.n, fitness: w.fitness / w.n }));
+    bars = [...weeks.values()].map((w) => ({ date: w.date, form: w.form / w.n, fitness: w.fitness / w.n, warmup: w.date < warmupEnd }));
   }
   const formOpts = chartBase();
   formOpts.plugins.tooltip = { callbacks: {
     title: (i) => (long ? "Week of " : "") + new Date(bars[i[0].dataIndex].date + "T12:00").toLocaleDateString(undefined, { dateStyle: "medium" }),
     label: (i) => `Form: ${i.parsed.y > 0 ? "+" : ""}${i.parsed.y.toFixed(0)}`,
-    afterLabel: (i) => formState(bars[i.dataIndex]).label,
+    afterLabel: (i) => (bars[i.dataIndex].warmup ? "Still building history, so form isn't meaningful yet" : formState(bars[i.dataIndex]).label),
   } };
   formOpts.scales.x.ticks.display = false;
-  $("form-legend").innerHTML = "<span style='color:var(--text-secondary)'>Form:</span>" +
+  $("form-legend").innerHTML = "<span class='lbl'>Form</span>" +
     FORM_STATES.map((st) => `<span style="--c:var(${st.color})">${st.label}</span>`).join("");
   drawChart("form", "form", {
     type: "bar",
     data: { labels: bars.map((d) => d.date), datasets: [{ label: "Form", data: bars.map((d) => d.form),
-      backgroundColor: bars.map((d) => cssVar(formState(d).color)), barPercentage: 1, categoryPercentage: 0.9 }] },
+      backgroundColor: bars.map((d) => (d.warmup ? cssVar("--surface-3") : cssVar(formState(d).color))), barPercentage: 1, categoryPercentage: 0.9 }] },
     options: formOpts,
   });
 }
@@ -194,10 +208,12 @@ function renderCompare() {
   const rows = [["Now", state.load.at(-1)], ["3 months ago", at(91)], ["6 months ago", at(182)], ["1 year ago", at(365)],
     ["2 years ago", at(730)], ["3 years ago", at(1095)], ["5 years ago", at(1826)]].filter(([, d]) => d);
   rows.push([`Peak (${new Date(peak.date + "T12:00").toLocaleDateString(undefined, { month: "short", year: "numeric" })})`, peak]);
-  const max = peak.fitness || 1;
-  $("compare").innerHTML = rows.map(([label, d]) => `<tr><td>${label}</td>
-    <td class="barcell"><div class="bar" style="width:${Math.max(2, (d.fitness / max) * 100)}%"></div></td>
-    <td class="num"><b>${d.fitness.toFixed(0)}</b></td></tr>`).join("");
+  const now = Math.round(state.load.at(-1).fitness);
+  $("compare").innerHTML = rows.map(([label, d], i) => {
+    const diff = Math.round(d.fitness) - now;
+    const vs = i === 0 ? "" : !diff ? "same as now" : `${Math.abs(diff)} ${diff > 0 ? "higher" : "lower"} than now`;
+    return `<tr><td>${label}</td><td class="num"><b>${d.fitness.toFixed(0)}</b></td><td class="delta">${vs}</td></tr>`;
+  }).join("");
 }
 
 // ---------- volume ----------
@@ -223,7 +239,7 @@ function renderVolume() {
 }
 
 // ---------- intensity mix ----------
-const MIX = [["Easy", "--z1"], ["Tempo", "--z3"], ["Threshold", "--z4"], ["VO2 max", "--z5"]];
+const MIX = [["Easy", "--z2"], ["Tempo", "--z3"], ["Threshold", "--z4"], ["VO2 max", "--z5"]];
 function renderMix() {
   const b = buckets();
   const mins = MIX.map(() => b.list.map(() => 0));
@@ -258,7 +274,7 @@ function timeAxis(opts) {
   opts.scales.x.type = "linear";
   opts.scales.x.min = rangeStart().getTime();
   opts.scales.x.max = Date.now();
-  opts.scales.x.ticks.callback = (v) => new Date(v).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+  opts.scales.x.ticks.callback = (v) => fmtMonthYear(new Date(v));
 }
 
 // ---------- efficiency ----------
@@ -322,15 +338,18 @@ function renderRecords() {
   const entries = Object.entries(state.records);
   const showRange = rangeDays() != null;
   $("range-best-head").hidden = !showRange;
-  $("range-best-head").textContent = `Best in last ${state.range}`;
+  $("range-best-head").textContent = `Best, ${state.range}`;
   $("records").innerHTML = entries.length ? entries.map(([label, list]) => {
     const best = list[0];
     const inR = list.find((e) => inRange(e.date));
-    return `<tr class="clickable" data-id="${best.activity_id}">
+    const rangeCell = !inR ? `<span class="dim">–</span>`
+      : inR === best ? `<span class="dim">same</span>`
+      : `${fmtDuration(inR.seconds)} <span class="dim when">${fmtMonthYear(localDate(inR.date))}</span>`;
+    return `<tr class="clickable" tabindex="0" data-id="${best.activity_id}">
       <td>${esc(label)}</td><td class="num"><b>${fmtDuration(best.seconds)}</b></td>
       <td class="num">${fmtPace(best.meters / best.seconds)}</td>
-      <td>${fmtDate(best.date, { month: "short", day: "numeric", year: "2-digit" })}</td>
-      ${showRange ? `<td class="num">${inR ? `${fmtDuration(inR.seconds)} <span class="hint">${fmtDate(inR.date, { month: "short", year: "2-digit" })}</span>` : "–"}</td>` : ""}</tr>`;
+      <td>${fmtDate(best.date)}</td>
+      ${showRange ? `<td class="num">${rangeCell}</td>` : ""}</tr>`;
   }).join("") : `<tr><td colspan="5" class="empty">Records appear after your runs are synced and analyzed.</td></tr>`;
 }
 
@@ -344,17 +363,24 @@ function renderSettings() {
     const source = s.sources[key];
     // Only values you set go in the box; Garmin's and estimates show as the placeholder.
     input.value = source === "you" ? Math.round(s[key]) : "";
-    const label = { garmin: "Garmin", estimated: "est.", default: "default" }[source];
-    input.placeholder = s[key] && label ? `${Math.round(s[key])} (${label})` : "not set";
+    input.placeholder = s[key] ? Math.round(s[key]) : "not set";
+    const src = input.closest("label").querySelector(".src");
+    if (src) src.textContent = { garmin: "from Garmin", estimated: "estimated", default: "default", you: "set by you" }[source] || "";
   }
   form.elements.zone_system.value = s.zone_system || "threshold";
   if (PHONE) renderPhoneZoneChoice(form, s);
-  $("zones").innerHTML = `<p class="hint" style="margin-top:12px">${zoneBasis(s)}.</p>` +
-    s.zones.map((z, i) => {
-      const range = i === 0 ? `< ${z.high}` : i === s.zones.length - 1 ? `≥ ${z.low}` : `${z.low}–${z.high - 1}`;
-      return `<div class="zone-row"><div>Z${i + 1} ${esc(z.name)}</div>
-        <div class="bar"><div style="width:100%;background:var(--z${i + 1})"></div></div><div class="val">${range} bpm</div></div>`;
-    }).join("");
+  // One strip with each zone as wide as its heart-rate span (resting HR to max HR)
+  const last = s.zones.length - 1;
+  const spans = s.zones.map((z, i) => {
+    const lo = i === 0 ? Math.min(z.high - 10, s.resting_hr || z.high - 40) : z.low;
+    const hi = i === last ? Math.max(z.low + 5, s.max_hr || z.low + 15) : z.high;
+    return Math.max(1, hi - lo);
+  });
+  $("zones").className = "zones compact";
+  $("zones").innerHTML = `<p class="hint" style="margin:14px 0 0">${zoneBasis(s)}.</p>
+    <div class="zone-strip" aria-hidden="true">${spans.map((w, i) => `<div style="flex:${w};--c:var(--z${i + 1})"></div>`).join("")}</div>` +
+    s.zones.map((z, i) => `<div class="zone-row"><div><span class="swatch" style="--c:var(--z${i + 1})"></span>Z${i + 1} ${esc(z.name)}</div>
+        <div class="bar"></div><div class="val">${zoneRange(s.zones, i)} bpm</div></div>`).join("");
 }
 
 // On the phone, heart-rate values are view-only but the zone system can be switched here.
@@ -449,19 +475,19 @@ function renderTable() {
   const meters = all.reduce((s, a) => s + (a.distance_m || 0), 0);
   const secs = all.reduce((s, a) => s + (a.duration_s || 0), 0);
   $("f-summary").textContent = all.length
-    ? `${all.length} ${all.length === 1 ? "activity" : "activities"} · ${fmtDist(meters, Units.get(), 1)} · ${fmtDuration(secs)}`
+    ? `${fmtNum(all.length)} ${all.length === 1 ? "activity" : "activities"} · ${fmtNum(dist(meters), 1)} ${Units.get()} · ${fmtTotal(secs)}`
     : "No activities match these filters.";
   document.querySelectorAll("#table-head th.sortable").forEach((th) =>
     th.setAttribute("aria-sort", th.dataset.sort === t.sort ? (t.dir > 0 ? "ascending" : "descending") : "none"));
-  $("rows").innerHTML = list.length ? list.map((a) => `<tr class="${a.has_streams ? "clickable" : ""}" data-id="${a.activity_id}">
+  $("rows").innerHTML = list.length ? list.map((a) => `<tr class="${a.has_streams ? "clickable" : ""}" ${a.has_streams ? 'tabindex="0"' : ""} data-id="${a.activity_id}">
       <td>${fmtDate(a.start_time_local)}</td>
       <td class="name">${esc(a.name)}</td>
-      <td>${a.workout_label ? tagHtml(a.workout_label, QUALITY.has(a.workout_type)) : esc(prettyType(a.activity_type))}</td>
+      <td>${a.workout_label ? tagHtml(a.workout_label, QUALITY.has(a.workout_type), a.workout_type) : `<span class="dim">${esc(prettyType(a.activity_type))}</span>`}</td>
       <td class="num">${fmtDist(a.distance_m)}</td>
       <td class="num">${fmtDuration(a.duration_s)}</td>
       <td class="num">${fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)}</td>
       <td class="num">${a.avg_hr ? Math.round(a.avg_hr) : ""}</td>
-      <td>${a.has_streams ? `<span class="badge">${a.external_hr ? "Arm band / strap" : "Wrist"}</span>` : ""}</td>
+      <td>${a.has_streams ? `<span class="badge">${a.external_hr ? "Arm band" : "Wrist"}</span>` : ""}</td>
       <td class="num">${a.trimp != null ? Math.round(a.trimp) : ""}</td>
       <td class="num">${a.decoupling_pct != null ? a.decoupling_pct.toFixed(1) + "%" : ""}</td>
     </tr>`).join("")
@@ -513,6 +539,10 @@ for (const id of ["rows", "records"]) {
     const row = e.target.closest("tr.clickable");
     if (row) location.href = pageUrl("activity", { id: row.dataset.id });
   });
+  $(id).addEventListener("keydown", (e) => {
+    const row = e.target.closest("tr.clickable");
+    if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); location.href = pageUrl("activity", { id: row.dataset.id }); }
+  });
 }
 
 // ---------- page ----------
@@ -548,8 +578,9 @@ function renderWeekPlan() {
       ${esc(p.goal_label)}, week ${w.week} of ${p.weeks.length}</h2><span class="spacer"></span><a href="${pageUrl("plan")}">Full plan →</a></div>
     <p class="hint" style="margin:0">${esc(w.focus)} · ${w.minutes} min planned${pr.status === "upcoming" ? ""
       : ` · ${pr.done_minutes} min done, ${pr.done_runs}/${pr.planned_runs} runs`}${finished ? ". Pick a new goal on the plan page." : ""}</p>
-    <div class="this-week">${w.days.map((d, k) => `<div class="${d.type === "rest" ? "rest" : ""} ${!upcoming && !finished && k === todayIdx ? "today" : ""}">
-      <b>${d.day}</b>${esc(d.title)}${d.minutes ? `<br>${d.minutes} min` : ""}</div>`).join("")}</div>`;
+    <div class="this-week">${w.days.map((d, k) => `<div class="${d.type === "rest" ? "rest" : ""} ${!upcoming && !finished && k === todayIdx ? "today" : ""}"
+        style="${d.type === "rest" ? "" : `--c:${typeColor(d.type)}`}">
+      <b>${d.day}</b><span>${esc(d.title)}</span><span class="m">${d.minutes ? `${d.minutes} min` : ""}</span></div>`).join("")}</div>`;
 }
 
 function render() {

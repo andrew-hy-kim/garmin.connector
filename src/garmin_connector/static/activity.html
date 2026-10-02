@@ -4,24 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Workout Detail</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpolyline points='5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/app.css">
 <link rel="stylesheet" href="/static/leaflet.css">
 </head>
 <body>
 <main>
-  <header>
-    <div style="margin-right:auto">
-      <a href="/">← All activities</a>
-      <h1 id="title" style="margin-top:6px">Loading…</h1>
-      <div class="hint" id="subtitle" style="margin:2px 0 0"></div>
-      <div id="tagline" style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Running dashboard home"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2a78d6"/><polyline points="5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Running</a>
+    <nav class="tabs" aria-label="Pages"><a href="/">Dashboard</a><a href="/plan">Training plan</a></nav>
+    <div class="controls">
+      <div class="seg" id="units" role="group" aria-label="Units"></div>
     </div>
-    <div class="seg" id="units" aria-label="Units"></div>
     <div id="status" role="status" aria-live="polite"></div>
   </header>
+  <div class="page-head">
+    <a class="back" href="/">← All activities</a>
+    <h1 id="title">Loading…</h1>
+    <div class="sub" id="subtitle"></div>
+    <div id="tagline" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
+  </div>
 
   <div id="warnings"></div>
   <section class="tiles" id="tiles"></section>
+  <section class="stats" id="stats" hidden></section>
 
   <section class="card" id="notes-card">
     <h2>Coach notes</h2>
@@ -33,12 +39,11 @@
     <div class="toolbar">
       <h2 style="margin:0">Workout timeline</h2>
       <span class="spacer"></span>
-      <span class="hint" style="margin:0">X axis</span>
+      <span class="hint wide-only" style="margin:0">X axis</span>
       <div class="seg" id="xaxis">
         <button data-x="time" aria-pressed="true">Time</button><button data-x="distance" aria-pressed="false">Distance</button>
       </div>
     </div>
-    <p class="hint">Hover or tap to read every metric at that moment. Drag across a stretch (or tap a lap or split) to analyze just that part.</p>
     <div class="readout" id="readout"></div>
     <div class="panels" id="panels"></div>
     <div class="selection" id="selection"></div>
@@ -53,6 +58,7 @@
     <div class="card">
       <h2>Route</h2>
       <p class="hint" id="map-hint">Colored by heart-rate zone.</p>
+      <div class="legend" id="map-legend"></div>
       <div id="map"></div>
     </div>
   </section>

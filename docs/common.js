@@ -57,6 +57,16 @@ const isRun = (t) => /run/.test(t || "");
 // "2026-09-12 07:00:00" or a bare "2026-09-12" (read as local noon, so it never shifts a day)
 const localDate = (s) => new Date(s.length === 10 ? `${s}T12:00:00` : s.replace(" ", "T"));
 const fmtDate = (s, opts = { dateStyle: "medium" }) => localDate(s).toLocaleDateString(undefined, opts);
+// "Oct '25": month and year that can't be mistaken for a day of the month
+const fmtMonthYear = (d) => `${d.toLocaleDateString(undefined, { month: "short" })} '${String(d.getFullYear()).slice(2)}`;
+const fmtNum = (v, digits = 0) => Number(v).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+// Totals of time: "42m", "1h 42m", "161h"
+function fmtTotal(s) {
+  s = Math.round(s || 0);
+  const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+  if (!h) return `${m}m`;
+  return h >= 100 ? `${fmtNum(h)}h` : `${h}h ${String(m).padStart(2, "0")}m`;
+}
 
 function unitsToggle(el, onChange) {
   el.innerHTML = `<button data-u="mi">mi</button><button data-u="km">km</button>`;
@@ -78,6 +88,14 @@ function setStatus(msg, isError = false) {
 
 // Chart.js defaults that follow the theme
 function chartBase() {
+  if (window.Chart) {
+    const t = Chart.defaults.plugins.tooltip;
+    Object.assign(t, { backgroundColor: cssVar("--surface-1"), titleColor: cssVar("--text-primary"), bodyColor: cssVar("--text-secondary"),
+      borderColor: cssVar("--border"), borderWidth: 1, padding: 10, cornerRadius: 8, boxPadding: 4, usePointStyle: true,
+      titleFont: { weight: "600" }, caretSize: 5 });
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+    Chart.defaults.font.size = 12;
+  }
   return {
     responsive: true, maintainAspectRatio: false, animation: false,
     interaction: { mode: "index", intersect: false },
@@ -98,16 +116,20 @@ function zoneBasis(s) {
   return `Zones built around your threshold HR of ${Math.round(s.lthr)}${est}`;
 }
 
+const zoneRange = (zones, i) => {
+  const z = zones[i];
+  return i === 0 ? `< ${z.high}` : i === zones.length - 1 ? `≥ ${z.low}` : `${z.low}–${z.high - 1}`;
+};
+
 function zoneRows(zones, seconds) {
   const total = seconds.reduce((a, b) => a + b, 0) || 1;
   const maxShare = Math.max(...seconds) / total || 1;
   return zones.map((z, i) => {
     const share = seconds[i] / total;
-    const range = i === 0 ? `< ${z.high}` : i === zones.length - 1 ? `≥ ${z.low}` : `${z.low}–${z.high - 1}`;
     return `<div class="zone-row">
-      <div>Z${i + 1} ${esc(z.name)}<div class="range">${range} bpm</div></div>
+      <div><span class="swatch" style="--c:var(--z${i + 1})"></span>Z${i + 1} ${esc(z.name)}<div class="range">${zoneRange(zones, i)} bpm</div></div>
       <div class="bar" role="img" aria-label="${Math.round(share * 100)}%"><div style="width:${(share / maxShare) * 100}%;background:var(--z${i + 1})"></div></div>
-      <div class="val">${fmtDuration(seconds[i])} · ${Math.round(share * 100)}%</div>
+      <div class="val">${fmtDuration(seconds[i])} · <b>${Math.round(share * 100)}%</b></div>
     </div>`;
   }).join("");
 }
@@ -152,12 +174,12 @@ async function setupAiBox(el, scope, activityId) {
       const r = data.review;
       el.innerHTML = r
         ? `<div class="md">${markdown(r.text)}</div><div class="meta">Written by Claude on ${esc(r.created_at)} UTC. AI can make mistakes; it only sees the numbers here.</div>`
-        : `<p class="hint" style="margin:0">Claude reviews you ask for in the dashboard on your Mac show up here after the next sync.</p>`;
+        : "";
       return;
     }
     if (!data.configured) {
-      el.innerHTML = `<p class="hint" style="margin:0">Want a written review from Claude? Add an Anthropic API key once with
-        <code>garmin-connector set-api-key</code>, then reload. Your workout summaries (no GPS) are only sent when you click the button, and each review costs a few cents.</p>`;
+      el.innerHTML = `<details><summary>Get a written coach's review from Claude</summary><p class="hint">Add an Anthropic API key once with
+        <code>garmin-connector set-api-key</code>, then reload. Your workout summaries (no GPS) are only sent when you click the button, and each review costs a few cents.</p></details>`;
       return;
     }
     const r = data.review;
@@ -177,5 +199,12 @@ async function setupAiBox(el, scope, activityId) {
   try { show(await getJSON(`/api/ai/review?${params()}`)); } catch (err) { el.innerHTML = ""; }
 }
 
-const tagHtml = (label, quality) => (label ? `<span class="tag ${quality ? "q" : ""}">${esc(label)}</span>` : "");
+// Workout type -> the HR zone it mostly trains, so tags, plan days and charts share one color language.
+const TYPE_ZONE = {
+  recovery: 1, easy: 2, easy_strides: 2, long: 2, progression: 3, tempo: 3, threshold: 4, intervals_threshold: 4,
+  fartlek: 4, intervals_vo2: 5, speed: 5, race: 5, vo2: 5, hills: 5,
+};
+const typeColor = (type) => (TYPE_ZONE[type] ? `var(--z${TYPE_ZONE[type]})` : "var(--z1)");
+const tagHtml = (label, quality, type) => (label
+  ? `<span class="tag ${quality ? "q" : ""}" style="--c:${typeColor(type)}">${esc(label)}</span>` : "");
 const QUALITY = new Set(["race", "progression", "tempo", "threshold", "intervals_threshold", "intervals_vo2", "speed", "fartlek"]);

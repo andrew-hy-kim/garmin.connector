@@ -75,13 +75,14 @@ function renderPlan() {
     const prog = S.progress[i];
     const current = prog.status === "current";
     const done = prog.status === "upcoming" ? "" : `<span class="done">${prog.status === "current" ? "So far" : "Done"}:
-      ${prog.done_minutes} of ${prog.planned_minutes} min · ${prog.done_runs}/${prog.planned_runs} runs${prog.planned_quality ? ` · ${prog.done_quality}/${prog.planned_quality} workouts` : ""}</span>`;
+      <b>${prog.done_minutes}</b> of ${prog.planned_minutes} min · ${prog.done_runs}/${prog.planned_runs} runs${prog.planned_quality ? ` · ${prog.done_quality}/${prog.planned_quality} workouts` : ""}</span>
+      <div class="progress" role="img" aria-label="${Math.round(Math.min(1, prog.done_minutes / (prog.planned_minutes || 1)) * 100)}% of planned minutes done"><div style="width:${Math.min(100, (prog.done_minutes / (prog.planned_minutes || 1)) * 100)}%"></div></div>`;
     const days = w.days.map((d, k) => {
       const iso = addDays(w.start, k);
       const tgt = [d.hr ? `HR ${d.hr}` : "", paceText(d.speed, d.type)].filter(Boolean).join(" · ");
-      return `<div class="day ${d.type === "rest" ? "rest" : ""} ${iso === today ? "today" : ""}">
-        <div class="dname">${d.day}<div class="hint" style="margin:0;font-weight:400">${shortDate(iso)}</div></div>
-        <div class="what"><b>${HARD.has(d.type) ? tagHtml(d.title, true) : esc(d.title)}</b>
+      return `<div class="day ${d.type === "rest" ? "rest" : ""} ${iso === today ? "today" : ""}" style="--c:${typeColor(d.type)}">
+        <div class="dname">${d.day}<div class="date">${shortDate(iso)}</div></div>
+        <div class="what"><b>${esc(d.title)}${HARD.has(d.type) ? ` <span class="badge">Workout</span>` : ""}</b>
           ${d.type === "rest" ? "" : `<div class="d">${esc(d.details)}</div>${tgt ? `<div class="tgt">${esc(tgt)}</div>` : ""}`}</div>
         <div class="mins">${d.minutes ? `${d.minutes} min` : ""}</div></div>`;
     }).join("");

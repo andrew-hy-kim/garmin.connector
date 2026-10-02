@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Running Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpolyline points='5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="app.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -16,17 +17,18 @@
 </head>
 <body>
 <main>
-  <header>
-    <div style="margin-right:auto">
-      <nav class="nav"><a href="index.html" aria-current="page">Dashboard</a><a href="plan.html">Training plan</a></nav>
-      <h1 style="margin-top:6px">Running Dashboard</h1>
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="Running dashboard home"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2a78d6"/><polyline points="5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Running</a>
+    <nav class="tabs" aria-label="Pages"><a href="index.html" aria-current="page">Dashboard</a><a href="plan.html">Training plan</a></nav>
+    <div class="controls">
+      <label>Show <select id="type"></select></label>
+      <div class="seg" id="range" role="group" aria-label="Time range for charts"></div>
+      <div class="seg" id="units" role="group" aria-label="Units"></div>
+      <button id="sync" class="primary server-only">Sync now</button>
     </div>
-    <label>Show <select id="type"></select></label>
-    <div class="seg" id="range" aria-label="Time range for charts"></div>
-    <div class="seg" id="units" aria-label="Units"></div>
-    <button id="sync" class="primary server-only">Sync now</button>
     <div id="status" role="status" aria-live="polite"></div>
   </header>
+  <h1 class="sr-only">Running dashboard</h1>
 
   <section class="tiles" id="tiles"></section>
 
@@ -88,15 +90,15 @@
         <tbody id="records"></tbody>
       </table></div>
     </div>
-    <div class="card">
+    <div class="card" id="hr-settings">
       <h2>Heart-rate settings</h2>
       <p class="hint server-only">These set your zones, workout tags and training load. Each sync pulls them from your Garmin account; anything Garmin doesn't have is estimated from your data. Type a value only to override Garmin; clear the box to go back.</p>
       <p class="hint phone-only" id="phone-zone-note"></p>
-      <form id="settings" class="stack" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));align-items:end">
-        <label>Max HR<br><input type="number" name="max_hr" min="120" max="230"></label>
-        <label>Resting HR<br><input type="number" name="resting_hr" min="30" max="100"></label>
-        <label>Threshold HR<br><input type="number" name="lthr" min="100" max="220"></label>
-        <label>Zones<br><select name="zone_system" style="width:100%">
+      <form id="settings" class="settings-form">
+        <label><span>Max HR</span><input type="number" name="max_hr" min="120" max="230" inputmode="numeric"><span class="src"></span></label>
+        <label><span>Resting HR</span><input type="number" name="resting_hr" min="30" max="100" inputmode="numeric"><span class="src"></span></label>
+        <label><span>Threshold HR</span><input type="number" name="lthr" min="100" max="220" inputmode="numeric"><span class="src"></span></label>
+        <label>Zones<select name="zone_system">
           <option value="threshold" title="Built around your threshold HR, like COROS">Threshold</option>
           <option value="garmin" title="Exactly the zones set in Garmin Connect">Garmin</option>
         </select></label>

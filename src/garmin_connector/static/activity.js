@@ -113,33 +113,45 @@ function renderHeader() {
 
 function renderTagline() {
   const w = D.metrics?.workout;
-  $("tagline").innerHTML = w ? `${tagHtml(w.label, w.quality)}<span class="hint" style="margin:0">${esc(w.reason)}</span>` : "";
+  $("tagline").innerHTML = w ? `${tagHtml(w.label, w.quality, w.type)}<span class="hint" style="margin:0">${esc(w.reason)}</span>` : "";
 }
+
+// "6.56 mi" -> "6.56<small>mi</small>", so the number leads and the unit stays quiet
+const withUnit = (text) => {
+  const m = String(text || "").match(/^(\S+)\s+(.+)$/);
+  return m ? `${m[1]}<small>${esc(m[2])}</small>` : esc(text || "–");
+};
 
 function renderTiles() {
   const a = D.activity, m = D.metrics || {};
   const whole = S ? summarize(0, S.n - 1) : null;
   const run = isRun(a.activity_type);
   const drift = m.decoupling_pct;
-  const tiles = [
-    ["Distance", fmtDist(a.distance_m), ""],
-    ["Moving time", fmtDuration(whole ? whole.moving : a.moving_duration_s || a.duration_s), `Elapsed ${fmtDuration(whole ? whole.time : a.duration_s)}`],
-    [run ? "Avg pace" : "Avg speed", fmtPaceOrSpeed(whole ? whole.speed : a.avg_speed_mps, a.activity_type),
+  const moving = whole ? whole.moving : a.moving_duration_s || a.duration_s;
+  const elapsed = whole ? whole.time : a.duration_s;
+  const hero = [
+    ["Distance", withUnit(fmtDist(a.distance_m)), ""],
+    ["Moving time", esc(fmtDuration(moving)), elapsed - moving > 30 ? `Elapsed ${fmtDuration(elapsed)}` : ""],
+    [run ? "Avg pace" : "Avg speed", withUnit(fmtPaceOrSpeed(whole ? whole.speed : a.avg_speed_mps, a.activity_type)),
       run && whole?.gap ? `GAP ${fmtPace(whole.gap)}` : ""],
-    ["Avg heart rate", a.avg_hr ? `${Math.round(whole?.hr || a.avg_hr)} bpm` : "–", // cleaned stream max, so a one-second wrist spike doesn't show up as your max
-      whole?.hrMax || a.max_hr ? `Max ${Math.round(whole?.hrMax || a.max_hr)}` : ""],
-    ["Cadence", whole?.cadence ? `${Math.round(whole.cadence)} spm` : "–", ""],
-    ["Elevation gain", fmtElev(a.elevation_gain_m) || "–", ""],
-    ["Training load", m.trimp != null ? Math.round(m.trimp) : "–",
-      a.aerobic_te ? `Aerobic TE ${a.aerobic_te.toFixed(1)} · Anaerobic ${a.anaerobic_te?.toFixed(1) ?? "–"}` : ""],
+    // cleaned stream max, so a one-second wrist spike doesn't show up as your max
+    ["Avg heart rate", a.avg_hr ? withUnit(`${Math.round(whole?.hr || a.avg_hr)} bpm`) : "–",
+      whole?.hrMax || a.max_hr ? `Max ${Math.round(whole?.hrMax || a.max_hr)} bpm` : ""],
   ];
-  if (drift != null) {
-    tiles.push(["HR drift", `${drift.toFixed(1)}%`,
-      drift < 5 ? "Steady; strong aerobic base" : drift < 8 ? "Some drift" : "High drift (heat, fatigue or too fast)"]);
-  }
-  if (m.efficiency) tiles.push(["Efficiency", `${m.efficiency.toFixed(2)} m/beat`, "Distance per heartbeat"]);
-  $("tiles").innerHTML = tiles.map(([l, v, sub]) =>
-    `<div class="tile"><div class="label">${l}</div><div class="value">${v || "–"}</div><div class="sub">${esc(sub)}</div></div>`).join("");
+  const stats = [
+    ["Cadence", whole?.cadence ? withUnit(`${Math.round(whole.cadence)} spm`) : null, ""],
+    ["Elevation gain", a.elevation_gain_m != null ? withUnit(fmtElev(a.elevation_gain_m)) : null, ""],
+    ["Training load", m.trimp != null ? String(Math.round(m.trimp)) : null,
+      a.aerobic_te ? `Aerobic TE ${a.aerobic_te.toFixed(1)} · Anaerobic ${a.anaerobic_te?.toFixed(1) ?? "–"}` : ""],
+    ["HR drift", drift != null ? `${drift.toFixed(1)}%` : null,
+      drift == null ? "" : drift < 5 ? "Steady: strong aerobic base" : drift < 8 ? "Some drift" : "High (heat, fatigue or too fast)"],
+    ["Efficiency", m.efficiency ? withUnit(`${m.efficiency.toFixed(2)} m/beat`) : null, "Distance per heartbeat"],
+  ].filter(([, v]) => v != null);
+  const cell = ([l, v, sub]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v || "–"}</div><div class="sub">${esc(sub)}</div></div>`;
+  $("tiles").innerHTML = hero.map(cell).join("");
+  $("stats").hidden = !stats.length;
+  $("stats").innerHTML = stats.map(([l, v, sub]) =>
+    `<div><div class="label">${l}</div><div class="value">${v}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div>`).join("");
 }
 
 function isIntervalWorkout() {
@@ -353,7 +365,7 @@ function drawOverlay() {
 
 function renderReadout() {
   const i = hoverIdx;
-  if (i == null) { $("readout").innerHTML = `<span>${matchMedia("(hover: hover)").matches ? "Hover over" : "Tap or drag on"} the charts</span>`; return; }
+  if (i == null) { $("readout").innerHTML = `<span class="idle">${matchMedia("(hover: hover)").matches ? "Hover to read every metric at that moment. Drag across a stretch, or click a lap or split, to analyze just that part." : "Tap to read every metric at that moment. Drag sideways, or tap a lap or split, to analyze just that part."}</span>`; return; }
   const raw = D.streams, u = Units.get();
   const parts = [
     ["Time", fmtDuration(S.t[i])],
@@ -442,7 +454,7 @@ function renderZones() {
   const m = D.metrics;
   if (!m?.zone_seconds) { $("zones").innerHTML = `<p class="empty">No heart-rate data.</p>`; return; }
   $("zones").innerHTML = zoneRows(D.zones, m.zone_seconds);
-  $("zones-hint").textContent = `${zoneBasis(D.settings)}. You can change these on the overview page.`;
+  $("zones-hint").innerHTML = `${esc(zoneBasis(D.settings))}. <a href="${pageUrl("dashboard")}#hr-settings">Change zones</a>`;
 }
 
 function renderLaps() {
@@ -473,6 +485,12 @@ function renderLaps() {
       <td class="num">${l.max_hr ? Math.round(l.max_hr) : ""}</td>
       <td class="num">${l.avg_cadence ? Math.round(l.avg_cadence) : ""}</td></tr>`;
   }).join("");
+  // Drop columns the watch didn't record for any lap
+  const table = $("laps").closest("table");
+  [[7, "max_hr"], [8, "avg_cadence"]].forEach(([col, key]) => {
+    const show = laps.some((l) => l[key]);
+    table.querySelectorAll(`tr > :nth-child(${col})`).forEach((c) => { c.style.display = show ? "" : "none"; });
+  });
 }
 
 function renderSplits() {
@@ -562,6 +580,7 @@ function renderMap() {
   flush();
   group.addTo(map);
   mapLayers.route = group;
+  $("map-legend").innerHTML = D.zones.map((z, i) => `<span style="--c:var(--z${i + 1})">Z${i + 1}</span>`).join("");
   map.fitBounds(group.getBounds(), { padding: [12, 12] });
 }
 
