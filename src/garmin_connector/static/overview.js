@@ -185,18 +185,22 @@ function renderExplain() {
     if (freshDay == null && (f - a) / f >= 0.10) freshDay = d;
   }
   const sign = (v) => `${v > 0 ? "+" : ""}${v.toFixed(0)}`;
+  const scale = FORM_STATES.map((s) => `<div style="--c:var(${s.color})" class="${s === st ? "now" : ""}"><b>${s.label}</b>${
+    s.key === "fresh" ? "above +10%" : s.key === "neutral" ? "−10% to +10%" : s.key === "productive" ? "−30% to −10%" : "below −30%"} of fitness</div>`).join("");
   $("explain").innerHTML = `
-    <div><b>Fitness ${today.fitness.toFixed(0)}</b> is the average training load you've carried per day over about
-      6 weeks: the endurance you've banked.${trend == null ? "" : Math.abs(trend) < 1 ? " It's about the same as 6 weeks ago."
-        : ` It's ${trend > 0 ? "up" : "down"} ${Math.abs(trend).toFixed(0)} from 6 weeks ago.`}
-      <b>Fatigue ${today.fatigue.toFixed(0)}</b> is the same over the last week: how tired that training has made you.
-      Each workout's load comes from how long you spent at each heart rate, with hard minutes counting much more than easy ones.</div>
-    <div><b>Form ${sign(today.form)}</b> is fitness minus fatigue. Right now that's <b>${st.label.toLowerCase()}</b>: ${st.text}</div>
-    <div class="scale">${FORM_STATES.map((s) => `<div style="--c:var(${s.color})" class="${s === st ? "now" : ""}"><b>${s.label}</b>${
-      s.key === "fresh" ? "above +10%" : s.key === "neutral" ? "−10% to +10%" : s.key === "productive" ? "−30% to −10%" : "below −30%"} of fitness</div>`).join("")}</div>
-    <div>If you rested completely: form would be <b>${sign(proj[3].form)}</b> in 3 days and <b>${sign(proj[7].form)}</b> in 7
-      ${freshDay && st.key !== "fresh" ? `(fresh after about ${freshDay} day${freshDay > 1 ? "s" : ""})` : ""}, while fitness would slip to ${proj[7].fitness.toFixed(0)}.
-      That trade-off is what a taper before a race manages.</div>`;
+    <div class="verdict" style="--c:var(${st.color})"><span class="big">${sign(today.form)}</span>
+      <div><b>${st.label}</b><span>${st.text}</span></div></div>
+    <div class="scale">${scale}</div>
+    <div>Fitness is <b>${today.fitness.toFixed(0)}</b>${trend == null ? "" : Math.abs(trend) < 1 ? ", about the same as 6 weeks ago"
+      : `, ${trend > 0 ? "up" : "down"} ${Math.abs(trend).toFixed(0)} from 6 weeks ago`}. Fatigue is <b>${today.fatigue.toFixed(0)}</b>.
+      If you rested completely, form would be <b>${sign(proj[3].form)}</b> in 3 days and <b>${sign(proj[7].form)}</b> in 7${
+      freshDay && st.key !== "fresh" ? ` (fresh after about ${freshDay} day${freshDay > 1 ? "s" : ""})` : ""}, while fitness would slip to ${proj[7].fitness.toFixed(0)}.</div>
+    <details class="more"><summary>What do fitness, fatigue and form mean?</summary>
+      <p><b>Fitness</b> is the average training load you've carried per day over about 6 weeks: the endurance you've banked.
+      <b>Fatigue</b> is the same over the last week: how tired that training has made you. Each workout's load comes from how long
+      you spent at each heart rate, with hard minutes counting much more than easy ones.</p>
+      <p><b>Form</b> is fitness minus fatigue. Building fitness means carrying some fatigue; resting before a race (a taper)
+      trades a little fitness for a lot of freshness.</p></details>`;
 }
 
 // Fitness now vs. earlier points and your all-time peak.

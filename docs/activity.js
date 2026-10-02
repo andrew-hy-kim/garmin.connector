@@ -147,7 +147,7 @@ function renderTiles() {
       drift == null ? "" : drift < 5 ? "Steady: strong aerobic base" : drift < 8 ? "Some drift" : "High (heat, fatigue or too fast)"],
     ["Efficiency", m.efficiency ? withUnit(`${m.efficiency.toFixed(2)} m/beat`) : null, "Distance per heartbeat"],
   ].filter(([, v]) => v != null);
-  const cell = ([l, v, sub]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v || "–"}</div><div class="sub">${esc(sub)}</div></div>`;
+  const cell = ([l, v, sub]) => `<div class="tile"${l === "Avg heart rate" ? ' style="--vc:var(--hr)"' : ""}><div class="label">${l}</div><div class="value">${v || "–"}</div><div class="sub">${esc(sub)}</div></div>`;
   $("tiles").innerHTML = hero.map(cell).join("");
   $("stats").hidden = !stats.length;
   $("stats").innerHTML = stats.map(([l, v, sub]) =>
