@@ -492,7 +492,7 @@ function renderLaps() {
     const rest = ["rest", "recovery"].includes(l.intensity);
     const zone = zoneIndex(l.avg_hr);
     const bar = l.avg_speed ? `<span class="pbar" style="width:${Math.round((l.avg_speed / fastest) * 48)}px;--c:${zone >= 0 ? `var(--z${zone + 1})` : "var(--elev)"}"></span>` : "";
-    return `<tr class="clickable ${rest ? "muted" : ""}" data-start="${l.start_t}" data-len="${l.elapsed_s || 0}">
+    return `<tr class="clickable ${rest ? "muted" : ""}" tabindex="0" data-start="${l.start_t}" data-len="${l.elapsed_s || 0}">
       <td>${l.idx}</td><td>${esc(prettyType(l.intensity || "lap"))}</td>
       <td class="num">${fmtDuration(l.timer_s ?? l.elapsed_s)}</td>
       <td class="num">${fmtDist(l.distance_m)}</td>
@@ -526,7 +526,7 @@ function renderSplits() {
     const bar = s.speed ? `<span class="pbar" style="width:${Math.round((s.speed / fastest) * 40)}px;--c:${zone >= 0 ? `var(--z${zone + 1})` : "var(--elev)"}"></span>` : "";
     const partial = s.meters < unit * 0.95;
     const elev = (S.altitude[i1] ?? 0) - (S.altitude[i0] ?? 0);
-    rows.push(`<tr class="clickable" data-i0="${i0}" data-i1="${i1}">
+    rows.push(`<tr class="clickable" tabindex="0" data-i0="${i0}" data-i1="${i1}">
       <td>${k}${partial ? ` <span class="hint">(${dist(s.meters).toFixed(2)})</span>` : ""}</td>
       <td class="num">${bar}<b>${fmtPaceOrSpeed(s.speed, D.activity.activity_type)}</b></td>
       <td class="num">${run && s.gap ? fmtPace(s.gap) : ""}</td>
@@ -549,12 +549,18 @@ function renderEfforts() {
   $("efforts").innerHTML = efforts.length ? efforts.map(([label, e]) => {
     const i0 = S ? idxAtT(e.start_t) : 0;
     const i1 = S ? idxAtT(e.start_t + e.seconds) : 0;
-    return `<tr class="clickable" data-i0="${i0}" data-i1="${i1}"><td>${esc(label)}</td>
+    return `<tr class="clickable" tabindex="0" data-i0="${i0}" data-i1="${i1}"><td>${esc(label)}</td>
       <td class="num"><b>${fmtDuration(e.seconds)}</b></td><td class="num">${fmtPace(e.meters / e.seconds)}</td>
       <td class="num">${fmtDuration(e.start_t)}</td></tr>`;
   }).join("") : `<tr><td colspan="4" class="empty">Best efforts are tracked for outdoor runs.</td></tr>`;
 }
 
+// Enter or Space on a focused row does what a click does
+for (const id of ["laps", "splits", "efforts"]) {
+  $(id).addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches("tr.clickable")) { e.preventDefault(); e.target.click(); }
+  });
+}
 $("laps").addEventListener("click", (e) => {
   const row = e.target.closest("tr[data-start]");
   if (!row || !S) return;
