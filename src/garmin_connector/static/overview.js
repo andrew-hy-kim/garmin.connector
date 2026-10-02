@@ -267,6 +267,67 @@ function showPeriod(b, i) {
 // Pointer cursor over clickable marks
 const clickCursor = (e, els) => { e.native.target.style.cursor = els.length ? "pointer" : "default"; };
 
+// ---------- consistency calendar ----------
+function renderConsistency() {
+  // as many weeks as fit the card (up to a year)
+  const step = matchMedia("(max-width: 600px)").matches ? 19 : 20;
+  const weeks = Math.max(8, Math.min(53, Math.floor(($("cal").parentElement.clientWidth - 18) / step)));
+  const thisWeek = startOfWeek(new Date());
+  const first = new Date(thisWeek); first.setDate(first.getDate() - (weeks - 1) * 7);
+  const byDay = new Map();
+  for (const a of filtered()) {
+    const day = a.start_time_local.slice(0, 10);
+    const prev = byDay.get(day);
+    if (!prev || (a.distance_m || 0) > (prev.distance_m || 0)) byDay.set(day, a);
+  }
+  const longest = Math.max(1, ...[...byDay.values()].map((a) => a.distance_m || 0));
+  const today = isoDay(new Date());
+  const cols = [];
+  let prevMonth = null, lastLabel = -9;
+  for (let w = 0; w < weeks; w++) {
+    const start = new Date(first); start.setDate(start.getDate() + w * 7);
+    const month = start.getMonth();
+    // label the first week of each month, unless the previous label is too close
+    const newMonth = month !== prevMonth && w - lastLabel >= 3;
+    const label = newMonth ? start.toLocaleDateString(undefined, { month: "short" }) : "";
+    if (newMonth) lastLabel = w;
+    prevMonth = month;
+    const cells = [];
+    for (let k = 0; k < 7; k++) {
+      const d = new Date(start); d.setDate(d.getDate() + k);
+      const iso = isoDay(d);
+      const a = byDay.get(iso);
+      if (iso > today) { cells.push(`<i class="future"></i>`); continue; }
+      if (!a) { cells.push(`<i title="${esc(fmtDate(iso))}: rest"></i>`); continue; }
+      const size = 45 + 55 * Math.sqrt((a.distance_m || 0) / longest);
+      const color = a.workout_type ? typeColor(a.workout_type) : "var(--z1)";
+      cells.push(`<i class="run${a.has_streams ? " link" : ""}" data-id="${a.activity_id}" title="${esc(fmtDate(iso))}: ${esc(a.workout_label || prettyType(a.activity_type))}, ${esc(fmtDist(a.distance_m))}"><b style="--c:${color};--s:${size.toFixed(0)}%"></b></i>`);
+    }
+    cols.push(`<div class="col"><span class="m">${label}</span>${cells.join("")}</div>`);
+  }
+  $("cal").innerHTML = `<div class="col days"><span class="m"></span><i>M</i><i></i><i>W</i><i></i><i>F</i><i></i><i></i></div>` + cols.join("");
+  // streaks: weeks in a row with 3+ runs (this week counts once it reaches 3)
+  const counts = [];
+  for (let w = 0; w < 52; w++) {
+    const start = new Date(thisWeek); start.setDate(start.getDate() - w * 7);
+    let n = 0;
+    for (let k = 0; k < 7; k++) { const d = new Date(start); d.setDate(d.getDate() + k); if (byDay.has(isoDay(d))) n++; }
+    counts.push(n);
+  }
+  let streak = 0;
+  for (let w = counts[0] >= 3 ? 0 : 1; w < counts.length && counts[w] >= 3; w++) streak++;
+  const recent = counts.slice(1, 13);
+  const perWeek = recent.reduce((t, n) => t + n, 0) / (recent.length || 1);
+  $("cons-stats").textContent = `${perWeek.toFixed(1)} ${state.type === "run" ? "runs" : "days"} a week lately` +
+    (streak >= 2 ? ` · ${streak} weeks in a row with 3+` : "");
+}
+let calTimer;
+window.addEventListener("resize", () => { clearTimeout(calTimer); calTimer = setTimeout(() => state.activities.length && renderConsistency(), 150); });
+$("cal").addEventListener("click", (e) => {
+  const cell = e.target.closest("i.run.link");
+  if (cell) location.href = pageUrl("activity", { id: cell.dataset.id });
+});
+
 // ---------- volume ----------
 function renderVolume() {
   const b = buckets();
@@ -668,6 +729,7 @@ function renderWeekPlan() {
 
 function render() {
   renderToday();
+  renderConsistency();
   // Nothing synced yet: a welcome card instead of empty charts
   const empty = !state.activities.length;
   document.body.classList.toggle("no-data", empty);

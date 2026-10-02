@@ -418,6 +418,21 @@ summary.week-head::-webkit-details-marker { display: none; }
   .this-week > div.today { outline: 0; background: var(--select); }
 }
 
+/* consistency calendar: weeks as columns, Monday at the top */
+.cal-wrap { overflow-x: auto; }
+.cal { display: flex; gap: 4px; min-width: max-content; }
+.cal .col { display: grid; grid-template-rows: 16px repeat(7, 16px); gap: 4px; width: 16px; }
+.cal .col .m { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: visible; line-height: 16px; }
+.cal .col.days { width: 14px; }
+.cal .col.days i { background: none; font-size: 10px; font-style: normal; color: var(--text-muted); line-height: 16px; }
+.cal i { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; background: var(--fill); }
+.cal i.future { background: none; }
+.cal i.run { background: var(--fill); }
+.cal i.run b { width: var(--s); height: var(--s); border-radius: 50%; background: var(--c); }
+.cal i.link { cursor: pointer; }
+.cal i.link:hover b { outline: 2px solid var(--text-primary); outline-offset: 1px; }
+@media (max-width: 600px) { .cal { gap: 3px; } .cal .col { gap: 3px; } }
+
 /* six summary tiles: one row on wide screens, two rows of three in between (never an orphan) */
 .tiles.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1060px) { .tiles.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

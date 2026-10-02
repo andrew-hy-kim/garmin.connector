@@ -29,6 +29,8 @@ weeks fold away, the Summary shows this week's plan with a progress ring, and yo
 - **Fitness, fatigue & form** explained in plain language: what the numbers mean, your
   current form state (fresh / maintaining / productive / overreaching), and what resting
   would do, plus your fitness now vs. 3 months, 1, 2, 3 and 5 years ago and your peak
+- **Consistency calendar:** every run of the past year as a dot, colored by workout type and
+  sized by distance, with your recent runs per week and streak of 3+ run weeks
 - **Easy vs. hard running:** minutes by intensity per week (or per month on long ranges)
 - Weekly distance, VO2 max trend, and **aerobic efficiency** (distance per heartbeat on
   easy runs), which shows whether your aerobic base is improving. Click a week's bar to list
