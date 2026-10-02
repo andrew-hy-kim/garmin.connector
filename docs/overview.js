@@ -587,6 +587,10 @@ function renderWeekPlan() {
 }
 
 function render() {
+  // Nothing synced yet: a welcome card instead of empty charts
+  const empty = !state.activities.length;
+  document.body.classList.toggle("no-data", empty);
+  $("welcome").hidden = !empty || PHONE;
   renderTiles(); renderNotes($("notes"), state.insights); renderWeekPlan(); renderExplain(); renderCompare();
   renderCharts(); renderSettings(); renderTable();
 }
@@ -599,15 +603,18 @@ async function load() {
   setupAiBox($("ai"), "overview");
 }
 
+$("welcome-sync").addEventListener("click", () => $("sync").click());
 $("sync").addEventListener("click", async () => {
-  $("sync").disabled = true;
+  $("sync").disabled = true; $("welcome-sync").disabled = true;
   setStatus("Syncing with Garmin Connect…");
+  $("welcome-sync").textContent = "Syncing… this can take a few minutes the first time";
   try {
     const r = await getJSON("/api/sync", { method: "POST" });
     setStatus(`Synced ${r.activities} activities, downloaded ${r.fit_files} workout files, analyzed ${r.analyzed}.`);
+    $("welcome-sync").textContent = "Sync with Garmin";
     await load();
   } catch (err) { setStatus(err.message, true); }
-  finally { $("sync").disabled = false; }
+  finally { $("sync").disabled = false; $("welcome-sync").disabled = false; }
 });
 
 $("type").addEventListener("change", (e) => { state.type = e.target.value; state.table.page = 0; render(); });

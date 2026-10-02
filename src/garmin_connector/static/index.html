@@ -22,18 +22,26 @@
   </header>
   <div class="page-head"><div class="eyebrow" id="today"></div><h1>Summary</h1></div>
 
-  <section class="tiles" id="tiles"></section>
+  <section class="tiles needs-data" id="tiles"></section>
 
-  <section class="card">
+  <section class="card welcome" id="welcome" hidden>
+    <h2>Welcome</h2>
+    <p>Download your workouts from Garmin Connect to get started. The first sync brings in your whole history,
+      about a second per workout, and then each sync only adds what's new.</p>
+    <button class="primary wide-btn" id="welcome-sync">Sync with Garmin</button>
+    <p class="hint">Your charts, fitness, records and coach notes appear here once your runs are in.</p>
+  </section>
+
+  <section class="card needs-data">
     <h2>Coach notes</h2>
     <p class="hint">What your recent training says, worked out on your Mac from your data.</p>
     <div class="notes" id="notes"></div>
     <div class="ai-box" id="ai"></div>
   </section>
 
-  <section class="card" id="week-plan"></section>
+  <section class="card needs-data" id="week-plan"></section>
 
-  <section class="card" id="activities">
+  <section class="card needs-data" id="activities">
     <h2>Activities</h2>
     <p class="hint">Tap or click an activity for second-by-second detail.<span class="wide-only"> Click a column heading to sort.</span></p>
     <div class="filters">
@@ -74,7 +82,7 @@
     <div class="pager" id="pager"></div>
   </section>
 
-  <section class="card wide">
+  <section class="card wide needs-data">
     <div class="head"><h2>Fitness, fatigue &amp; form</h2></div>
     <div>
       <div class="explain" id="explain"></div>
@@ -89,7 +97,7 @@
     </div>
   </section>
 
-  <section class="grid" style="margin-bottom:16px">
+  <section class="grid needs-data">
     <div class="card">
       <h2 id="volume-title">Weekly distance</h2>
       <p class="hint" id="volume-hint"></p>
@@ -114,8 +122,8 @@
     </div>
   </section>
 
-  <section class="grid" style="margin-bottom:16px">
-    <div class="card">
+  <section class="grid">
+    <div class="card needs-data">
       <h2>Personal records</h2>
       <p class="hint">Fastest stretch of any outdoor run, not only whole races. Click a row to open that run.</p>
       <div class="table-wrap"><table class="records-table">

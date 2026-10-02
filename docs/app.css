@@ -208,7 +208,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 #zones.compact { gap: 6px; }
 #zones.compact .zone-row { grid-template-columns: minmax(0, 1fr) auto; }
 #zones.compact .zone-row .bar { display: none; }
-.settings-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; align-items: end; margin-top: 12px; }
+.settings-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 12px; align-items: end; margin-top: 12px; }
 .settings-form label { font-size: 13px; color: var(--text-secondary); font-weight: 550; display: grid; gap: 4px; }
 .settings-form select { width: 100%; }
 .settings-form input::placeholder { color: var(--text-secondary); }
@@ -297,6 +297,14 @@ th[aria-sort="ascending"], th[aria-sort="descending"] { color: var(--text-primar
 th.sortable[aria-sort="ascending"]::after { content: " ▲"; font-size: 9px; }
 th.sortable[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
 .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 12px; font-size: 13px; color: var(--text-secondary); }
+
+/* first run */
+.no-data .needs-data { display: none !important; }
+.welcome { padding: 28px; }
+.welcome h2 { font-size: 24px; }
+.welcome p { color: var(--text-secondary); max-width: 620px; margin: 6px 0 18px; }
+.welcome .hint { margin: 14px 0 0; }
+.wide-btn { min-height: 44px; padding: 8px 22px; font-size: 16px; border-radius: 12px; }
 
 /* phone app: hide what only works on the Mac */
 .phone .server-only { display: none !important; }
