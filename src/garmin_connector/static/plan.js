@@ -1,6 +1,7 @@
 // Training plan page: pick a goal, see the plan week by week, track planned vs. done.
 
 let S = null; // API response
+let runsByDay = new Map(); // "2026-09-29" -> runs that day, to tick off planned days
 
 const TYPE_LABEL = { easy: "Easy", long: "Long", vo2: "VO2 max", threshold: "Threshold", tempo: "Tempo", hills: "Hills", rest: "Rest" };
 const HARD = new Set(["vo2", "threshold", "tempo", "hills"]);
@@ -84,14 +85,28 @@ function renderPlan() {
         <div class="dname">${d.day}<div class="date">${shortDate(iso)}</div></div>
         <div class="what"><b>${esc(d.title)}${HARD.has(d.type) ? ` <span class="badge">Workout</span>` : ""}</b>
           ${d.type === "rest" ? "" : `<div class="d">${esc(d.details)}</div>${tgt ? `<div class="tgt">${esc(tgt)}</div>` : ""}`}</div>
-        <div class="mins">${d.minutes ? `${d.minutes} min` : ""}</div></div>`;
+        <div class="mins">${d.minutes ? `${d.minutes} min` : ""}${dayResult(d, iso, today)}</div></div>`;
     }).join("");
-    return `<section class="week ${current ? "current" : ""}">
-      <div class="week-head"><h3>Week ${w.week}${current ? " (this week)" : ""}</h3>
-        <span class="meta">${shortDate(w.start)} – ${shortDate(addDays(w.start, 6))} · ${esc(w.focus)} · ${w.minutes} min planned</span>${done}</div>
-      ${days}</section>`;
+    // Finished weeks fold up to their summary line, so this week is near the top
+    const past = prog.status === "past";
+    return `<details class="week ${current ? "current" : ""} ${past ? "past" : ""}" ${past ? "" : "open"}>
+      <summary class="week-head"><h3>Week ${w.week}${current ? " (this week)" : ""}</h3>
+        <span class="meta">${shortDate(w.start)} – ${shortDate(addDays(w.start, 6))} · ${esc(w.focus)} · ${w.minutes} min planned</span>${done}</summary>
+      ${days}</details>`;
   }).join("");
   setupAiBox($("ai"), "plan");
+}
+
+// What actually happened on a plan day: the run(s) you did, or "Not done" for a missed run
+function dayResult(d, iso, today) {
+  if (iso > today) return "";
+  const runs = runsByDay.get(iso) || [];
+  if (runs.length) {
+    const r = runs[0];
+    const text = `✓ ${fmtDist(runs.reduce((t, a) => t + (a.distance_m || 0), 0), Units.get(), 1)}`;
+    return r.has_streams ? `<a class="did" href="${pageUrl("activity", { id: r.activity_id })}" title="${esc(r.name)}">${text}</a>` : `<span class="did">${text}</span>`;
+  }
+  return d.type !== "rest" && iso < today ? `<span class="missed">Not done</span>` : "";
 }
 
 function render() {
@@ -108,7 +123,13 @@ function render() {
 }
 
 unitsToggle($("units"), () => S && S.plan && renderPlan());
-getJSON("/api/plan").then((data) => {
+Promise.all([getJSON("/api/plan"), getJSON("/api/activities").catch(() => [])]).then(([data, acts]) => {
   S = data;
+  runsByDay = new Map();
+  for (const a of acts) {
+    if (!isRun(a.activity_type)) continue;
+    const day = a.start_time_local.slice(0, 10);
+    runsByDay.set(day, [...(runsByDay.get(day) || []), a]);
+  }
   if (new URLSearchParams(location.search).has("new")) renderSetup(true); else render();
 }).catch((err) => setStatus(`Couldn't load the plan: ${err.message}`, true));

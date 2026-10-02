@@ -614,6 +614,13 @@ function renderCharts() {
   renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderRecords();
 }
 
+// Did you run on day k of the plan week starting `start`?
+function ranOn(start, k) {
+  const d = new Date(start + "T12:00"); d.setDate(d.getDate() + k);
+  const iso = isoDay(d);
+  return state.activities.some((a) => isRun(a.activity_type) && a.start_time_local.startsWith(iso));
+}
+
 // This week of the training plan, or a prompt to set one up.
 function renderWeekPlan() {
   const el = $("week-plan");
@@ -638,7 +645,7 @@ function renderWeekPlan() {
       : ` · ${pr.done_minutes} min done, ${pr.done_runs}/${pr.planned_runs} runs`}${finished ? ". Pick a new goal on the plan page." : ""}</p>
     <div class="this-week">${w.days.map((d, k) => `<div class="${d.type === "rest" ? "rest" : ""} ${!upcoming && !finished && k === todayIdx ? "today" : ""}"
         style="${d.type === "rest" ? "" : `--c:${typeColor(d.type)}`}">
-      <b>${d.day}</b><span>${esc(d.title)}</span><span class="m">${d.minutes ? `${d.minutes} min` : ""}</span></div>`).join("")}</div>`;
+      <b>${d.day}${ranOn(w.start, k) ? ` <span class="tick" title="Done">✓</span>` : ""}</b><span>${esc(d.title)}</span><span class="m">${d.minutes ? `${d.minutes} min` : ""}</span></div>`).join("")}</div>`;
 }
 
 function render() {
