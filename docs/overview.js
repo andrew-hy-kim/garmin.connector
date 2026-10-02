@@ -118,13 +118,25 @@ function renderTiles() {
 // ---------- training load ----------
 function renderLoad() {
   const startDay = isoDay(rangeStart());
-  const recent = state.load.filter((d) => d.date >= startDay);
-  const long = recent.length > 400;
+  const days = state.load.filter((d) => d.date >= startDay);
+  const long = days.length > 400;
+  // Over long ranges plot weekly averages: fewer points to draw and a readable fatigue line
+  let recent = days;
+  if (long) {
+    const weeks = new Map();
+    for (const d of days) {
+      const k = isoDay(startOfWeek(new Date(d.date + "T12:00")));
+      const w = weeks.get(k) || { date: k, fitness: 0, fatigue: 0, n: 0 };
+      w.fitness += d.fitness; w.fatigue += d.fatigue; w.n += 1;
+      weeks.set(k, w);
+    }
+    recent = [...weeks.values()].map((w) => ({ date: w.date, fitness: w.fitness / w.n, fatigue: w.fatigue / w.n }));
+  }
   const label = (d) => (long ? fmtMonthYear(new Date(d.date + "T12:00")) : new Date(d.date + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }));
   const opts = chartBase();
   opts.plugins.tooltip = { callbacks: {
-    title: (i) => new Date(recent[i[0].dataIndex].date + "T12:00").toLocaleDateString(undefined, { dateStyle: "medium" }),
-    label: (i) => `${i.dataset.label}: ${i.parsed.y.toFixed(0)}`,
+    title: (i) => (long ? "Week of " : "") + new Date(recent[i[0].dataIndex].date + "T12:00").toLocaleDateString(undefined, { dateStyle: "medium" }),
+    label: (i) => `${i.dataset.label}${long ? " (average)" : ""}: ${i.parsed.y.toFixed(0)}`,
   } };
   drawChart("load", "load", {
     type: "line",
@@ -132,7 +144,7 @@ function renderLoad() {
       { label: "Fitness", data: recent.map((d) => d.fitness), borderColor: cssVar("--fitness"), backgroundColor: cssVar("--fitness") + "1f",
         fill: "origin", borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 4, order: 0 },
       // Fatigue jumps every workout; drawn lighter so the slower fitness trend stays readable
-      { label: "Fatigue", data: recent.map((d) => d.fatigue), borderColor: cssVar("--fatigue") + "b3", borderWidth: long ? 1 : 1.5,
+      { label: "Fatigue", data: recent.map((d) => d.fatigue), borderColor: cssVar("--fatigue") + "b3", borderWidth: 1.5,
         pointRadius: 0, pointHoverRadius: 4, order: 1 },
     ] },
     options: opts,
@@ -141,10 +153,10 @@ function renderLoad() {
   // Fitness needs about 6 weeks of history before form means anything; grey out that stretch.
   const warmupEnd = state.load.length ? isoDay(new Date(new Date(state.load[0].date + "T12:00").getTime() + 42 * 864e5)) : "";
   // Daily form bars, or weekly averages over long ranges so bars stay readable.
-  let bars = recent.map((d) => ({ ...d, warmup: d.date < warmupEnd }));
+  let bars = days.map((d) => ({ ...d, warmup: d.date < warmupEnd }));
   if (long) {
     const weeks = new Map();
-    for (const d of recent) {
+    for (const d of days) {
       const k = isoDay(startOfWeek(new Date(d.date + "T12:00")));
       const w = weeks.get(k) || { date: k, form: 0, fitness: 0, n: 0 };
       w.form += d.form; w.fitness += d.fitness; w.n += 1;
@@ -159,12 +171,15 @@ function renderLoad() {
     afterLabel: (i) => (bars[i.dataIndex].warmup ? "Still building history, so form isn't meaningful yet" : formState(bars[i.dataIndex]).label),
   } };
   formOpts.scales.x.ticks.display = false;
+  // look colors up once, not once per bar
+  const stateColor = Object.fromEntries(FORM_STATES.map((st) => [st.key, cssVar(st.color)]));
+  const warm = cssVar("--surface-3");
   $("form-legend").innerHTML = "<span class='lbl'>Form</span>" +
     FORM_STATES.map((st) => `<span style="--c:var(${st.color})">${st.label}</span>`).join("");
   drawChart("form", "form", {
     type: "bar",
     data: { labels: bars.map((d) => d.date), datasets: [{ label: "Form", data: bars.map((d) => d.form),
-      backgroundColor: bars.map((d) => (d.warmup ? cssVar("--surface-3") : cssVar(formState(d).color))), barPercentage: 1, categoryPercentage: 0.9 }] },
+      backgroundColor: bars.map((d) => (d.warmup ? warm : stateColor[formState(d).key])), barPercentage: 1, categoryPercentage: 0.9 }] },
     options: formOpts,
   });
 }
@@ -256,7 +271,7 @@ function renderVolume() {
   drawChart("weekly", "weekly", {
     type: "bar",
     // the current week or month is still in progress: drawn lighter
-    data: { labels: b.labels, datasets: [{ data: totals, backgroundColor: totals.map((_, i) => cssVar("--pace") + (i === totals.length - 1 ? "66" : "")),
+    data: { labels: b.labels, datasets: [{ data: totals, backgroundColor: ((c) => totals.map((_, i) => c + (i === totals.length - 1 ? "66" : "")))(cssVar("--pace")),
       borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 18 }] },
     options: opts,
   });
