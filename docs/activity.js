@@ -681,8 +681,31 @@ window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawAll(); if (D?.streams) renderMap(); });
 
 // Previous / next workout (with second-by-second data), so you can page through your training
+// "vs. your last Easy run (Sep 25): 0:05 /mi faster at 1 bpm lower"
+function renderComparison(all) {
+  const a = D.activity, w = D.metrics?.workout;
+  const el = $("compare-last");
+  // Whole-run averages only mean something for steady runs, not for reps with recoveries
+  const steady = ["easy", "recovery", "easy_strides", "long", "tempo", "threshold", "progression"].includes(w?.type);
+  if (!w || !steady || !isRun(a.activity_type) || !a.avg_speed_mps) { el.hidden = true; return; }
+  const prev = all.find((x) => x.activity_id !== a.activity_id && x.workout_type === w.type && isRun(x.activity_type)
+    && x.start_time_local < a.start_time_local && x.avg_speed_mps);
+  if (!prev) { el.hidden = true; return; }
+  const u = Units.get();
+  const dp = Math.round(paceSeconds(a.avg_speed_mps) - paceSeconds(prev.avg_speed_mps)); // seconds per unit, negative = faster
+  const pace = Math.abs(dp) < 2 ? "about the same pace" : `${fmtDuration(Math.abs(dp))} /${u} ${dp < 0 ? "faster" : "slower"}`;
+  const dh = a.avg_hr && prev.avg_hr ? Math.round(a.avg_hr - prev.avg_hr) : null;
+  const hr = dh == null ? "" : Math.abs(dh) < 1 ? " at the same heart rate" : ` at ${Math.abs(dh)} bpm ${dh < 0 ? "lower" : "higher"} heart rate`;
+  const better = dp <= 0 && (dh == null || dh <= 0) && (dp < -1 || (dh != null && dh < 0));
+  el.hidden = false;
+  el.innerHTML = `<span class="${better ? "up" : ""}">vs. your last ${esc(/^.[a-z]/.test(w.label) ? w.label[0].toLowerCase() + w.label.slice(1) : w.label)}</span>
+    (<a href="${pageUrl("activity", { id: prev.activity_id })}">${esc(fmtDate(prev.start_time_local, { month: "short", day: "numeric" }))}</a>): ${pace}${hr}`;
+}
+
 async function renderPrevNext() {
-  const list = (await getJSON("/api/activities")).filter((a) => a.has_streams);
+  const all = await getJSON("/api/activities");
+  renderComparison(all);
+  const list = all.filter((a) => a.has_streams);
   const i = list.findIndex((a) => a.activity_id === activityId);
   if (i < 0) return;
   const link = (a, text, rel) => (a ? `<a href="${pageUrl("activity", { id: a.activity_id })}" rel="${rel}" title="${esc(a.name)} · ${esc(fmtDate(a.start_time_local))}">${text}</a>` : `<span class="off">${text}</span>`);

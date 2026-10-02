@@ -149,6 +149,8 @@ html, body { overflow-x: clip; }
 .page-head .eyebrow { color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; margin-bottom: 2px; }
 .page-head .back { font-size: 15px; }
 .page-head .sub { color: var(--text-muted); font-size: 15px; margin-top: 4px; }
+.compare-last { margin-top: 8px; font-size: 14px; color: var(--text-secondary); }
+.compare-last .up { color: var(--good); font-weight: 600; }
 .head-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .pn { margin-left: auto; display: inline-flex; gap: 6px; }
 .pn a, .pn .off { font-size: 13px; font-weight: 550; padding: 4px 12px; border-radius: 999px; background: var(--surface-1); color: var(--link); box-shadow: var(--shadow); }
