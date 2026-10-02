@@ -437,6 +437,12 @@ summary.week-head::-webkit-details-marker { display: none; }
 .cal i.link:hover b { outline: 2px solid var(--text-primary); outline-offset: 1px; }
 @media (max-width: 600px) { .cal { gap: 3px; } .cal .col { gap: 3px; } }
 
+/* week headings in the activity list */
+#rows tr.group td { padding: 14px 10px 6px; border-bottom: 1px solid var(--grid); background: none !important; cursor: default; }
+#rows tr.group b { font-size: 13px; font-weight: 650; color: var(--text-primary); margin-right: 8px; }
+#rows tr.group span { font-size: 13px; color: var(--text-muted); }
+#rows tr.group:first-child td { padding-top: 4px; }
+
 /* six summary tiles: one row on wide screens, two rows of three in between (never an orphan) */
 .tiles.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1060px) { .tiles.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -461,6 +467,8 @@ summary.week-head::-webkit-details-marker { display: none; }
   #rows td:nth-child(6) { grid-area: pace; text-align: right; color: var(--text-secondary); font-size: 13px; }
   #rows td:nth-child(5), #rows td:nth-child(n+7) { display: none; }
   #rows td.empty { grid-column: 1 / -1; white-space: normal; }
+  #rows tr.group { display: block; padding: 14px 0 4px; border-bottom: 1px solid var(--grid); }
+  #rows tr.group td { display: block; padding: 0; border: 0; }
   #rows tr.clickable:hover td { background: transparent; }
   #rows tr.clickable:active { background: var(--fill); border-radius: 8px; }
 }

@@ -614,8 +614,35 @@ function renderTable() {
     : "No activities match these filters.";
   document.querySelectorAll("#table-head th.sortable").forEach((th) =>
     th.setAttribute("aria-sort", th.dataset.sort === t.sort ? (t.dir > 0 ? "ascending" : "descending") : "none"));
-  $("rows").innerHTML = list.length ? list.map((a) => `<tr class="${a.has_streams ? "clickable" : ""}" ${a.has_streams ? 'tabindex="0"' : ""} data-id="${a.activity_id}">
-      <td>${fmtDate(a.start_time_local)}</td>
+  // Sorted by date: group rows under week headings with that week's totals
+  const byDate = t.sort === "start_time_local";
+  const weekKey = (a) => isoDay(startOfWeek(localDate(a.start_time_local)));
+  const weekTotals = new Map();
+  if (byDate) for (const a of all) {
+    const k = weekKey(a), w = weekTotals.get(k) || { n: 0, m: 0 };
+    w.n += 1; w.m += a.distance_m || 0; weekTotals.set(k, w);
+  }
+  const thisWeek = isoDay(startOfWeek(new Date()));
+  const lastWeek = isoDay(new Date(startOfWeek(new Date()).getTime() - 7 * 864e5));
+  const weekName = (k) => {
+    if (k === thisWeek) return "This week";
+    if (k === lastWeek) return "Last week";
+    const start = new Date(k + "T12:00"), end = new Date(start.getTime() + 6 * 864e5);
+    const sameYear = start.getFullYear() === new Date().getFullYear();
+    const f = (d, y) => d.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(y ? { year: "numeric" } : {}) });
+    return `${f(start)} – ${f(end, !sameYear)}`;
+  };
+  let lastKey = null;
+  const header = (a) => {
+    if (!byDate) return "";
+    const k = weekKey(a);
+    if (k === lastKey) return "";
+    lastKey = k;
+    const w = weekTotals.get(k);
+    return `<tr class="group"><td colspan="10"><b>${weekName(k)}</b><span>${fmtNum(dist(w.m), 1)} ${Units.get()} · ${w.n} ${w.n === 1 ? (state.type === "run" ? "run" : "activity") : (state.type === "run" ? "runs" : "activities")}</span></td></tr>`;
+  };
+  $("rows").innerHTML = list.length ? list.map((a) => `${header(a)}<tr class="${a.has_streams ? "clickable" : ""}" ${a.has_streams ? 'tabindex="0"' : ""} data-id="${a.activity_id}">
+      <td>${byDate ? fmtDate(a.start_time_local, { weekday: "short", month: "short", day: "numeric" }) : fmtDate(a.start_time_local)}</td>
       <td class="name">${esc(a.name)}</td>
       <td>${a.workout_label ? tagHtml(a.workout_label, QUALITY.has(a.workout_type), a.workout_type) : `<span class="dim">${esc(prettyType(a.activity_type))}</span>`}</td>
       <td class="num">${fmtDist(a.distance_m)}</td>
