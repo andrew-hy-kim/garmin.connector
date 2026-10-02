@@ -242,7 +242,13 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 @media (max-width: 600px) {
   /* room for the wrapped readout, so tapping the chart doesn't push it down */
   .readout { min-height: 64px; align-content: flex-start; }
-  .zone-row { grid-template-columns: 96px 1fr 84px; gap: 8px; }
+  .zone-row { grid-template-columns: 108px minmax(0, 1fr) auto; gap: 8px; font-size: 13px; }
+  .zone-row .val { white-space: nowrap; }
+  .zone-row > div:first-child { white-space: nowrap; }
+  .card .filters { gap: 6px; }
+  .card .filters input[type="search"] { flex: 1 1 100%; }
+  .card .filters select { flex: 1 1 0; min-width: 0; font-size: 14px; padding-left: 10px; padding-right: 24px; background-position: right 8px center; }
+  .day .what .badge { display: none; }
   .zone-row .range { display: none; }
 }
 
@@ -299,6 +305,7 @@ details.more p { margin: 8px 0 0; }
 .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
 .filters input[type="search"] { flex: 1 1 200px; min-width: 0; }
 .filters input[type="date"] { width: auto; }
+.hint .plan-goal { color: var(--text-primary); font-weight: 600; }
 .filters .summary { width: 100%; color: var(--text-secondary); font-size: 13px; font-variant-numeric: tabular-nums; }
 th.sortable { cursor: pointer; user-select: none; }
 th.sortable:hover { color: var(--text-primary); }

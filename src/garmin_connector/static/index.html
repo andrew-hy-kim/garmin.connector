@@ -60,8 +60,8 @@
         <input type="date" id="f-from" aria-label="From date"> to <input type="date" id="f-to" aria-label="To date">
       </span>
       <select id="f-sort" class="narrow-only" aria-label="Sort">
-        <option value="start_time_local:-1">Newest first</option>
-        <option value="start_time_local:1">Oldest first</option>
+        <option value="start_time_local:-1">Newest</option>
+        <option value="start_time_local:1">Oldest</option>
         <option value="distance_m:-1">Longest</option>
         <option value="avg_speed_mps:-1">Fastest pace</option>
         <option value="trimp:-1">Hardest (load)</option>
@@ -111,7 +111,7 @@
     </div>
     <div class="card">
       <h2>Aerobic efficiency</h2>
-      <p class="hint">Distance covered per heartbeat on easy runs. Rising over time means your aerobic engine is improving.</p>
+      <p class="hint">Distance covered per heartbeat on easy runs. Rising over time means your aerobic engine is improving. Each dot is a run; click one to open it.</p>
       <div class="chart-box"><canvas id="efficiency" role="img" aria-label="Scatter chart of aerobic efficiency over time"></canvas></div>
     </div>
     <div class="card">

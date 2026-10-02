@@ -220,6 +220,20 @@ function renderCompare() {
   }).join("");
 }
 
+// Click a week (or month) on a bar chart: list just those activities.
+function showPeriod(b, i) {
+  const from = b.list[i];
+  const to = b.monthly ? new Date(from.getFullYear(), from.getMonth() + 1, 1) : new Date(from.getFullYear(), from.getMonth(), from.getDate() + 7);
+  const last = new Date(to); last.setDate(last.getDate() - 1);
+  Object.assign(state.table, { when: "custom", from: isoDay(from), to: isoDay(last), page: 0 });
+  $("f-when").value = "custom"; $("f-custom").hidden = false;
+  $("f-from").value = state.table.from; $("f-to").value = state.table.to;
+  renderTable();
+  $("activities").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+// Pointer cursor over clickable marks
+const clickCursor = (e, els) => { e.native.target.style.cursor = els.length ? "pointer" : "default"; };
+
 // ---------- volume ----------
 function renderVolume() {
   const b = buckets();
@@ -231,11 +245,14 @@ function renderVolume() {
   const u = Units.get();
   $("volume-title").textContent = b.monthly ? "Monthly distance" : "Weekly distance";
   const avg = totals.reduce((s, v) => s + v, 0) / (totals.length || 1);
-  $("volume-hint").textContent = `Average ${avg.toFixed(1)} ${u} per ${b.monthly ? "month" : "week"} in this range.`;
+  $("volume-hint").textContent = `Average ${avg.toFixed(1)} ${u} per ${b.monthly ? "month" : "week"} in this range. ${matchMedia("(hover: hover)").matches ? "Click" : "Tap"} a bar to list those runs.`;
   const opts = chartBase();
   opts.plugins.tooltip = { callbacks: { title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`,
     label: (i) => `${i.parsed.y.toFixed(1)} ${u}${i.dataIndex === totals.length - 1 ? " so far" : ""}` } };
   opts.scales.y.ticks.callback = (v) => `${v} ${u}`;
+  opts.onClick = (e, els) => { if (els.length) showPeriod(b, els[0].index); };
+  opts.onHover = clickCursor;
+  opts.plugins.tooltip.callbacks.footer = () => `Click to list these ${state.type === "run" ? "runs" : "activities"}`;
   drawChart("weekly", "weekly", {
     type: "bar",
     // the current week or month is still in progress: drawn lighter
@@ -260,6 +277,8 @@ function renderMix() {
   const opts = chartBase();
   opts.scales.x.stacked = true; opts.scales.y.stacked = true;
   opts.scales.y.ticks.callback = (v) => `${v} min`;
+  opts.onClick = (e, els) => { if (els.length) showPeriod(b, els[0].index); };
+  opts.onHover = clickCursor;
   opts.plugins.tooltip = { callbacks: {
     title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`,
     label: (i) => {
@@ -302,6 +321,13 @@ function renderEfficiency() {
   opts.interaction = { mode: "nearest", intersect: false };
   timeAxis(opts);
   opts.scales.y.ticks.callback = (v) => `${v.toFixed(2)} m`;
+  // only a dot right under the pointer opens its run
+  const dotsAt = (e, chart) => chart.getElementsAtEventForMode(e.native, "nearest", { intersect: true }, false).filter((el) => el.datasetIndex === 0);
+  opts.onClick = (e, _, chart) => {
+    const hit = dotsAt(e, chart)[0];
+    if (hit) location.href = pageUrl("activity", { id: pts[hit.index].a.activity_id });
+  };
+  opts.onHover = (e, _, chart) => clickCursor(e, dotsAt(e, chart));
   opts.plugins.tooltip = { callbacks: {
     title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
     label: (i) => i.datasetIndex === 0
@@ -434,7 +460,7 @@ $("settings").addEventListener("submit", async (e) => {
 
 // ---------- activities ----------
 const WORKOUT_FILTERS = [
-  ["all", "All workouts", null],
+  ["all", "All types", null],
   ["easy", "Easy & recovery", ["easy", "recovery", "easy_strides"]],
   ["long", "Long runs", ["long"]],
   ["quality", "Any hard session", [...QUALITY]],
@@ -481,6 +507,9 @@ function renderTable() {
   const list = all.slice(t.page * PAGE_SIZE, (t.page + 1) * PAGE_SIZE);
   const meters = all.reduce((s, a) => s + (a.distance_m || 0), 0);
   const secs = all.reduce((s, a) => s + (a.duration_s || 0), 0);
+  // Clear only shows when a filter is on
+  const filtering = t.search || t.workout !== "all" || t.when !== "any" || t.sort !== "start_time_local" || t.dir !== -1;
+  $("f-clear").hidden = !filtering;
   $("f-summary").textContent = all.length
     ? `${fmtNum(all.length)} ${all.length === 1 ? "activity" : "activities"} · ${fmtNum(dist(meters), 1)} ${Units.get()} · ${fmtTotal(secs)}`
     : "No activities match these filters.";
@@ -581,9 +610,11 @@ function renderWeekPlan() {
   const finished = prog.every((w) => w.status === "past");
   const w = p.weeks[finished ? p.weeks.length - 1 : upcoming ? 0 : i], pr = prog[w.week - 1];
   const todayIdx = (new Date().getDay() + 6) % 7;
-  el.innerHTML = `<div class="toolbar"><h2 style="margin:0">${finished ? "Plan finished" : upcoming ? `Your plan starts ${new Date(p.start + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}` : "This week's plan"}:
-      ${esc(p.goal_label)}, week ${w.week} of ${p.weeks.length}</h2><span class="spacer"></span><a href="${pageUrl("plan")}">Full plan →</a></div>
-    <p class="hint" style="margin:0">${esc(w.focus)} · ${w.minutes} min planned${pr.status === "upcoming" ? ""
+  const startText = new Date(p.start + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  el.innerHTML = `<div class="toolbar"><h2 style="margin:0">${finished ? "Plan finished" : upcoming ? "Your plan" : "This week's plan"}</h2>
+      <span class="spacer"></span><a href="${pageUrl("plan")}">Full plan ›</a></div>
+    <p class="hint" style="margin:0"><b class="plan-goal">${esc(p.goal_label)}</b> · week ${w.week} of ${p.weeks.length}${upcoming ? `, starts ${startText}` : ""}
+      · ${esc(w.focus)} · ${w.minutes} min planned${pr.status === "upcoming" ? ""
       : ` · ${pr.done_minutes} min done, ${pr.done_runs}/${pr.planned_runs} runs`}${finished ? ". Pick a new goal on the plan page." : ""}</p>
     <div class="this-week">${w.days.map((d, k) => `<div class="${d.type === "rest" ? "rest" : ""} ${!upcoming && !finished && k === todayIdx ? "today" : ""}"
         style="${d.type === "rest" ? "" : `--c:${typeColor(d.type)}`}">
