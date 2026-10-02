@@ -210,17 +210,18 @@
   function showOnboarding(main) {
     for (const child of main.children) child.hidden = true;
     const card = document.createElement("section");
-    card.className = "card onboard";
+    card.className = "onboard";
     card.innerHTML = `
-      <h1>Running Dashboard</h1>
-      <p>Your running data lives on this phone, imported from the file your Mac writes after each sync.</p>
-      <ol>
-        <li>On your Mac, run a sync (it writes <code>${FILE_NAME}</code> to <b>iCloud Drive → Garmin Dashboard</b>).</li>
-        <li>Tap <b>Import data</b> below and pick that file.</li>
-        <li>After a sync on your Mac, tap <b>Update</b> at the top to bring in new runs.</li>
+      <img class="app-icon" src="icon-180.png" alt="" width="88" height="88">
+      <h1>Running</h1>
+      <p class="lead">Your runs, analyzed on your Mac and kept on this phone. Works offline.</p>
+      <ol class="steps">
+        <li><div><b>Sync on your Mac.</b>It saves <code>${FILE_NAME}</code> to iCloud Drive → Garmin Dashboard.</div></li>
+        <li><div><b>Import it here.</b>Tap the button and pick that file.</div></li>
+        <li><div><b>Stay up to date.</b>After your next sync, tap Update at the top.</div></li>
       </ol>
-      <button class="primary" id="phone-import">Import data</button>
-      <p class="hint" id="phone-status" role="status" aria-live="polite" style="margin-top:10px"></p>`;
+      <button class="primary wide" id="phone-import">Import data</button>
+      <p class="hint" id="phone-status" role="status" aria-live="polite"></p>`;
     main.prepend(card);
     const status = card.querySelector("#phone-status");
     const input = picker(async (file) => {

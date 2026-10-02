@@ -1,6 +1,6 @@
 // Overview page: training load, volume, intensity, efficiency, VO2 max, records, activity list.
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 const RANGES = [["3M", 91], ["6M", 182], ["1Y", 365], ["2Y", 730], ["5Y", 1826], ["All", null]];
 const state = {
   activities: [], vo2: [], load: [], records: {}, settings: null, insights: [], type: "run",
@@ -229,11 +229,14 @@ function renderVolume() {
   const avg = totals.reduce((s, v) => s + v, 0) / (totals.length || 1);
   $("volume-hint").textContent = `Average ${avg.toFixed(1)} ${u} per ${b.monthly ? "month" : "week"} in this range.`;
   const opts = chartBase();
-  opts.plugins.tooltip = { callbacks: { title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`, label: (i) => `${i.parsed.y.toFixed(1)} ${u}` } };
+  opts.plugins.tooltip = { callbacks: { title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`,
+    label: (i) => `${i.parsed.y.toFixed(1)} ${u}${i.dataIndex === totals.length - 1 ? " so far" : ""}` } };
   opts.scales.y.ticks.callback = (v) => `${v} ${u}`;
   drawChart("weekly", "weekly", {
     type: "bar",
-    data: { labels: b.labels, datasets: [{ data: totals, backgroundColor: cssVar("--pace"), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 18 }] },
+    // the current week or month is still in progress: drawn lighter
+    data: { labels: b.labels, datasets: [{ data: totals, backgroundColor: totals.map((_, i) => cssVar("--pace") + (i === totals.length - 1 ? "66" : "")),
+      borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 18 }] },
     options: opts,
   });
 }
@@ -530,7 +533,7 @@ function setupTable() {
     const step = Number(e.target.dataset.p);
     if (!step) return;
     t.page += step; renderTable();
-    $("rows").closest("section").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("activities").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
@@ -608,6 +611,7 @@ $("sync").addEventListener("click", async () => {
 });
 
 $("type").addEventListener("change", (e) => { state.type = e.target.value; state.table.page = 0; render(); });
+$("today").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 setupRange();
 setupTable();
 unitsToggle($("units"), render);

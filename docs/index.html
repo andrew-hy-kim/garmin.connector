@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Running Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpolyline points='5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="app.css">
@@ -19,7 +19,7 @@
 <main>
   <header class="topbar">
     <a class="brand" href="index.html" aria-label="Running dashboard home"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2a78d6"/><polyline points="5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Running</a>
-    <nav class="tabs" aria-label="Pages"><a href="index.html" aria-current="page">Dashboard</a><a href="plan.html">Training plan</a></nav>
+    <nav class="tabs" aria-label="Pages"><a href="index.html" aria-current="page"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M21 20H3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Summary</span></a><a href="plan.html"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Training Plan</span></a></nav>
     <div class="controls">
       <label>Show <select id="type"></select></label>
       <div class="seg" id="range" role="group" aria-label="Time range for charts"></div>
@@ -28,7 +28,7 @@
     </div>
     <div id="status" role="status" aria-live="polite"></div>
   </header>
-  <h1 class="sr-only">Running dashboard</h1>
+  <div class="page-head"><div class="eyebrow" id="today"></div><h1>Summary</h1></div>
 
   <section class="tiles" id="tiles"></section>
 
@@ -40,6 +40,47 @@
   </section>
 
   <section class="card" id="week-plan"></section>
+
+  <section class="card" id="activities">
+    <h2>Activities</h2>
+    <p class="hint">Tap or click an activity for second-by-second detail.<span class="wide-only"> Click a column heading to sort.</span></p>
+    <div class="filters">
+      <input type="search" id="f-search" placeholder="Search names" aria-label="Search activity names">
+      <select id="f-workout" aria-label="Workout type"></select>
+      <select id="f-when" aria-label="Date">
+        <option value="any">Any time</option>
+        <option value="range">Chart range</option>
+        <option value="30">Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="year">This year</option>
+        <option value="lastyear">Last year</option>
+        <option value="custom">Custom dates…</option>
+      </select>
+      <span id="f-custom" hidden>
+        <input type="date" id="f-from" aria-label="From date"> to <input type="date" id="f-to" aria-label="To date">
+      </span>
+      <select id="f-sort" class="narrow-only" aria-label="Sort">
+        <option value="start_time_local:-1">Newest first</option>
+        <option value="start_time_local:1">Oldest first</option>
+        <option value="distance_m:-1">Longest</option>
+        <option value="avg_speed_mps:-1">Fastest pace</option>
+        <option value="trimp:-1">Hardest (load)</option>
+      </select>
+      <button type="button" id="f-clear">Clear</button>
+      <div class="summary" id="f-summary"></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr id="table-head">
+        <th class="sortable" data-sort="start_time_local">Date</th><th class="sortable" data-sort="name">Name</th>
+        <th class="sortable" data-sort="workout_label">Workout</th><th class="num sortable" data-sort="distance_m">Distance</th>
+        <th class="num sortable" data-sort="duration_s">Time</th><th class="num sortable" data-sort="avg_speed_mps">Pace</th>
+        <th class="num sortable" data-sort="avg_hr">Avg HR</th><th>HR sensor</th>
+        <th class="num sortable" data-sort="trimp">Load</th><th class="num sortable" data-sort="decoupling_pct">HR drift</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <div class="pager" id="pager"></div>
+  </section>
 
   <section class="card wide">
     <div class="head"><h2>Fitness, fatigue &amp; form</h2></div>
@@ -108,46 +149,6 @@
     </div>
   </section>
 
-  <section class="card">
-    <h2>Activities</h2>
-    <p class="hint">Tap or click an activity for second-by-second detail.<span class="wide-only"> Click a column heading to sort.</span></p>
-    <div class="filters">
-      <input type="search" id="f-search" placeholder="Search names" aria-label="Search activity names">
-      <select id="f-workout" aria-label="Workout type"></select>
-      <select id="f-when" aria-label="Date">
-        <option value="any">Any time</option>
-        <option value="range">Chart range</option>
-        <option value="30">Last 30 days</option>
-        <option value="90">Last 90 days</option>
-        <option value="year">This year</option>
-        <option value="lastyear">Last year</option>
-        <option value="custom">Custom dates…</option>
-      </select>
-      <span id="f-custom" hidden>
-        <input type="date" id="f-from" aria-label="From date"> to <input type="date" id="f-to" aria-label="To date">
-      </span>
-      <select id="f-sort" class="narrow-only" aria-label="Sort">
-        <option value="start_time_local:-1">Newest first</option>
-        <option value="start_time_local:1">Oldest first</option>
-        <option value="distance_m:-1">Longest</option>
-        <option value="avg_speed_mps:-1">Fastest pace</option>
-        <option value="trimp:-1">Hardest (load)</option>
-      </select>
-      <button type="button" id="f-clear">Clear</button>
-      <div class="summary" id="f-summary"></div>
-    </div>
-    <div class="table-wrap"><table>
-      <thead><tr id="table-head">
-        <th class="sortable" data-sort="start_time_local">Date</th><th class="sortable" data-sort="name">Name</th>
-        <th class="sortable" data-sort="workout_label">Workout</th><th class="num sortable" data-sort="distance_m">Distance</th>
-        <th class="num sortable" data-sort="duration_s">Time</th><th class="num sortable" data-sort="avg_speed_mps">Pace</th>
-        <th class="num sortable" data-sort="avg_hr">Avg HR</th><th>HR sensor</th>
-        <th class="num sortable" data-sort="trimp">Load</th><th class="num sortable" data-sort="decoupling_pct">HR drift</th>
-      </tr></thead>
-      <tbody id="rows"></tbody>
-    </table></div>
-    <div class="pager" id="pager"></div>
-  </section>
 </main>
 
 <script src="chart.umd.min.js"></script>

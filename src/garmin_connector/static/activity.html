@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Workout Detail</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpolyline points='5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/app.css">
@@ -12,14 +12,14 @@
 <main>
   <header class="topbar">
     <a class="brand" href="/" aria-label="Running dashboard home"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2a78d6"/><polyline points="5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Running</a>
-    <nav class="tabs" aria-label="Pages"><a href="/">Dashboard</a><a href="/plan">Training plan</a></nav>
+    <nav class="tabs" aria-label="Pages"><a href="/"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M21 20H3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Summary</span></a><a href="/plan"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Training Plan</span></a></nav>
     <div class="controls">
       <div class="seg" id="units" role="group" aria-label="Units"></div>
     </div>
     <div id="status" role="status" aria-live="polite"></div>
   </header>
   <div class="page-head">
-    <a class="back" href="/">← All activities</a>
+    <div class="head-nav"><a class="back" href="/">← All activities</a><span class="pn" id="pn"></span></div>
     <h1 id="title">Loading…</h1>
     <div class="sub" id="subtitle"></div>
     <div id="tagline" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>

@@ -470,17 +470,20 @@ function renderLaps() {
     const hrs = reps.map((l) => l.avg_hr).filter(Boolean);
     $("laps-hint").textContent = `${reps.length} work reps averaged ${fmtDuration(mean)} /${Units.get()}` +
       (hrs.length ? ` at ${Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length)} bpm` : "") +
-      `, varying by ±${Math.round(spread)} s. Recovery laps are greyed out.`;
+      `, varying by ±${Math.round(spread)} s. Bars show each lap's speed, colored by its heart-rate zone.`;
   } else {
-    $("laps-hint").textContent = "Click a lap to analyze it on the timeline.";
+    $("laps-hint").textContent = "Click a lap to analyze it on the timeline. Bars show each lap's speed, colored by its heart-rate zone.";
   }
+  const fastest = Math.max(...laps.map((l) => l.avg_speed || 0)) || 1;
   $("laps").innerHTML = laps.map((l) => {
     const rest = ["rest", "recovery"].includes(l.intensity);
+    const zone = zoneIndex(l.avg_hr);
+    const bar = l.avg_speed ? `<span class="pbar" style="width:${Math.round((l.avg_speed / fastest) * 48)}px;--c:${zone >= 0 ? `var(--z${zone + 1})` : "var(--elev)"}"></span>` : "";
     return `<tr class="clickable ${rest ? "muted" : ""}" data-start="${l.start_t}" data-len="${l.elapsed_s || 0}">
       <td>${l.idx}</td><td>${esc(prettyType(l.intensity || "lap"))}</td>
       <td class="num">${fmtDuration(l.timer_s ?? l.elapsed_s)}</td>
       <td class="num">${fmtDist(l.distance_m)}</td>
-      <td class="num">${l.avg_speed ? fmtPaceOrSpeed(l.avg_speed, D.activity.activity_type) : ""}</td>
+      <td class="num">${bar}${l.avg_speed ? fmtPaceOrSpeed(l.avg_speed, D.activity.activity_type) : ""}</td>
       <td class="num">${l.avg_hr ? Math.round(l.avg_hr) : ""}</td>
       <td class="num">${l.max_hr ? Math.round(l.max_hr) : ""}</td>
       <td class="num">${l.avg_cadence ? Math.round(l.avg_cadence) : ""}</td></tr>`;
@@ -627,6 +630,23 @@ let resizeTimer;
 window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawAll, 100); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawAll(); if (D?.streams) renderMap(); });
 
+// Previous / next workout (with second-by-second data), so you can page through your training
+async function renderPrevNext() {
+  const list = (await getJSON("/api/activities")).filter((a) => a.has_streams);
+  const i = list.findIndex((a) => a.activity_id === activityId);
+  if (i < 0) return;
+  const link = (a, text, rel) => (a ? `<a href="${pageUrl("activity", { id: a.activity_id })}" rel="${rel}" title="${esc(a.name)} · ${esc(fmtDate(a.start_time_local))}">${text}</a>` : `<span class="off">${text}</span>`);
+  // the list is newest first
+  $("pn").innerHTML = link(list[i + 1], "‹ Older", "prev") + link(list[i - 1], "Newer ›", "next");
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest("input, select, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
+  const rel = e.key === "ArrowLeft" ? "prev" : e.key === "ArrowRight" ? "next" : null;
+  const a = rel && document.querySelector(`#pn a[rel="${rel}"]`);
+  if (a) location.href = a.href;
+});
+
 getJSON(`/api/activities/${activityId}`)
-  .then((data) => { D = data; renderAll(); renderMap(); })
+  .then((data) => { D = data; renderAll(); renderMap(); renderPrevNext().catch(() => {}); })
   .catch((err) => { $("title").textContent = "Couldn't load this activity"; setStatus(err.message, true); });

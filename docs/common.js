@@ -136,10 +136,12 @@ function zoneRows(zones, seconds) {
 
 // ---------- coach notes & Claude reviews ----------
 const LEVEL_LABEL = { good: "Good", info: "Note", warn: "Watch" };
+const LEVEL_ICON = { good: "✓", info: "i", warn: "!" };
 function renderNotes(el, notes) {
   el.innerHTML = notes.length ? notes.map((n) => `<div class="note lvl-${esc(n.level)}">
-      <div class="t"><span class="lvl">${LEVEL_LABEL[n.level] || ""}</span><span>${esc(n.title)}</span></div>
-      <div class="d">${esc(n.detail)}</div></div>`).join("")
+      <span class="ico" role="img" aria-label="${LEVEL_LABEL[n.level] || ""}">${LEVEL_ICON[n.level] || "i"}</span>
+      <div class="t">${esc(n.title)}</div>
+      ${n.detail ? `<div class="d">${esc(n.detail)}</div>` : ""}</div>`).join("")
     : `<p class="hint">Nothing to flag yet. Notes appear as more runs are analyzed.</p>`;
 }
 
