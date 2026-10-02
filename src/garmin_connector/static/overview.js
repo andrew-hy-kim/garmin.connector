@@ -721,7 +721,7 @@ function renderTable() {
       <td class="num">${fmtDuration(a.duration_s)}</td>
       <td class="num">${fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)}</td>
       <td class="num">${a.avg_hr ? Math.round(a.avg_hr) : ""}</td>
-      <td>${a.has_streams ? `<span class="badge">${a.external_hr ? "Arm band" : "Wrist"}</span>` : ""}</td>
+      <td>${a.has_streams && a.avg_hr ? `<span class="badge">${a.external_hr ? "Arm band" : "Wrist"}</span>` : ""}</td>
       <td class="num">${a.trimp != null ? Math.round(a.trimp) : ""}</td>
       <td class="num">${a.decoupling_pct != null ? a.decoupling_pct.toFixed(1) + "%" : ""}</td>
     </tr>`).join("")
