@@ -288,6 +288,7 @@ function drawPanel(p) {
   const right = w - PLOT.right, bottom = h - PLOT.bottom;
 
   // HR zone bands
+  const zoneLabels = [];
   if (def.zones) {
     D.zones.forEach((z, i) => {
       const top = y(Math.min(z.high, hi)), bot = y(Math.max(z.low, lo));
@@ -296,6 +297,8 @@ function drawPanel(p) {
       ctx.fillStyle = cssVar(`--z${i + 1}`);
       ctx.fillRect(PLOT.left, top, right - PLOT.left, bot - top);
       ctx.globalAlpha = 1;
+      // zone name at the right edge when the band is tall enough (drawn over the line below)
+      if (bot - top >= 13) zoneLabels.push([`Z${i + 1}`, cssVar(`--z${i + 1}`), (top + bot) / 2]);
     });
   }
   // interval reps
@@ -337,6 +340,12 @@ function drawPanel(p) {
   };
   if (def.second) line(def.second.values, def.second.color, true);
   line(def.values, def.color, false, def.fill);
+  ctx.font = "700 10px -apple-system, system-ui, sans-serif";
+  ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+  for (const [text, color, yy] of zoneLabels) {
+    ctx.strokeStyle = cssVar("--surface-1"); ctx.lineWidth = 3; ctx.strokeText(text, right - 4, yy);
+    ctx.fillStyle = color; ctx.fillText(text, right - 4, yy);
+  }
 }
 
 function drawAxis() {
