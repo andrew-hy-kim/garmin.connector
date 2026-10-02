@@ -383,6 +383,7 @@ function renderVo2() {
 }
 
 // ---------- records ----------
+const span = (e) => (e.start_t != null ? `${Math.round(e.start_t)}-${Math.round(e.start_t + e.seconds)}` : "");
 function renderRecords() {
   const entries = Object.entries(state.records);
   const showRange = rangeDays() != null;
@@ -393,8 +394,8 @@ function renderRecords() {
     const inR = list.find((e) => inRange(e.date));
     const rangeCell = !inR ? `<span class="dim">–</span>`
       : inR === best ? `<span class="dim">same</span>`
-      : `${fmtDuration(inR.seconds)} <span class="dim when">${fmtMonthYear(localDate(inR.date))}</span>`;
-    return `<tr class="clickable" tabindex="0" data-id="${best.activity_id}">
+      : `<a href="${pageUrl("activity", { id: inR.activity_id, t: span(inR) })}">${fmtDuration(inR.seconds)}</a> <span class="dim when">${fmtMonthYear(localDate(inR.date))}</span>`;
+    return `<tr class="clickable" tabindex="0" data-id="${best.activity_id}" data-t="${span(best)}">
       <td>${esc(label)}</td><td class="num"><b>${fmtDuration(best.seconds)}</b></td>
       <td class="num">${fmtPace(best.meters / best.seconds)}</td>
       <td>${fmtDate(best.date)}</td>
@@ -593,11 +594,11 @@ function setupTable() {
 for (const id of ["rows", "records"]) {
   $(id).addEventListener("click", (e) => {
     const row = e.target.closest("tr.clickable");
-    if (row) location.href = pageUrl("activity", { id: row.dataset.id });
+    if (row && !e.target.closest("a")) location.href = pageUrl("activity", { id: row.dataset.id, t: row.dataset.t });
   });
   $(id).addEventListener("keydown", (e) => {
     const row = e.target.closest("tr.clickable");
-    if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); location.href = pageUrl("activity", { id: row.dataset.id }); }
+    if (row && e.target === row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); location.href = pageUrl("activity", { id: row.dataset.id, t: row.dataset.t }); }
   });
 }
 

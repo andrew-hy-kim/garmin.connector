@@ -6,7 +6,8 @@ if (PHONE) document.documentElement.classList.add("phone");
 
 // Links between pages: server routes on the Mac, plain files in the phone app.
 function pageUrl(page, params = {}) {
-  if (page === "activity") return PHONE ? `activity.html?id=${params.id}` : `/activity/${params.id}`;
+  // `t` ("start-end" in seconds) opens the workout with that stretch selected
+  if (page === "activity") return (PHONE ? `activity.html?id=${params.id}` : `/activity/${params.id}`) + (params.t ? `#t=${params.t}` : "");
   if (page === "plan") return (PHONE ? "plan.html" : "/plan") + (params.new ? "?new" : "");
   return PHONE ? "index.html" : "/";
 }
