@@ -225,7 +225,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 #zones.compact .zone-row .bar { display: none; }
 .settings-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 12px; align-items: end; margin-top: 12px; }
 .settings-form label { font-size: 13px; color: var(--text-secondary); font-weight: 550; display: grid; gap: 4px; }
-.settings-form select { width: 100%; }
+.settings-form select { width: 100%; font-weight: 400; }
 .settings-form input::placeholder { color: var(--text-secondary); }
 .settings-form .src { color: var(--text-muted); font-weight: 400; font-size: 12px; min-height: 1.4em; margin-top: -2px; }
 .settings-form label:has(select)::after { content: ""; min-height: 1.4em; }
@@ -498,6 +498,10 @@ summary.week-head::-webkit-details-marker { display: none; }
   .records-table td .when { display: none; }
   .day { grid-template-columns: 44px minmax(0, 1fr) 56px; gap: 8px; padding: 9px 12px; }
   .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #plan-form .filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; }
+  #plan-form .filters label { display: grid; gap: 4px; font-size: 13px; color: var(--text-secondary); font-weight: 550; }
+  #plan-form .filters select { width: 100%; font-weight: 400; color: var(--text-primary); }
+  #plan-form .filters button { grid-column: 1 / -1; min-height: 46px; font-size: 16px; border-radius: 12px; }
 }
 /* phones: iOS-style tab bar at the bottom */
 @media (max-width: 600px) {
