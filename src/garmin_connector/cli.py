@@ -8,7 +8,7 @@ import webbrowser
 from contextlib import closing
 from datetime import date
 
-from . import auth, config, db, processing, sync
+from . import auth, config, db, export, processing, sync
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -24,6 +24,10 @@ def main(argv: list[str] | None = None) -> None:
     p_sync = sub.add_parser("sync", help="pull new activities into the local database")
     p_sync.add_argument("--since", type=date.fromisoformat, help="re-sync from this date (YYYY-MM-DD)")
     p_sync.add_argument("--no-fit", action="store_true", help="skip downloading .fit files (summaries only)")
+    p_sync.add_argument("--no-export", action="store_true", help="don't update the phone app's data file")
+
+    p_export = sub.add_parser("export", help="write the data file for the phone app (iCloud Drive by default)")
+    p_export.add_argument("--to", help="folder to write to (default: iCloud Drive/Garmin Dashboard)")
 
     sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
     sub.add_parser("set-api-key", help="save an Anthropic API key for 'Ask Claude' reviews (macOS Keychain)")
@@ -53,14 +57,23 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "sync":
         with closing(db.connect(config.db_path())) as conn:
             result = sync.sync(auth.get_client(), conn, since=args.since, download_fit=not args.no_fit)
-        print(
-            f"Synced {result['activities']} activities, {result['vo2max_readings']} VO2 max readings, "
-            f"{result['fit_files']} new .fit files; analyzed {result['analyzed']} activities."
-        )
+            print(
+                f"Synced {result['activities']} activities, {result['vo2max_readings']} VO2 max readings, "
+                f"{result['fit_files']} new .fit files; analyzed {result['analyzed']} activities."
+            )
+            if not args.no_export:
+                path = export.write_quietly(conn)
+                if path:
+                    print(f"Phone app data updated: {path}")
+    elif args.command == "export":
+        with closing(db.connect(config.db_path())) as conn:
+            path = export.write(conn, args.to)
+        print(f"Wrote {path} ({path.stat().st_size / 1e6:.1f} MB). Import it in the phone app.")
     elif args.command == "analyze":
         with closing(db.connect(config.db_path())) as conn:
             sync.import_missing_streams(conn)
             print(f"Analyzed {processing.refresh(conn, force=True)} activities.")
+            export.write_quietly(conn)
     elif args.command == "set-api-key":
         import getpass
 
@@ -85,6 +98,8 @@ def main(argv: list[str] | None = None) -> None:
             if any(v is not None for v in changes.values()):
                 processing.refresh(conn)
             current = processing.effective_settings(conn)
+            if any(v is not None for v in changes.values()):
+                export.write_quietly(conn)
         for key, label in (("max_hr", "Max HR"), ("resting_hr", "Resting HR"), ("lthr", "Threshold HR")):
             value = current[key]
             source = current["sources"][key]

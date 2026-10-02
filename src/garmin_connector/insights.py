@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import date, timedelta
 from statistics import median
 from typing import Any
@@ -29,8 +30,25 @@ def _mins(seconds: float) -> str:
     return f"{round(seconds / 60)} min"
 
 
+_runs_cache: list[dict[str, Any]] | None = None
+
+
+@contextmanager
+def cached_runs(conn: sqlite3.Connection):
+    """Load the run history once and reuse it, for building notes on many workouts in a row (the export)."""
+    global _runs_cache
+    _runs_cache = None
+    _runs_cache = _runs(conn)
+    try:
+        yield
+    finally:
+        _runs_cache = None
+
+
 def _runs(conn: sqlite3.Connection, since: str | None = None) -> list[dict[str, Any]]:
     """Runs with their metrics, oldest first."""
+    if _runs_cache is not None:
+        return [r for r in _runs_cache if since is None or r["start_time_local"] >= since]
     rows = conn.execute(
         "SELECT a.activity_id, a.start_time_local, a.distance_m, a.duration_s, a.activity_type, m.trimp, m.data "
         "FROM activities a JOIN activity_metrics m USING (activity_id) "

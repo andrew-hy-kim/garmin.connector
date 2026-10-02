@@ -93,6 +93,14 @@ CREATE TABLE IF NOT EXISTS ai_reviews (
     text        TEXT NOT NULL
 );
 
+-- Phone-sized copies of each workout's streams (see export.py), so exports only
+-- process new workouts. ``key`` changes whenever the export format does.
+CREATE TABLE IF NOT EXISTS export_streams (
+    activity_id  INTEGER PRIMARY KEY,
+    key          TEXT NOT NULL,
+    data         BLOB NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key    TEXT PRIMARY KEY,
     value  TEXT
