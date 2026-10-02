@@ -542,6 +542,9 @@ function renderSplits() {
   const parts = [];
   for (let k = 1; k < bounds.length; k++) parts.push(summarize(bounds[k - 1], bounds[k]));
   const fastest = Math.max(...parts.map((p) => p.speed || 0)) || 1;
+  // the quickest full split gets a label (not a short last one)
+  const full = parts.map((p, k) => (p.meters >= unit * 0.95 ? p.speed || 0 : 0));
+  const best = full.length > 2 ? full.indexOf(Math.max(...full)) : -1;
   for (let k = 1; k < bounds.length; k++) {
     const i0 = bounds[k - 1], i1 = bounds[k], s = parts[k - 1];
     const zone = zoneIndex(s.hr);
@@ -549,7 +552,7 @@ function renderSplits() {
     const partial = s.meters < unit * 0.95;
     const elev = (S.altitude[i1] ?? 0) - (S.altitude[i0] ?? 0);
     rows.push(`<tr class="clickable" tabindex="0" data-i0="${i0}" data-i1="${i1}">
-      <td>${k}${partial ? ` <span class="hint">(${dist(s.meters).toFixed(2)})</span>` : ""}</td>
+      <td>${k}${partial ? ` <span class="hint">(${dist(s.meters).toFixed(2)})</span>` : ""}${k - 1 === best ? ` <span class="badge best">Fastest</span>` : ""}</td>
       <td class="num">${bar}<b>${fmtPaceOrSpeed(s.speed, D.activity.activity_type)}</b></td>
       <td class="num">${run && s.gap ? fmtPace(s.gap) : ""}</td>
       <td class="num">${s.hr ? Math.round(s.hr) : ""}</td>
