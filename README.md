@@ -21,17 +21,21 @@ built from your recent running time, run frequency, fitness and form, any comeba
 break, your threshold HR and recent best efforts: mostly easy running, volume growing gradually,
 a lighter week every fourth week, progressing workouts with HR and pace targets, and no hard
 sessions until you've been consistent for about four weeks after a break. Each week shows
-planned vs. done, the overview shows this week's plan, and you can **Ask Claude** to review it.
+planned vs. done (every past day is ticked with what you ran, or marked "Not done"), finished
+weeks fold away, the Summary shows this week's plan with a progress ring, and you can
+**Ask Claude** to review it.
 
-**Overview page** (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the time range for every chart)
+**Summary page** (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the time range for every chart)
 - **Fitness, fatigue & form** explained in plain language: what the numbers mean, your
   current form state (fresh / maintaining / productive / overreaching), and what resting
   would do, plus your fitness now vs. 3 months, 1, 2, 3 and 5 years ago and your peak
 - **Easy vs. hard running:** minutes by intensity per week (or per month on long ranges)
 - Weekly distance, VO2 max trend, and **aerobic efficiency** (distance per heartbeat on
-  easy runs), which shows whether your aerobic base is improving
+  easy runs), which shows whether your aerobic base is improving. Click a week's bar to list
+  those runs, or a dot on the efficiency chart to open that run
 - **Personal records** at 400 m, 1 km, mile, 5K, 10K, half and marathon, taken from the fastest
-  stretch of any outdoor run, all-time and within the selected range
+  stretch of any outdoor run, all-time and within the selected range. Click one to open the
+  run with that stretch selected
 - **Activity list** with search, workout-type and date filters, sortable columns and paging
 - Heart-rate settings (max, resting, threshold) and **zones pulled from your Garmin account**
   on every sync, so zones match your watch. You can override any value, and anything Garmin
@@ -43,7 +47,9 @@ planned vs. done, the overview shows this week's plan, and you can **Ask Claude*
 - **Drag across any stretch** (or click a lap, split or best effort) for its pace, GAP,
   HR, cadence and elevation
 - Time in HR zones, route map colored by zone, laps with a work-rep summary for interval
-  sessions, mile/km splits with GAP, best efforts within the run
+  sessions, mile/km splits with GAP, best efforts within the run; laps and splits show a speed
+  bar colored by heart-rate zone
+- **Older / Newer** buttons (or the ← → keys) to page through your runs
 - **HR drift** (aerobic decoupling) on steady runs over 40 minutes
 
 **Wrist vs. arm band:** each workout records whether an external HR sensor was connected.

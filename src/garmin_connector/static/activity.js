@@ -105,12 +105,22 @@ const hasHr = () => !!(D.streams ? D.streams.hr.some((v) => v != null) : D.activ
 
 // ---------------------------------------------------------------- tiles & warnings
 
+// "Tuesday, September 29, 2026 · 8:00–8:54 AM"
+function timeRange(a) {
+  const start = localDate(a.start_time_local);
+  const end = new Date(start.getTime() + (a.duration_s || 0) * 1000);
+  const day = start.toLocaleDateString(undefined, { dateStyle: "full" });
+  if (!a.duration_s) return `${day} · ${start.toLocaleTimeString(undefined, { timeStyle: "short" })}`;
+  const range = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).formatRange(start, end);
+  return `${day} · ${range}`;
+}
+
 function renderHeader() {
   const a = D.activity;
   document.title = `${a.name || "Workout"} · Workout Detail`;
   $("title").textContent = a.name || "Workout";
   $("subtitle").textContent = [
-    localDate(a.start_time_local).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }),
+    timeRange(a),
     prettyType(a.activity_type), a.location,
     D.streams && hasHr() ? (D.external_hr ? "HR: arm band / strap" : "HR: wrist") : null,
   ].filter(Boolean).join(" · ");
@@ -639,7 +649,7 @@ function updateMapSelection() {
 function renderAll() {
   if (D.streams) { derive(); }
   renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderZones(); renderLaps(); renderSplits(); renderEfforts();
-  renderNotes($("notes"), (D.insights || []).filter((n) => !n.title.startsWith("Tagged:")));
+  renderNotes($("notes"), (D.insights || []).filter((n) => !n.title.startsWith("Tagged:")), "Nothing stands out in this workout.");
   setupAiBox($("ai"), "activity", activityId);
   $("charts-card").style.display = D.streams ? "" : "none";
   if (D.streams) { buildPanels(); drawAll(); renderSelection(); }

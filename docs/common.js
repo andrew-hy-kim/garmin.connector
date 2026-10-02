@@ -154,12 +154,12 @@ function zoneRows(zones, seconds) {
 // ---------- coach notes & Claude reviews ----------
 const LEVEL_LABEL = { good: "Good", info: "Note", warn: "Watch" };
 const LEVEL_ICON = { good: "✓", info: "i", warn: "!" };
-function renderNotes(el, notes) {
+function renderNotes(el, notes, emptyText = "Nothing to flag yet. Notes appear as more runs are analyzed.") {
   el.innerHTML = notes.length ? notes.map((n) => `<div class="note lvl-${esc(n.level)}">
       <span class="ico" role="img" aria-label="${LEVEL_LABEL[n.level] || ""}">${LEVEL_ICON[n.level] || "i"}</span>
       <div class="t">${esc(n.title)}</div>
       ${n.detail ? `<div class="d">${esc(n.detail)}</div>` : ""}</div>`).join("")
-    : `<p class="hint">Nothing to flag yet. Notes appear as more runs are analyzed.</p>`;
+    : `<p class="hint" style="margin:0">${esc(emptyText)}</p>`;
 }
 
 // Minimal Markdown (headings, lists, bold/italic, paragraphs) for Claude's reviews. Escapes first.
