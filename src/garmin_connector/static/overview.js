@@ -337,6 +337,13 @@ function renderConsistency() {
   $("cons-stats").textContent = `${perWeek.toFixed(1)} ${state.type === "run" ? "runs" : "days"} a week lately` +
     (streak >= 2 ? ` · ${streak} weeks in a row with 3+` : "");
 }
+// "/" jumps to the activity search, like many Mac apps
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "/" || e.target.closest("input, select, textarea")) return;
+  e.preventDefault();
+  $("f-search").focus();
+  $("activities").scrollIntoView({ behavior: "smooth", block: "start" });
+});
 let calTimer;
 window.addEventListener("resize", () => { clearTimeout(calTimer); calTimer = setTimeout(() => state.activities.length && renderConsistency(), 150); });
 $("cal").addEventListener("click", (e) => {
@@ -650,7 +657,7 @@ function tableRows() {
   const rows = filtered().filter((a) => {
     const d = localDate(a.start_time_local);
     return (!from || d >= from) && (!to || d < to) && (!types || types.includes(a.workout_type))
-      && (!q || (a.name || "").toLowerCase().includes(q));
+      && (!q || `${a.name || ""} ${a.workout_label || ""} ${prettyType(a.activity_type)}`.toLowerCase().includes(q));
   });
   const key = t.sort;
   rows.sort((a, b) => {
