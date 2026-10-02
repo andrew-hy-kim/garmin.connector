@@ -79,11 +79,27 @@ function unitsToggle(el, onChange) {
   sync();
 }
 
+// Status messages float at the bottom of the screen, like a macOS/iOS notice.
+// Progress ("…") and errors stay until replaced or dismissed; confirmations fade after a few seconds.
+let statusTimer;
 function setStatus(msg, isError = false) {
   const el = $("status");
   if (!el) return;
-  el.textContent = msg;
+  if (el.parentElement !== document.body) document.body.appendChild(el); // out of the blurred top bar
+  clearTimeout(statusTimer);
   el.classList.toggle("error", isError);
+  el.innerHTML = msg ? `<span>${esc(msg)}</span>${isError ? `<button type="button" aria-label="Dismiss">✕</button>` : ""}` : "";
+  el.classList.toggle("show", !!msg);
+  const close = el.querySelector("button");
+  if (close) close.onclick = () => setStatus("");
+  if (msg && !isError && !/…$/.test(msg)) statusTimer = setTimeout(() => el.classList.remove("show"), 5000);
+}
+
+// Busy state for a button while something runs: label changes, button disabled.
+async function busy(button, label, work) {
+  const old = button.textContent;
+  button.disabled = true; button.textContent = label;
+  try { return await work(); } finally { button.disabled = false; button.textContent = old; }
 }
 
 // Chart.js defaults that follow the theme

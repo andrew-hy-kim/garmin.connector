@@ -425,7 +425,9 @@ function renderSettings() {
     return Math.max(1, hi - lo);
   });
   $("zones").className = "zones compact";
-  $("zones").innerHTML = `<p class="hint" style="margin:14px 0 0">${zoneBasis(s)}.</p>
+  const overridden = s.zone_system === "garmin" && !s.zone_floors && !PHONE;
+  $("zones").innerHTML = `<p class="hint" style="margin:14px 0 0">${zoneBasis(s)}.${overridden
+    ? " Garmin's own zones only apply with Garmin's heart-rate values; clear your values above to use them again." : ""}</p>
     <div class="zone-strip" aria-hidden="true">${spans.map((w, i) => `<div style="flex:${w};--c:var(--z${i + 1})"></div>`).join("")}</div>` +
     s.zones.map((z, i) => `<div class="zone-row"><div><span class="swatch" style="--c:var(--z${i + 1})"></span>Z${i + 1} ${esc(z.name)}</div>
         <div class="bar"></div><div class="val">${zoneRange(s.zones, i)} bpm</div></div>`).join("");
@@ -465,10 +467,12 @@ $("settings").addEventListener("submit", async (e) => {
   const f = e.target.elements;
   const body = Object.fromEntries(["max_hr", "resting_hr", "lthr"].map((k) => [k, f[k].value ? Number(f[k].value) : null]));
   body.zone_system = f.zone_system.value;
-  setStatus("Saving and re-analyzing…");
+  setStatus("Saving and re-analyzing your workouts…");
   try {
-    state.settings = await getJSON("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    await load();
+    await busy(e.target.querySelector("button[type=submit]"), "Saving…", async () => {
+      state.settings = await getJSON("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      await load();
+    });
     setStatus("Settings saved. Zones and training load updated.");
   } catch (err) { setStatus(err.message, true); }
 });
@@ -655,16 +659,17 @@ async function load() {
 
 $("welcome-sync").addEventListener("click", () => $("sync").click());
 $("sync").addEventListener("click", async () => {
-  $("sync").disabled = true; $("welcome-sync").disabled = true;
-  setStatus("Syncing with Garmin Connect…");
+  $("welcome-sync").disabled = true;
   $("welcome-sync").textContent = "Syncing… this can take a few minutes the first time";
+  setStatus("Syncing with Garmin Connect…");
   try {
-    const r = await getJSON("/api/sync", { method: "POST" });
-    setStatus(`Synced ${r.activities} activities, downloaded ${r.fit_files} workout files, analyzed ${r.analyzed}.`);
-    $("welcome-sync").textContent = "Sync with Garmin";
+    const before = state.activities.length;
+    await busy($("sync"), "Syncing…", () => getJSON("/api/sync", { method: "POST" }));
     await load();
+    const added = state.activities.length - before;
+    setStatus(added > 0 ? `Synced ${added} new ${added === 1 ? "activity" : "activities"}.` : "You're up to date. No new activities.");
   } catch (err) { setStatus(err.message, true); }
-  finally { $("sync").disabled = false; $("welcome-sync").disabled = false; }
+  finally { $("welcome-sync").disabled = false; $("welcome-sync").textContent = "Sync with Garmin"; }
 });
 
 $("type").addEventListener("change", (e) => { state.type = e.target.value; state.table.page = 0; render(); });

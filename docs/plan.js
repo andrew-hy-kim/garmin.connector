@@ -33,9 +33,9 @@ $("plan-form").addEventListener("submit", async (e) => {
   const f = e.target.elements;
   setStatus("Building your plan…");
   try {
-    S = await getJSON("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goal: f.goal.value, weeks: f.weeks.value, runs_per_week: f.runs_per_week.value, long_day: f.long_day.value }) });
-    setStatus("");
+    S = await busy(e.target.querySelector("button[type=submit]"), "Building…", () => getJSON("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goal: f.goal.value, weeks: f.weeks.value, runs_per_week: f.runs_per_week.value, long_day: f.long_day.value }) }));
+    setStatus("Plan ready.");
     render();
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (err) { setStatus(err.message, true); }

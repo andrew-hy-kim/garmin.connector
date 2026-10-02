@@ -131,9 +131,14 @@ html, body { overflow-x: clip; }
 .controls label { font-size: 13px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; }
 .controls select { min-height: 32px; padding-top: 4px; padding-bottom: 4px; font-size: 14px; }
 .controls button { min-height: 32px; padding: 4px 14px; font-size: 14px; }
-#status { color: var(--text-secondary); font-size: 13px; width: 100%; text-align: right; min-height: 1em; }
-#status:empty { display: none; }
+#status { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 2000; width: max-content; max-width: min(560px, calc(100vw - 32px));
+  transform: translate(-50%, 16px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 18px; border-radius: 14px; font-size: 14px; font-weight: 500;
+  background: color-mix(in srgb, var(--surface-1) 92%, transparent); color: var(--text-primary);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .18), 0 0 0 1px var(--border); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+#status.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 #status.error { color: var(--danger); }
+#status button { min-height: 26px; padding: 2px 8px; font-size: 13px; color: var(--text-muted); background: var(--fill); border-radius: 999px; }
 
 /* large title, like an iOS / macOS app */
 .page-head { margin: 0 0 20px; }
@@ -443,6 +448,7 @@ button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14p
 }
 /* phones: iOS-style tab bar at the bottom */
 @media (max-width: 600px) {
+  #status { bottom: calc(76px + env(safe-area-inset-bottom)); }
   main { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000; display: grid; grid-template-columns: 1fr 1fr; gap: 0;
     padding: 6px 0 calc(4px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border);
@@ -457,7 +463,6 @@ button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14p
   .topbar #units, .topbar #sync { order: 1; }
   .topbar #units { margin-left: auto; }
   .topbar .controls label, .topbar #range { order: 2; }
-  .topbar #status { order: 3; }
   .topbar .controls label { font-size: 0; gap: 0; }
   .topbar .controls label select { font-size: 14px; max-width: 132px; }
 }
