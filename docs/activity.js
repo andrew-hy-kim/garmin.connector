@@ -503,12 +503,15 @@ function renderLaps() {
     $("laps-hint").textContent = `Click a lap to analyze it on the timeline. Bars show each lap's speed${hasHr() ? ", colored by its heart-rate zone" : ""}.`;
   }
   const fastest = Math.max(...laps.map((l) => l.avg_speed || 0)) || 1;
+  let rep = 0;
   $("laps").innerHTML = laps.map((l) => {
     const rest = ["rest", "recovery"].includes(l.intensity);
+    // interval sessions read as reps and recoveries
+    const type = interval && l.intensity === "active" ? `Rep ${++rep}` : interval && rest ? "Recovery" : prettyType(l.intensity || "lap");
     const zone = zoneIndex(l.avg_hr);
     const bar = l.avg_speed ? `<span class="pbar" style="width:${Math.round((l.avg_speed / fastest) * 48)}px;--c:${zone >= 0 ? `var(--z${zone + 1})` : "var(--elev)"}"></span>` : "";
     return `<tr class="clickable ${rest ? "muted" : ""}" tabindex="0" data-start="${l.start_t}" data-len="${l.elapsed_s || 0}">
-      <td>${l.idx}</td><td>${esc(prettyType(l.intensity || "lap"))}</td>
+      <td>${l.idx}</td><td>${esc(type)}</td>
       <td class="num">${fmtDuration(l.timer_s ?? l.elapsed_s)}</td>
       <td class="num">${fmtDist(l.distance_m)}</td>
       <td class="num">${bar}${l.avg_speed ? fmtPaceOrSpeed(l.avg_speed, D.activity.activity_type) : ""}</td>
