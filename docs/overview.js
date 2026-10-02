@@ -667,6 +667,7 @@ function renderWeekPlan() {
 }
 
 function render() {
+  renderToday();
   // Nothing synced yet: a welcome card instead of empty charts
   const empty = !state.activities.length;
   document.body.classList.toggle("no-data", empty);
@@ -699,7 +700,16 @@ $("sync").addEventListener("click", async () => {
 });
 
 $("type").addEventListener("change", (e) => { state.type = e.target.value; state.table.page = 0; render(); });
-$("today").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+function renderToday() {
+  const today = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  const last = state.activities.find((a) => isRun(a.activity_type));
+  let ago = "";
+  if (last) {
+    const days = Math.round((new Date(isoDay(new Date()) + "T12:00") - new Date(last.start_time_local.slice(0, 10) + "T12:00")) / 864e5);
+    ago = days <= 0 ? "Last run today" : days === 1 ? "Last run yesterday" : `Last run ${days} days ago`;
+  }
+  $("today").textContent = ago ? `${today} · ${ago}` : today;
+}
 setupRange();
 setupTable();
 unitsToggle($("units"), render);

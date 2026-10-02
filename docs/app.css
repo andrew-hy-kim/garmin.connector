@@ -198,6 +198,7 @@ td.dim, span.dim { color: var(--text-muted); }
 tr.muted td { color: var(--text-muted); }
 tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: var(--surface-2); }
+tr.clickable:active td { background: var(--fill); }
 tr.clickable:focus-visible { outline-offset: -2px; }
 .empty { color: var(--text-secondary); text-align: center; padding: 32px 16px; }
 code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
@@ -442,6 +443,7 @@ summary.week-head::-webkit-details-marker { display: none; }
   #rows td:nth-child(5), #rows td:nth-child(n+7) { display: none; }
   #rows td.empty { grid-column: 1 / -1; white-space: normal; }
   #rows tr.clickable:hover td { background: transparent; }
+  #rows tr.clickable:active { background: var(--fill); border-radius: 8px; }
 }
 
 /* narrow screens */
