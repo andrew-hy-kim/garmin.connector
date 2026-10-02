@@ -15,6 +15,8 @@ const FORM_STATES = [
   { key: "productive", min: -0.30, label: "Productive training", color: "--gap", text: "Carrying the fatigue that builds fitness." },
   { key: "overreaching", min: -Infinity, label: "Overreaching", color: "--hr", text: "Fatigue far above fitness; recover before more hard work." },
 ];
+// Orange is too light for text on white; its numbers use the darker warning orange
+const textColor = (st) => (st.key === "productive" ? "--warn-c" : st.color);
 const formState = (d) => FORM_STATES.find((s) => (d.fitness > 1 ? d.form / d.fitness : 0) >= s.min);
 const charts = {};
 
@@ -118,7 +120,7 @@ function renderTiles() {
   const load = today ? [
     `<div class="tile"><div class="label">Fitness</div><div class="value">${today.fitness.toFixed(0)}</div><div class="sub">${delta("fitness", true)}</div></div>`,
     `<div class="tile"><div class="label">Fatigue</div><div class="value">${today.fatigue.toFixed(0)}</div><div class="sub">${delta("fatigue")}</div></div>`,
-    `<div class="tile state" style="--c:var(${st.color})"><div class="label">Form</div><div class="value">${(today.form > 0 ? "+" : "") + today.form.toFixed(0)}</div><div class="sub">${st.label}</div></div>`,
+    `<div class="tile state" style="--c:var(${textColor(st)})"><div class="label">Form</div><div class="value">${(today.form > 0 ? "+" : "") + today.form.toFixed(0)}</div><div class="sub">${st.label}</div></div>`,
   ] : [];
   $("tiles").innerHTML = [...volume, ...load].join("");
   $("tiles").classList.toggle("six", volume.length + load.length === 6);
@@ -235,7 +237,7 @@ function renderExplain() {
   const scale = FORM_STATES.map((s) => `<div style="--c:var(${s.color})" class="${s === st ? "now" : ""}"><b>${s.label}</b>${
     s.key === "fresh" ? "above +10%" : s.key === "neutral" ? "−10% to +10%" : s.key === "productive" ? "−30% to −10%" : "below −30%"} of fitness</div>`).join("");
   $("explain").innerHTML = `
-    <div class="verdict" style="--c:var(${st.color})"><span class="big">${sign(today.form)}</span>
+    <div class="verdict" style="--c:var(${textColor(st)})"><span class="big">${sign(today.form)}</span>
       <div><b>${st.label}</b><span>${st.text}</span></div></div>
     <div class="scale">${scale}</div>
     <div>Fitness is <b>${today.fitness.toFixed(0)}</b>${trend == null ? "" : Math.abs(trend) < 1 ? ", about the same as 6 weeks ago"

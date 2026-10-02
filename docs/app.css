@@ -11,7 +11,7 @@
   --grid: #e5e5ea;
   --text-primary: #000000;
   --text-secondary: #3c3c43;
-  --text-muted: #6e6e73;
+  --text-muted: #6a6a6f;
   --accent: #0071e3;
   --link: #0066cc;
   --accent-ink: #0062cc;
@@ -32,7 +32,7 @@
      Always shown with zone names, never color alone. */
   --z1: #8e8e93; --z2: #007aff; --z3: #1baf7a; --z4: #eda100; --z5: #ff3b30;
   --select: rgba(0, 122, 255, 0.10);
-  --good: #248a3d; --info: #007aff; --warn-c: #c93400;
+  --good: #1f7a35; --info: #007aff; --warn-c: #c93400;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -151,6 +151,7 @@ html, body { overflow-x: clip; }
 .page-head .sub { color: var(--text-muted); font-size: 15px; margin-top: 4px; }
 .compare-last { margin-top: 8px; font-size: 14px; color: var(--text-secondary); }
 .compare-last .up { color: var(--good); font-weight: 600; }
+.compare-last a { text-decoration: underline; text-underline-offset: 2px; }
 .head-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .pn { margin-left: auto; display: inline-flex; gap: 6px; }
 .pn a, .pn .off { font-size: 13px; font-weight: 550; padding: 4px 12px; border-radius: 999px; background: var(--surface-1); color: var(--link); box-shadow: var(--shadow); }
