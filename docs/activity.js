@@ -98,6 +98,11 @@ function summarize(i0, i1) {
   };
 }
 
+// Runs, walks and hikes are shown as pace; rides and the rest as speed.
+const usesPace = () => PACE_TYPES.test(D.activity.activity_type || "");
+const cadUnit = () => (/cycl|bik|ride/.test(D.activity.activity_type || "") ? "rpm" : "spm");
+const hasHr = () => !!(D.streams ? D.streams.hr.some((v) => v != null) : D.activity.avg_hr);
+
 // ---------------------------------------------------------------- tiles & warnings
 
 function renderHeader() {
@@ -107,7 +112,7 @@ function renderHeader() {
   $("subtitle").textContent = [
     localDate(a.start_time_local).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }),
     prettyType(a.activity_type), a.location,
-    D.streams ? (D.external_hr ? "HR: arm band / strap" : "HR: wrist") : null,
+    D.streams && hasHr() ? (D.external_hr ? "HR: arm band / strap" : "HR: wrist") : null,
   ].filter(Boolean).join(" · ");
 }
 
@@ -125,7 +130,7 @@ const withUnit = (text) => {
 function renderTiles() {
   const a = D.activity, m = D.metrics || {};
   const whole = S ? summarize(0, S.n - 1) : null;
-  const run = isRun(a.activity_type);
+  const run = usesPace();
   const drift = m.decoupling_pct;
   const moving = whole ? whole.moving : a.moving_duration_s || a.duration_s;
   const elapsed = whole ? whole.time : a.duration_s;
@@ -136,10 +141,10 @@ function renderTiles() {
       run && whole?.gap ? `GAP ${fmtPace(whole.gap)}` : ""],
     // cleaned stream max, so a one-second wrist spike doesn't show up as your max
     ["Avg heart rate", a.avg_hr ? withUnit(`${Math.round(whole?.hr || a.avg_hr)} bpm`) : "–",
-      whole?.hrMax || a.max_hr ? `Max ${Math.round(whole?.hrMax || a.max_hr)} bpm` : ""],
+      a.avg_hr ? (whole?.hrMax || a.max_hr ? `Max ${Math.round(whole?.hrMax || a.max_hr)} bpm` : "") : "Not recorded"],
   ];
   const stats = [
-    ["Cadence", whole?.cadence ? withUnit(`${Math.round(whole.cadence)} spm`) : null, ""],
+    ["Cadence", whole?.cadence ? withUnit(`${Math.round(whole.cadence)} ${cadUnit()}`) : null, ""],
     ["Elevation gain", a.elevation_gain_m != null ? withUnit(fmtElev(a.elevation_gain_m)) : null, ""],
     ["Training load", m.trimp != null ? String(Math.round(m.trimp)) : null,
       a.aerobic_te ? `Aerobic TE ${a.aerobic_te.toFixed(1)} · Anaerobic ${a.anaerobic_te?.toFixed(1) ?? "–"}` : ""],
@@ -147,7 +152,7 @@ function renderTiles() {
       drift == null ? "" : drift < 5 ? "Steady: strong aerobic base" : drift < 8 ? "Some drift" : "High (heat, fatigue or too fast)"],
     ["Efficiency", m.efficiency ? withUnit(`${m.efficiency.toFixed(2)} m/beat`) : null, "Distance per heartbeat"],
   ].filter(([, v]) => v != null);
-  const cell = ([l, v, sub]) => `<div class="tile"${l === "Avg heart rate" ? ' style="--vc:var(--hr)"' : ""}><div class="label">${l}</div><div class="value">${v || "–"}</div><div class="sub">${esc(sub)}</div></div>`;
+  const cell = ([l, v, sub]) => `<div class="tile"${l === "Avg heart rate" && a.avg_hr ? ' style="--vc:var(--hr)"' : ""}><div class="label">${l}</div><div class="value">${v || "–"}</div><div class="sub">${esc(sub)}</div></div>`;
   $("tiles").innerHTML = hero.map(cell).join("");
   $("stats").hidden = !stats.length;
   $("stats").innerHTML = stats.map(([l, v, sub]) =>
@@ -182,10 +187,10 @@ function panelDefs() {
     { key: "hr", label: "Heart rate", unit: "bpm", color: "--hr", values: S.hr, zones: true, fmt: (v) => `${Math.round(v)}` },
     { key: "pace", label: "Pace", unit: `/${u}`, color: "--pace", values: S.pace, invert: true,
       second: { values: S.gapPace, color: "--gap", label: "GAP" }, fmt: (v) => fmtDuration(v) },
-    { key: "cadence", label: "Cadence", unit: "spm", color: "--cadence", values: S.cadence, fmt: (v) => `${Math.round(v)}` },
+    { key: "cadence", label: "Cadence", unit: cadUnit(), color: "--cadence", values: S.cadence, fmt: (v) => `${Math.round(v)}` },
     { key: "altitude", label: "Elevation", unit: u === "mi" ? "ft" : "m", color: "--elev", values: S.altitude, fill: true, fmt: (v) => `${Math.round(v)}` },
   ];
-  if (!isRun(D.activity.activity_type)) {
+  if (!usesPace()) {
     defs[1] = { key: "speed", label: "Speed", unit: u === "mi" ? "mph" : "km/h", color: "--pace",
       values: S.speed.map((v) => (v == null ? null : v * 3600 / M_PER[u])), fmt: (v) => v.toFixed(1) };
   }
@@ -371,9 +376,9 @@ function renderReadout() {
     ["Time", fmtDuration(S.t[i])],
     ["Distance", fmtDist(S.distance[i])],
     ["HR", S.hr[i] != null ? `${Math.round(S.hr[i])} bpm` : null],
-    [isRun(D.activity.activity_type) ? "Pace" : "Speed", fmtPaceOrSpeed(S.speed[i], D.activity.activity_type)],
-    ["GAP", isRun(D.activity.activity_type) && S.gap[i] ? fmtPace(S.gap[i]) : null],
-    ["Cadence", S.cadence[i] != null ? `${Math.round(S.cadence[i])} spm` : null],
+    [usesPace() ? "Pace" : "Speed", fmtPaceOrSpeed(S.speed[i], D.activity.activity_type)],
+    ["GAP", usesPace() && S.gap[i] ? fmtPace(S.gap[i]) : null],
+    ["Cadence", S.cadence[i] != null ? `${Math.round(S.cadence[i])} ${cadUnit()}` : null],
     ["Elevation", S.altitude[i] != null ? `${Math.round(S.altitude[i])} ${u === "mi" ? "ft" : "m"}` : null],
     ["Grade", raw.grade[i] != null ? `${(raw.grade[i] * 100).toFixed(1)}%` : null],
   ];
@@ -383,7 +388,7 @@ function renderReadout() {
 function renderSelection() {
   const el = $("selection");
   if (!selection) { el.classList.remove("show"); el.innerHTML = ""; updateMapSelection(); return; }
-  const [i0, i1] = selection, s = summarize(i0, i1), run = isRun(D.activity.activity_type), u = Units.get();
+  const [i0, i1] = selection, s = summarize(i0, i1), run = usesPace(), u = Units.get();
   const parts = [
     ["Selected", `${fmtDuration(S.t[i0])}–${fmtDuration(S.t[i1])}`],
     ["Time", fmtDuration(s.time)],
@@ -392,7 +397,7 @@ function renderSelection() {
     ["GAP", run && s.gap ? fmtPace(s.gap) : null],
     ["Avg HR", s.hr ? `${Math.round(s.hr)} bpm` : null],
     ["Max HR", s.hrMax ? `${Math.round(s.hrMax)}` : null],
-    ["Cadence", s.cadence ? `${Math.round(s.cadence)} spm` : null],
+    ["Cadence", s.cadence ? `${Math.round(s.cadence)} ${cadUnit()}` : null],
     ["Elev.", `+${Math.round(s.up)} / −${Math.round(s.down)} ${u === "mi" ? "ft" : "m"}`],
   ];
   el.innerHTML = parts.filter(([, v]) => v).map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join("") +
@@ -450,9 +455,17 @@ function drawAll() {
 
 // ---------------------------------------------------------------- zones, laps, splits, efforts
 
+// Hide table columns that have nothing in them (e.g. GAP on a ride, HR when none was recorded)
+function showColumns(table, cols) {
+  for (const [col, show] of cols) {
+    table.querySelectorAll(`tr > :nth-child(${col})`).forEach((c) => { c.style.display = show ? "" : "none"; });
+  }
+}
+
 function renderZones() {
   const m = D.metrics;
-  if (!m?.zone_seconds) { $("zones").innerHTML = `<p class="empty">No heart-rate data.</p>`; return; }
+  $("zones-card").hidden = !m?.zone_seconds;
+  if (!m?.zone_seconds) return;
   $("zones").innerHTML = zoneRows(D.zones, m.zone_seconds);
   $("zones-hint").innerHTML = `${esc(zoneBasis(D.settings))}. <a href="${pageUrl("dashboard")}#hr-settings">Change zones</a>`;
 }
@@ -472,7 +485,7 @@ function renderLaps() {
       (hrs.length ? ` at ${Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length)} bpm` : "") +
       `, varying by ±${Math.round(spread)} s. Bars show each lap's speed, colored by its heart-rate zone.`;
   } else {
-    $("laps-hint").textContent = "Click a lap to analyze it on the timeline. Bars show each lap's speed, colored by its heart-rate zone.";
+    $("laps-hint").textContent = `Click a lap to analyze it on the timeline. Bars show each lap's speed${hasHr() ? ", colored by its heart-rate zone" : ""}.`;
   }
   const fastest = Math.max(...laps.map((l) => l.avg_speed || 0)) || 1;
   $("laps").innerHTML = laps.map((l) => {
@@ -489,11 +502,8 @@ function renderLaps() {
       <td class="num">${l.avg_cadence ? Math.round(l.avg_cadence) : ""}</td></tr>`;
   }).join("");
   // Drop columns the watch didn't record for any lap
-  const table = $("laps").closest("table");
-  [[7, "max_hr"], [8, "avg_cadence"]].forEach(([col, key]) => {
-    const show = laps.some((l) => l[key]);
-    table.querySelectorAll(`tr > :nth-child(${col})`).forEach((c) => { c.style.display = show ? "" : "none"; });
-  });
+  $("laps-pace-h").textContent = usesPace() ? "Pace" : "Speed";
+  showColumns($("laps").closest("table"), [[6, laps.some((l) => l.avg_hr)], [7, laps.some((l) => l.max_hr)], [8, laps.some((l) => l.avg_cadence)]]);
 }
 
 function renderSplits() {
@@ -505,7 +515,7 @@ function renderSplits() {
   let next = unit;
   for (let i = 0; i < S.n; i++) if (S.distance[i] >= next) { bounds.push(i); next += unit; }
   if (S.distance[S.n - 1] - S.distance[bounds.at(-1)] > unit * 0.05) bounds.push(S.n - 1);
-  const run = isRun(D.activity.activity_type);
+  const run = usesPace();
   const rows = [];
   const parts = [];
   for (let k = 1; k < bounds.length; k++) parts.push(summarize(bounds[k - 1], bounds[k]));
@@ -525,10 +535,17 @@ function renderSplits() {
       <td class="num">${elev >= 0 ? "+" : "−"}${Math.abs(Math.round(elev))} ${u === "mi" ? "ft" : "m"}</td></tr>`);
   }
   $("splits").innerHTML = rows.join("") || `<tr><td colspan="6" class="empty">No distance data.</td></tr>`;
+  $("splits-pace-h").textContent = usesPace() ? "Pace" : "Speed";
+  const gap = run && parts.some((p) => p.gap);
+  $("splits-hint").textContent = (gap ? "GAP (grade-adjusted pace) is the flat-ground equivalent of each split's effort. " : "") +
+    (hasHr() ? "Bars show speed, colored by heart-rate zone." : "Bars show speed.");
+  if (rows.length) showColumns($("splits").closest("table"), [[3, run && parts.some((p) => p.gap)], [4, parts.some((p) => p.hr)], [5, parts.some((p) => p.cadence)]]);
 }
 
 function renderEfforts() {
   const efforts = Object.entries(D.metrics?.best_efforts || {});
+  // Only outdoor runs have best efforts; skip the card for everything else
+  $("efforts-card").hidden = !efforts.length;
   $("efforts").innerHTML = efforts.length ? efforts.map(([label, e]) => {
     const i0 = S ? idxAtT(e.start_t) : 0;
     const i1 = S ? idxAtT(e.start_t + e.seconds) : 0;
@@ -564,9 +581,9 @@ function renderMap() {
   $("map").parentElement.style.display = has ? "" : "none";
   if (!has || typeof L === "undefined") return;
   // The route is stored with the workout, but the map tiles behind it come from the internet.
-  $("map-hint").textContent = navigator.onLine === false
-    ? "Colored by heart-rate zone. You're offline, so the map background won't load; the route still shows."
-    : "Colored by heart-rate zone.";
+  const colored = hasHr();
+  $("map-hint").textContent = (colored ? "Colored by heart-rate zone." : "No heart rate was recorded, so the route isn't colored by zone.") +
+    (navigator.onLine === false ? " You're offline, so the map background won't load; the route still shows." : "");
   if (!map) {
     map = L.map("map", { scrollWheelZoom: false });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -588,7 +605,7 @@ function renderMap() {
   flush();
   group.addTo(map);
   mapLayers.route = group;
-  $("map-legend").innerHTML = D.zones.map((z, i) => `<span style="--c:var(--z${i + 1})">Z${i + 1}</span>`).join("");
+  $("map-legend").innerHTML = !colored ? "" : D.zones.map((z, i) => `<span style="--c:var(--z${i + 1})">Z${i + 1}</span>`).join("");
   map.fitBounds(group.getBounds(), { padding: [12, 12] });
 }
 

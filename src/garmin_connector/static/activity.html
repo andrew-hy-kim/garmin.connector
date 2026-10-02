@@ -50,7 +50,7 @@
   </section>
 
   <section class="grid" style="margin-bottom:16px">
-    <div class="card">
+    <div class="card" id="zones-card">
       <h2>Time in heart-rate zones</h2>
       <p class="hint" id="zones-hint"></p>
       <div class="zones" id="zones"></div>
@@ -67,7 +67,7 @@
     <h2>Laps</h2>
     <p class="hint" id="laps-hint"></p>
     <div class="table-wrap"><table>
-      <thead><tr><th>#</th><th>Type</th><th class="num">Time</th><th class="num">Distance</th><th class="num">Pace</th>
+      <thead><tr><th>#</th><th>Type</th><th class="num">Time</th><th class="num">Distance</th><th class="num" id="laps-pace-h">Pace</th>
         <th class="num">Avg HR</th><th class="num">Max HR</th><th class="num">Cadence</th></tr></thead>
       <tbody id="laps"></tbody>
     </table></div>
@@ -76,14 +76,14 @@
   <section class="grid">
     <div class="card">
       <h2 id="splits-title">Splits</h2>
-      <p class="hint">GAP (grade-adjusted pace) is the flat-ground equivalent of each split's effort. Bars show speed, colored by heart-rate zone.</p>
+      <p class="hint" id="splits-hint"></p>
       <div class="table-wrap"><table class="splits-table">
-        <thead><tr><th id="split-unit">Mile</th><th class="num">Pace</th><th class="num">GAP</th><th class="num">Avg HR</th>
+        <thead><tr><th id="split-unit">Mile</th><th class="num" id="splits-pace-h">Pace</th><th class="num">GAP</th><th class="num">Avg HR</th>
           <th class="num">Cadence</th><th class="num">Elev.</th></tr></thead>
         <tbody id="splits"></tbody>
       </table></div>
     </div>
-    <div class="card">
+    <div class="card" id="efforts-card">
       <h2>Best efforts in this run</h2>
       <p class="hint">Fastest stretch of each distance within this activity.</p>
       <div class="table-wrap"><table>
