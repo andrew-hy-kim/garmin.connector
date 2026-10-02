@@ -443,6 +443,16 @@ summary.week-head::-webkit-details-marker { display: none; }
 #rows tr.group span { font-size: 13px; color: var(--text-muted); }
 #rows tr.group:first-child td { padding-top: 4px; }
 
+/* milestones under personal records */
+.milestones { display: grid; gap: 0; }
+.milestones > div { display: grid; grid-template-columns: 120px auto 1fr; gap: 2px 12px; align-items: baseline; padding: 8px 10px; border-bottom: 1px solid var(--grid); font-size: 14px; }
+.milestones > div:last-child { border-bottom: 0; }
+.milestones .ml { color: var(--text-secondary); }
+.milestones b { font-variant-numeric: tabular-nums; }
+.milestones .dim { font-size: 13px; }
+.milestones .dim + .dim { grid-column: 2 / -1; }
+@media (max-width: 600px) { .milestones > div { grid-template-columns: 1fr auto; } .milestones .dim { grid-column: 1 / -1; } }
+
 /* six summary tiles: one row on wide screens, two rows of three in between (never an orphan) */
 .tiles.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1060px) { .tiles.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

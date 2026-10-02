@@ -481,6 +481,37 @@ function renderRecords() {
   }).join("") : `<tr><td colspan="5" class="empty">Records appear after your runs are synced and analyzed.</td></tr>`;
 }
 
+// Longest run, biggest week and month: all-time, and the best within the chart range
+function renderMilestones() {
+  const runs = state.activities.filter((a) => isRun(a.activity_type) && a.distance_m);
+  if (!runs.length) { $("milestones").innerHTML = ""; return; }
+  const u = Units.get();
+  const sum = (keyOf) => {
+    const m = new Map();
+    for (const a of runs) { const k = keyOf(localDate(a.start_time_local)); m.set(k, (m.get(k) || 0) + a.distance_m); }
+    return [...m.entries()].map(([k, meters]) => ({ k, meters }));
+  };
+  const top = (list, pred = () => true) => list.filter(pred).reduce((b, x) => (!b || x.meters > b.meters ? x : b), null);
+  const start = rangeStart();
+  const longest = top(runs.map((a) => ({ k: a.start_time_local, meters: a.distance_m, a })));
+  const longestR = top(runs.map((a) => ({ k: a.start_time_local, meters: a.distance_m, a })), (x) => localDate(x.k) >= start);
+  const weeks = sum((d) => isoDay(startOfWeek(d))), months = sum((d) => isoDay(startOfMonth(d)));
+  const inR = (x) => new Date(x.k + "T12:00") >= startOfWeek(start);
+  const d = (m) => `${fmtNum(dist(m, u), 1)} ${u}`;
+  const weekName = (k) => `week of ${new Date(k + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+  const monthName = (k) => new Date(k + "T12:00").toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const runLink = (x) => (x.a.has_streams ? `<a href="${pageUrl("activity", { id: x.a.activity_id })}">${fmtDate(x.k)}</a>` : fmtDate(x.k));
+  const rows = [
+    ["Longest run", longest, runLink(longest), longestR],
+    ["Biggest week", top(weeks), weekName(top(weeks).k), top(weeks, inR)],
+    ["Biggest month", top(months), monthName(top(months).k), top(months, inR)],
+  ];
+  const showRange = rangeDays() != null;
+  $("milestones").innerHTML = rows.map(([label, best, when, rangeBest]) => `<div>
+      <span class="ml">${label}</span><b>${d(best.meters)}</b><span class="dim">${when}</span>
+      ${showRange && rangeBest && rangeBest.meters < best.meters ? `<span class="dim">Best in ${state.range}: ${d(rangeBest.meters)}</span>` : ""}</div>`).join("");
+}
+
 // ---------- settings ----------
 function renderSettings() {
   const s = state.settings;
@@ -717,6 +748,7 @@ function populateTypes() {
 
 // Everything that depends on the time range
 function renderCharts() {
+  renderMilestones();
   renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderRecords();
 }
 
