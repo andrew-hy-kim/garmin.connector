@@ -410,9 +410,15 @@ summary.week-head::-webkit-details-marker { display: none; }
 .day.today .dname::after { content: "Today"; display: block; font-size: 11px; font-weight: 700; color: var(--link); text-transform: uppercase; letter-spacing: .04em; }
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 20px; font-size: 14px; margin: 8px 0 14px; }
 .kv div span { display: block; color: var(--text-muted); font-size: 12px; }
+.today-card { display: grid; gap: 2px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2);
+  border-left: 4px solid var(--c, var(--surface-3)); font-size: 14px; color: var(--text-secondary); }
+.today-card .eyebrow { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--link); }
+.today-card .tick { color: var(--good); }
+.today-card b { font-size: 16px; color: var(--text-primary); }
+.today-card .dim { font-size: 13px; }
 .this-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
 .this-week > div { background: var(--surface-2); border-radius: 10px; padding: 9px 10px; font-size: 13px; min-height: 68px; border-top: 3px solid var(--c, var(--surface-3)); }
-.this-week > div b { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.this-week > div b { white-space: nowrap; display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
 .this-week > div span { display: block; }
 .this-week > div b .tick { display: inline; color: var(--good); font-size: 12px; margin-left: 2px; }
 .this-week > div .m { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
@@ -420,7 +426,7 @@ summary.week-head::-webkit-details-marker { display: none; }
 .this-week > div.rest { color: var(--text-muted); }
 @media (max-width: 760px) {
   .this-week { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .this-week > div { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; min-height: 0; border-radius: 0;
+  .this-week > div { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; min-height: 0; border-radius: 0;
     border-top: 0; border-left: 3px solid var(--c, var(--surface-3)); background: transparent; padding: 7px 10px; border-bottom: 1px solid var(--grid); }
   .this-week > div:last-child { border-bottom: 0; }
   .this-week > div b { margin: 0; }

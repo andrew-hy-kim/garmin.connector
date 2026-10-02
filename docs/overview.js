@@ -776,6 +776,18 @@ function ranOn(start, k) {
 }
 
 // This week of the training plan, or a prompt to set one up.
+// Today's planned session, front and centre
+function todayCard(d, done) {
+  if (!d) return "";
+  if (d.type === "rest") return `<div class="today-card rest"><span class="eyebrow">Today</span><b>Rest or cross-train</b>
+    <span class="dim">Recovery is when the training sinks in.</span></div>`;
+  const target = [d.hr ? `HR ${d.hr}` : "", d.speed ? `about ${fmtPace(d.speed)}` : ""].filter(Boolean).join(" · ");
+  return `<div class="today-card" style="--c:${typeColor(d.type)}">
+    <span class="eyebrow">Today${done ? ` · <span class="tick">✓ Done</span>` : ""}</span>
+    <b>${esc(d.title)}${d.minutes ? ` · ${d.minutes} min` : ""}</b>
+    <span>${esc(d.details || "")}</span>${target ? `<span class="dim">${esc(target)}</span>` : ""}</div>`;
+}
+
 function renderWeekPlan() {
   const el = $("week-plan");
   const p = state.plan && state.plan.plan;
@@ -797,6 +809,7 @@ function renderWeekPlan() {
     <p class="hint" style="margin:0"><b class="plan-goal">${esc(p.goal_label)}</b> · week ${w.week} of ${p.weeks.length}${upcoming ? `, starts ${startText}` : ""}
       · ${esc(w.focus)} · ${w.minutes} min planned${pr.status === "upcoming" ? ""
       : ` · ${pr.done_minutes} min done, ${pr.done_runs}/${pr.planned_runs} runs`}${finished ? ". Pick a new goal on the plan page." : ""}</p>
+    ${!upcoming && !finished ? todayCard(w.days[todayIdx], ranOn(w.start, todayIdx)) : ""}
     <div class="this-week">${w.days.map((d, k) => `<div class="${d.type === "rest" ? "rest" : ""} ${!upcoming && !finished && k === todayIdx ? "today" : ""}"
         style="${d.type === "rest" ? "" : `--c:${typeColor(d.type)}`}">
       <b>${d.day}${ranOn(w.start, k) ? ` <span class="tick" title="Done">✓</span>` : ""}</b><span>${esc(d.title)}</span><span class="m">${d.minutes ? `${d.minutes} min` : ""}</span></div>`).join("")}</div>`;
