@@ -348,7 +348,7 @@ function renderSettings() {
     input.placeholder = s[key] && label ? `${Math.round(s[key])} (${label})` : "not set";
   }
   form.elements.zone_system.value = s.zone_system || "threshold";
-  if (PHONE) form.querySelectorAll("input, select").forEach((el) => { el.disabled = true; });
+  if (PHONE) renderPhoneZoneChoice(form, s);
   $("zones").innerHTML = `<p class="hint" style="margin-top:12px">${zoneBasis(s)}.</p>` +
     s.zones.map((z, i) => {
       const range = i === 0 ? `< ${z.high}` : i === s.zones.length - 1 ? `≥ ${z.low}` : `${z.low}–${z.high - 1}`;
@@ -356,6 +356,35 @@ function renderSettings() {
         <div class="bar"><div style="width:100%;background:var(--z${i + 1})"></div></div><div class="val">${range} bpm</div></div>`;
     }).join("");
 }
+
+// On the phone, heart-rate values are view-only but the zone system can be switched here.
+function renderPhoneZoneChoice(form, s) {
+  form.querySelectorAll("input").forEach((el) => { el.disabled = true; });
+  const select = form.elements.zone_system;
+  const options = s.zone_options;
+  select.disabled = !options;
+  const garminOpt = select.querySelector('option[value="garmin"]');
+  garminOpt.disabled = !!options && !options.garmin;
+  garminOpt.textContent = options && !options.garmin ? "Garmin (not available)" : "Garmin";
+  const names = { threshold: "threshold-based (COROS-style)", garmin: "Garmin's" };
+  let note;
+  if (!options) {
+    note = "To switch zones on the phone, update the app on your Mac (rerun the setup line) and sync once, then tap Update here.";
+  } else if (s.zone_system !== s.mac_zone_system) {
+    note = `Showing ${names[s.zone_system]} zones on this phone. Your Mac uses ${names[s.mac_zone_system]} zones; change it in the Mac dashboard too if you want both to match.`;
+  } else {
+    note = "Heart-rate values are set on your Mac. You can switch zones here; the choice is saved on this phone.";
+  }
+  $("phone-zone-note").textContent = note;
+}
+
+$("settings").addEventListener("change", async (e) => {
+  if (!PHONE || e.target.name !== "zone_system") return;
+  const value = e.target.value;
+  window.PhoneData.setZoneSystem(value === state.settings.mac_zone_system ? null : value);
+  state.settings = await getJSON("/api/settings");
+  renderSettings();
+});
 
 $("settings").addEventListener("submit", async (e) => {
   e.preventDefault();

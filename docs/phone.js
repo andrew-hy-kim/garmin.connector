@@ -75,6 +75,66 @@
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   }
 
+  // ---------- zone system chosen on this phone ----------
+  // The Mac sends both zone sets; a choice made here overrides the Mac's on this phone only,
+  // and survives importing newer files.
+  const ZONE_KEY = "phoneZoneSystem";
+
+  function zonePref() {
+    let pref = null;
+    try { pref = localStorage.getItem(ZONE_KEY); } catch {}
+    const options = overview && overview.settings && overview.settings.zone_options;
+    return pref && options && options[pref] ? pref : null;
+  }
+
+  function setZoneSystem(value) {
+    try {
+      if (value) localStorage.setItem(ZONE_KEY, value); else localStorage.removeItem(ZONE_KEY);
+    } catch {}
+  }
+
+  // Swap the zones in a settings object for the phone's choice. Returns the option used, or null.
+  function applyZoneChoice(settings) {
+    const pref = zonePref();
+    settings.mac_zone_system = settings.mac_zone_system || settings.zone_system || "threshold";
+    if (!pref || pref === settings.mac_zone_system) return null;
+    const opt = overview.settings.zone_options[pref];
+    settings.zone_system = pref;
+    settings.zone_floors = opt.floors;
+    settings.zone_method = opt.method;
+    return opt;
+  }
+
+  // Time in each zone from the workout's heart-rate samples (same rules as the Mac: pauses
+  // longer than 10 s count as one sample, not as time at that heart rate).
+  function timeInZones(t, hr, zones, step) {
+    const secs = zones.map(() => 0);
+    for (let i = 0; i < t.length; i++) {
+      const h = hr[i];
+      if (h == null) continue;
+      const gap = i ? t[i] - t[i - 1] : step;
+      const dt = gap > 0 && gap <= 10 ? gap : step;
+      const k = zones.findIndex((z) => h >= z.low && h < z.high);
+      if (k >= 0) secs[k] += dt;
+    }
+    return secs;
+  }
+
+  function applyZonesToDetail(detail) {
+    const opt = applyZoneChoice(detail.settings);
+    if (!opt) return detail;
+    detail.zones = opt.zones;
+    const exact = detail.metrics && detail.metrics.zone_seconds_by_system;
+    if (exact && exact[detail.settings.zone_system]) {
+      // computed on the Mac from second-by-second data
+      detail.metrics.zone_seconds = exact[detail.settings.zone_system];
+    } else if (detail.metrics && detail.streams && detail.metrics.zone_seconds) {
+      // older file: work it out here from the 5-second data (close, not exact)
+      detail.metrics.zone_seconds = timeInZones(detail.streams.t, detail.streams.hr, opt.zones, detail.sample_step_s || 1);
+    }
+    return detail;
+  }
+
   // ---------- API ----------
   let dbPromise = null, overview = null, info = null;
   const ready = (async () => {
@@ -93,7 +153,12 @@
     "/api/vo2max": () => overview.vo2max,
     "/api/training-load": () => overview.training_load,
     "/api/records": () => overview.records,
-    "/api/settings": () => overview.settings,
+    "/api/settings": () => {
+      const s = structuredClone(overview.settings);
+      const opt = applyZoneChoice(s);
+      if (opt) s.zones = opt.zones;
+      return s;
+    },
     "/api/insights": () => overview.insights,
     "/api/plan": () => overview.plan,
   };
@@ -110,7 +175,7 @@
     if (m) {
       const detail = await idbGet(await dbPromise, "details", m[1]);
       if (!detail) throw new Error("This activity isn't in the imported data. Import the latest file.");
-      return detail;
+      return applyZonesToDetail(detail);
     }
     if (u.pathname === "/api/ai/review") {
       const p = u.searchParams;
@@ -204,5 +269,5 @@
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch((err) => console.warn("Offline cache unavailable:", err)));
   }
 
-  window.PhoneData = { get, ready, importFile };
+  window.PhoneData = { get, ready, importFile, setZoneSystem, timeInZones };
 })();

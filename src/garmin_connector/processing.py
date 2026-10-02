@@ -20,7 +20,7 @@ DEFAULT_RESTING_HR = 60.0
 # Threshold HR is typically ~90% of max for runners; used only until a real value is known.
 LTHR_FROM_MAX = 0.90
 # Bump when the analysis changes, so every workout is re-analyzed once.
-ANALYSIS_VERSION = 5
+ANALYSIS_VERSION = 6
 STREAM_KEYS = ("t", "hr", "speed", "distance", "cadence", "altitude", "power", "lat", "lon")
 
 
@@ -76,6 +76,9 @@ def effective_settings(conn: sqlite3.Connection) -> dict[str, Any]:
     overridden = "max_hr" in chosen or "lthr" in chosen
     use_garmin = settings["zone_system"] == "garmin" and not overridden
     settings["zone_floors"] = garmin.get("zone_floors") if use_garmin else None
+    # Garmin's boundaries whenever they'd apply, so time in zones is also computed for the
+    # zone system you're not using (the phone app can switch between them).
+    settings["garmin_zone_floors"] = garmin.get("zone_floors") if not overridden else None
     settings["zone_method"] = garmin.get("zone_method") if settings["zone_floors"] else None
     settings["male"] = garmin.get("gender") != "FEMALE"
     return settings
@@ -83,7 +86,7 @@ def effective_settings(conn: sqlite3.Connection) -> dict[str, Any]:
 
 def _signature(settings: dict[str, Any]) -> str:
     return json.dumps([ANALYSIS_VERSION, settings["max_hr"], settings["resting_hr"], settings["lthr"],
-                       settings["zone_floors"], settings["male"]])
+                       settings["zone_floors"], settings.get("garmin_zone_floors"), settings["male"]])
 
 
 def analyze_activity(conn: sqlite3.Connection, activity_id: int, settings: dict[str, Any]) -> None:

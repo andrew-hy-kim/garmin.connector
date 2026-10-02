@@ -521,6 +521,12 @@ def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[
         "trimp": round(trimp(t, hr, settings["resting_hr"], settings["max_hr"], settings.get("male", True)), 1)
         if has_hr else None,
         "zone_seconds": time_in_zones(t, hr, zones) if has_hr else None,
+        # Both zone systems at full resolution, so the phone app can switch exactly.
+        "zone_seconds_by_system": {
+            "threshold": time_in_zones(t, hr, hr_zones(settings["max_hr"], settings.get("lthr"))),
+            "garmin": (time_in_zones(t, hr, zones_from_floors(settings["garmin_zone_floors"]))
+                       if settings.get("garmin_zone_floors") else None),
+        } if has_hr else None,
         "intensity_seconds": intensity_seconds(t, rolling_mean(hr, 30), lthr) if has_hr else None,
         "max_hr_30s": max((v for v in rolling_mean(hr, 30) if v is not None), default=None) if has_hr else None,
         "decoupling_pct": None,

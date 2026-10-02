@@ -105,3 +105,51 @@ def test_cli_export(conn, tmp_path, capsys):
     cli.main(["export", "--to", str(tmp_path / "out")])
     assert (tmp_path / "out" / "garmin-dashboard.data").exists()
     assert "Import it in the phone app" in capsys.readouterr().out
+
+
+def test_settings_carry_both_zone_systems(conn):
+    from garmin_connector import analysis
+
+    db.set_garmin_profile(conn, {"max_hr": 192, "zone_floors": [120, 135, 149, 164, 178], "zone_method": "HR_RESERVE"})
+    try:
+        # lthr/max were set by hand in the fixture, so Garmin's zones don't apply (same as the Mac)
+        assert api.settings_with_zones(conn)["zone_options"]["garmin"] is None
+        conn.execute("DELETE FROM settings WHERE key IN ('lthr', 'max_hr')")
+        conn.commit()
+        db.set_text_setting(conn, "zone_system", "garmin")
+        s = api.settings_with_zones(conn)
+        opts = s["zone_options"]
+        assert s["zones"] == opts["garmin"]["zones"]  # the Mac's choice is one of the options
+        assert [z["high"] for z in opts["garmin"]["zones"]][:4] == [135, 149, 164, 178]
+        assert opts["garmin"]["method"] == "HR_RESERVE"
+        expected = [z.high for z in analysis.hr_zones(s["max_hr"], s["lthr"])]
+        assert [z["high"] for z in opts["threshold"]["zones"]] == expected
+        assert export.snapshot(conn)["overview"]["settings"]["zone_options"] == json.loads(json.dumps(opts))
+    finally:
+        db.set_garmin_profile(conn, {})
+        db.set_text_setting(conn, "zone_system", None)
+        for k, v in (("lthr", 170), ("max_hr", 190)):
+            db.set_setting(conn, k, v)
+
+
+def test_time_in_zones_for_both_systems(conn):
+    db.set_garmin_profile(conn, {"zone_floors": [120, 135, 149, 164, 178], "zone_method": "HR_MAX"})
+    conn.execute("DELETE FROM settings WHERE key IN ('lthr', 'max_hr')")
+    conn.commit()
+    try:
+        processing.refresh(conn)  # Garmin floors changed the analysis signature -> re-analyzed
+        m = json.loads(conn.execute("SELECT data FROM activity_metrics WHERE activity_id = 900").fetchone()[0])
+        both = m["zone_seconds_by_system"]
+        assert both["threshold"] == m["zone_seconds"]  # threshold is the default system
+        assert both["garmin"] and sum(both["garmin"]) == sum(both["threshold"])
+        assert both["garmin"] != both["threshold"]
+        db.set_text_setting(conn, "zone_system", "garmin")
+        processing.refresh(conn)
+        m = json.loads(conn.execute("SELECT data FROM activity_metrics WHERE activity_id = 900").fetchone()[0])
+        assert m["zone_seconds"] == m["zone_seconds_by_system"]["garmin"]
+    finally:
+        db.set_garmin_profile(conn, {})
+        db.set_text_setting(conn, "zone_system", None)
+        for k, v in (("lthr", 170), ("max_hr", 190)):
+            db.set_setting(conn, k, v)
+        processing.refresh(conn)

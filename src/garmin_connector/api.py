@@ -111,7 +111,28 @@ def records(conn: sqlite3.Connection) -> dict[str, list[dict[str, Any]]]:
 def settings_with_zones(conn: sqlite3.Connection) -> dict[str, Any]:
     settings = processing.effective_settings(conn)
     settings["zones"] = [asdict(z) for z in analysis.zones_for(settings)]
+    settings["zone_options"] = zone_options(conn, settings)
     return settings
+
+
+def zone_options(conn: sqlite3.Connection, settings: dict[str, Any]) -> dict[str, Any]:
+    """Both zone systems, so the phone app can switch between them without the Mac.
+
+    Garmin's zones are unavailable (None) when Garmin didn't provide them, or when you've set
+    your own max or threshold HR, which the Mac then uses instead (same rule as on the Mac).
+    """
+    floors = db.get_garmin_profile(conn).get("zone_floors")
+    chosen = db.get_settings(conn)
+    overridden = "max_hr" in chosen or "lthr" in chosen
+    garmin = None
+    if floors and not overridden:
+        garmin = {"zones": [asdict(z) for z in analysis.zones_from_floors(floors)], "floors": floors,
+                  "method": db.get_garmin_profile(conn).get("zone_method")}
+    return {
+        "threshold": {"zones": [asdict(z) for z in analysis.hr_zones(settings["max_hr"], settings["lthr"])],
+                      "floors": None, "method": None},
+        "garmin": garmin,
+    }
 
 
 def plan(conn: sqlite3.Connection) -> dict[str, Any]:

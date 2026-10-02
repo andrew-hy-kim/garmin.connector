@@ -82,8 +82,8 @@
     </div>
     <div class="card">
       <h2>Heart-rate settings</h2>
-      <p class="hint">These set your zones, workout tags and training load. Each sync pulls them from your Garmin account; anything Garmin doesn't have is estimated from your data. Type a value only to override Garmin; clear the box to go back.</p>
-      <p class="hint phone-only">View only on the phone. Change these in the dashboard on your Mac.</p>
+      <p class="hint server-only">These set your zones, workout tags and training load. Each sync pulls them from your Garmin account; anything Garmin doesn't have is estimated from your data. Type a value only to override Garmin; clear the box to go back.</p>
+      <p class="hint phone-only" id="phone-zone-note"></p>
       <form id="settings" class="stack" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));align-items:end">
         <label>Max HR<br><input type="number" name="max_hr" min="120" max="230"></label>
         <label>Resting HR<br><input type="number" name="resting_hr" min="30" max="100"></label>
