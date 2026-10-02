@@ -687,9 +687,9 @@ document.addEventListener("keydown", (e) => {
 
 getJSON(`/api/activities/${activityId}`)
   .then((data) => {
-    D = data; renderAll(); renderMap(); renderPrevNext().catch(() => {});
+    D = data; renderAll(); ready(); renderMap(); renderPrevNext().catch(() => {});
     // Opened from a record: select that stretch
     const m = location.hash.match(/t=(\d+)-(\d+)/);
     if (m && S) selectRange(idxAtT(Number(m[1])), idxAtT(Number(m[2])));
   })
-  .catch((err) => { $("title").textContent = "Couldn't load this activity"; setStatus(err.message, true); });
+  .catch((err) => { ready(); $("title").textContent = "Couldn't load this activity"; setStatus(err.message, true); });

@@ -132,4 +132,5 @@ Promise.all([getJSON("/api/plan"), getJSON("/api/activities").catch(() => [])]).
     runsByDay.set(day, [...(runsByDay.get(day) || []), a]);
   }
   if (new URLSearchParams(location.search).has("new")) renderSetup(true); else render();
-}).catch((err) => setStatus(`Couldn't load the plan: ${err.message}`, true));
+  ready();
+}).catch((err) => { ready(); setStatus(`Couldn't load the plan: ${err.message}`, true); });

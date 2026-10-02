@@ -96,6 +96,10 @@ function setStatus(msg, isError = false) {
   if (msg && !isError && !/…$/.test(msg)) statusTimer = setTimeout(() => el.classList.remove("show"), 5000);
 }
 
+// Pages start hidden ("loading") and fade in once their data is drawn, so empty cards never flash.
+function ready() { document.body.classList.remove("loading"); }
+setTimeout(ready, 4000); // never stay hidden if something goes wrong
+
 // Busy state for a button while something runs: label changes, button disabled.
 async function busy(button, label, work) {
   const old = button.textContent;

@@ -742,7 +742,7 @@ async function load() {
   const [acts, vo2, loadSeries, records, settings, notes, plan] = await Promise.all(
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u)));
   Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan });
-  populateTypes(); render();
+  populateTypes(); render(); ready();
   setupAiBox($("ai"), "overview");
 }
 
@@ -776,4 +776,4 @@ setupRange();
 setupTable();
 unitsToggle($("units"), render);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
-load().catch((err) => setStatus(`Couldn't load data: ${err.message}`, true));
+load().catch((err) => { ready(); setStatus(`Couldn't load data: ${err.message}`, true); });

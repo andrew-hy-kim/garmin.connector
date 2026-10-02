@@ -111,6 +111,10 @@ button:disabled { opacity: .45; cursor: default; }
 .seg button[aria-pressed="true"] { background: var(--thumb); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04); }
 .seg button[aria-pressed="true"]:hover { opacity: 1; }
 
+/* page content fades in once its data is drawn */
+main > :not(.topbar) { transition: opacity .25s ease; }
+body.loading main > :not(.topbar):not(.page-head):not(.data-bar):not(.onboard) { opacity: 0; }
+
 /* ---------- top bar: translucent, full width, like a Mac toolbar ---------- */
 html, body { overflow-x: clip; }
 .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; padding: 10px 0; margin-bottom: 22px; position: relative;
