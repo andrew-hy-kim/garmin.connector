@@ -22,8 +22,8 @@ break, your threshold HR and recent best efforts: mostly easy running, volume gr
 a lighter week every fourth week, progressing workouts with HR and pace targets, and no hard
 sessions until you've been consistent for about four weeks after a break. Each week shows
 planned vs. done (every past day is ticked with what you ran, or marked "Not done"), finished
-weeks fold away, the Summary shows this week's plan with a progress ring, and you can
-**Ask Claude** to review it.
+weeks fold away, the Summary leads with today's session and this week's plan (with a
+progress ring on the This week tile), and you can **Ask Claude** to review it.
 
 **Summary page** (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the time range for every chart)
 - **Fitness, fatigue & form** explained in plain language: what the numbers mean, your
@@ -38,7 +38,11 @@ weeks fold away, the Summary shows this week's plan with a progress ring, and yo
 - **Personal records** at 400 m, 1 km, mile, 5K, 10K, half and marathon, taken from the fastest
   stretch of any outdoor run, all-time and within the selected range. Click one to open the
   run with that stretch selected
-- **Activity list** with search, workout-type and date filters, sortable columns and paging
+- **Activity list** grouped by week, with search (names or workout types; press `/`),
+  workout-type and date filters, sortable columns and paging. The This week / month / year
+  tiles open their runs
+- Each chart leads with the headline number: average distance, % easy, current efficiency
+  and VO2 max with their change over the selected range
 - Heart-rate settings (max, resting, threshold) and **zones pulled from your Garmin account**
   on every sync, so zones match your watch. You can override any value, and anything Garmin
   doesn't have is estimated from your data.
@@ -52,6 +56,9 @@ weeks fold away, the Summary shows this week's plan with a progress ring, and yo
   sessions, mile/km splits with GAP, best efforts within the run; laps and splits show a speed
   bar colored by heart-rate zone
 - **Older / Newer** buttons (or the ← → keys) to page through your runs
+- Steady runs compare themselves with your last run of the same kind ("8 s/mi faster at
+  2 bpm lower heart rate"); intervals are listed as reps and recoveries; the fastest split
+  is marked
 - **HR drift** (aerobic decoupling) on steady runs over 40 minutes
 
 **Wrist vs. arm band:** each workout records whether an external HR sensor was connected.
