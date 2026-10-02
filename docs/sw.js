@@ -1,5 +1,5 @@
 // Caches the app itself so it opens without a connection. Your data is in IndexedDB, not here.
-const CACHE = "running-dashboard-290f4e1a4818";
+const CACHE = "running-dashboard-f953e3b94950";
 const FILES = ["./", "activity.html", "activity.js", "app.css", "chart.umd.min.js", "common.js", "icon-180.png", "icon-192.png", "icon-512.png", "index.html", "leaflet.css", "leaflet.js", "manifest.webmanifest", "overview.js", "phone.js", "plan.html", "plan.js"];
 
 self.addEventListener("install", (event) => {
