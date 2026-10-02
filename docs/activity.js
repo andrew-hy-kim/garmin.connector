@@ -490,6 +490,10 @@ function renderLaps() {
   if (laps.length < 2) { $("laps-card").hidden = true; return; }
   $("laps-card").hidden = false;
   const interval = isIntervalWorkout();
+  // Auto-laps every mile or km repeat the splits table; skip the card for those
+  const autoLaps = !interval && laps.length >= 3 && laps.slice(0, -1).every((l) =>
+    [1609.344, 1000].some((u) => Math.abs((l.distance_m || 0) - u) < u * 0.03));
+  if (autoLaps) { $("laps-card").hidden = true; return; }
   const reps = laps.filter((l) => l.intensity === "active" && l.distance_m && l.timer_s);
   if (interval && reps.length >= 2) {
     const paces = reps.map((l) => paceSeconds(l.distance_m / l.timer_s)).filter(Boolean);

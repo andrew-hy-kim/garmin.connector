@@ -103,7 +103,7 @@ function renderTiles() {
       ring = progressRing(share);
       sub = `${planWeek.done_minutes} of ${planWeek.planned_minutes} min planned`;
     }
-    return `<div class="tile ${ring ? "with-ring" : ""}"><div><div class="label">${label}</div>
+    return `<div class="tile link ${ring ? "with-ring" : ""}" role="button" tabindex="0" data-from="${isoDay(from)}" title="List these ${noun(2)}"><div><div class="label">${label}</div>
       <div class="value">${distText(t.meters)}<small>${u}</small></div><div class="sub">${sub}</div></div>${ring}</div>`;
   });
   const today = state.load.at(-1);
@@ -132,6 +132,20 @@ function progressRing(share) {
     <circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--good)" stroke-width="6" stroke-linecap="round"
       stroke-dasharray="${(share * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/></svg>`;
 }
+
+// Volume tiles open the activity list filtered to that week, month or year
+function tileFilter(e) {
+  const tile = e.target.closest(".tile.link");
+  if (!tile || (e.type === "keydown" && e.key !== "Enter" && e.key !== " ")) return;
+  e.preventDefault();
+  Object.assign(state.table, { when: "custom", from: tile.dataset.from, to: isoDay(new Date()), page: 0 });
+  $("f-when").value = "custom"; $("f-custom").hidden = false;
+  $("f-from").value = state.table.from; $("f-to").value = state.table.to;
+  renderTable();
+  $("activities").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("tiles").addEventListener("click", tileFilter);
+$("tiles").addEventListener("keydown", tileFilter);
 
 // ---------- training load ----------
 function renderLoad() {
