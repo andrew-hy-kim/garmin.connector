@@ -383,7 +383,11 @@ function renderMix() {
     if (i == null) continue;
     a.intensity_seconds.forEach((s, k) => { mins[k][i] += s / 60; });
   }
-  $("mix-legend").innerHTML = MIX.map(([l, c]) => `<span style="--c:var(${c})">${l}</span>`).join("");
+  const totals = MIX.map((_, k) => mins[k].reduce((t, v) => t + v, 0));
+  const all = totals.reduce((t, v) => t + v, 0);
+  const easy = all ? Math.round((totals[0] / all) * 100) : null;
+  $("mix-legend").innerHTML = MIX.map(([l, c]) => `<span style="--c:var(${c})">${l}</span>`).join("") +
+    (easy != null ? `<span class="lbl" style="margin-left:auto">In this range: <b style="color:var(--text-primary)">${easy}% easy</b></span>` : "");
   const opts = chartBase();
   opts.scales.x.stacked = true; opts.scales.y.stacked = true;
   opts.scales.y.ticks.callback = (v) => `${v} min`;
