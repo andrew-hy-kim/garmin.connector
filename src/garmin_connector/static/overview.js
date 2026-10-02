@@ -355,7 +355,8 @@ function renderVolume() {
   const u = Units.get();
   $("volume-title").textContent = b.monthly ? "Monthly distance" : "Weekly distance";
   const avg = totals.reduce((s, v) => s + v, 0) / (totals.length || 1);
-  $("volume-hint").textContent = `Average ${avg.toFixed(1)} ${u} per ${b.monthly ? "month" : "week"} in this range. ${matchMedia("(hover: hover)").matches ? "Click" : "Tap"} a bar to list those runs.`;
+  $("volume-hint").textContent = `${matchMedia("(hover: hover)").matches ? "Click" : "Tap"} a bar to list those runs.`;
+  $("vol-head").innerHTML = `<span class="big">${fmtNum(avg, 1)}<small>${u}</small></span><span class="dim">average per ${b.monthly ? "month" : "week"} ${state.range === "All" ? "since you started" : `over ${state.range}`}</span>`;
   const opts = chartBase();
   opts.plugins.tooltip = { callbacks: { title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`,
     label: (i) => `${i.parsed.y.toFixed(1)} ${u}${i.dataIndex === totals.length - 1 ? " so far" : ""}` } };
@@ -387,7 +388,8 @@ function renderMix() {
   const all = totals.reduce((t, v) => t + v, 0);
   const easy = all ? Math.round((totals[0] / all) * 100) : null;
   $("mix-legend").innerHTML = MIX.map(([l, c]) => `<span style="--c:var(${c})">${l}</span>`).join("") +
-    (easy != null ? `<span class="lbl" style="margin-left:auto">In this range: <b style="color:var(--text-primary)">${easy}% easy</b></span>` : "");
+    "";
+  $("mix-head").innerHTML = easy == null ? "" : `<span class="big">${easy}%<small>easy</small></span><span class="dim">${state.range === "All" ? "since you started" : `over ${state.range}`}</span>`;
   const opts = chartBase();
   opts.scales.x.stacked = true; opts.scales.y.stacked = true;
   opts.scales.y.ticks.callback = (v) => `${v} min`;
