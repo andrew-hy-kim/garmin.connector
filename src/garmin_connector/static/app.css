@@ -107,9 +107,10 @@ button.primary:hover:not(:disabled) { background: var(--accent-ink); }
 button:disabled { opacity: .45; cursor: default; }
 .seg { display: inline-flex; background: var(--fill); border-radius: 9px; padding: 2px; gap: 0; }
 .seg button { border: 0; border-radius: 7px; padding: 4px 12px; min-height: 28px; background: transparent; color: var(--text-primary); font-size: 13px; font-weight: 500; }
-.seg button:hover:not(:disabled) { background: transparent; opacity: .7; }
-.seg button[aria-pressed="true"] { background: var(--thumb); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04); }
-.seg button[aria-pressed="true"]:hover { opacity: 1; }
+.seg button:hover:not(:disabled) { background: transparent; }
+@media (hover: hover) { .seg button:hover:not(:disabled) { opacity: .7; } }
+/* stronger than the hover rule, so the button you just tapped shades at once (iOS keeps it "hovered") */
+.seg button[aria-pressed="true"]:not(:disabled) { background: var(--thumb); font-weight: 600; opacity: 1; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04); }
 
 /* page content fades in once its data is drawn */
 main > :not(.topbar) { transition: opacity .25s ease; }
