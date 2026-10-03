@@ -841,6 +841,41 @@ function renderWeekPlan() {
       <b>${d.day}${ranOn(w.start, k) ? ` <span class="tick" title="Done">✓</span>` : ""}</b><span>${esc(d.title)}</span><span class="m">${d.minutes ? `${d.minutes} min` : ""}</span></div>`).join("")}</div>`;
 }
 
+// ---------- suggested next workouts (in Coach notes) ----------
+const NEXT_COUNTS = [3, 5, 7];
+const nextCount = () => { try { return Number(localStorage.getItem("nextCount")) || 3; } catch { return 3; } };
+
+function renderNextUp() {
+  const el = $("next-up");
+  const sg = state.suggestions;
+  if (!sg || !sg.workouts.length) {
+    el.innerHTML = sg && sg.basis ? `<h3 class="sub-h" style="margin-top:4px">Your next workouts</h3><p class="hint">${esc(sg.basis)}</p>` : "";
+    return;
+  }
+  const n = nextCount();
+  const today = isoDay(new Date());
+  const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return isoDay(d); })();
+  const when = (w) => (w.date === today ? "Today" : w.date === tomorrow ? "Tomorrow"
+    : new Date(w.date + "T12:00").toLocaleDateString(undefined, { weekday: "short" }));
+  const target = (w) => [w.hr ? `HR ${w.hr}` : "", w.speed ? `about ${fmtPace(w.speed)}` : ""].filter(Boolean).join(" · ");
+  el.innerHTML = `<div class="toolbar" style="margin:4px 0 2px">
+      <h3 class="sub-h" style="margin:0">Your next ${n} workouts</h3><span class="spacer"></span>
+      <div class="seg" role="group" aria-label="How many workouts to suggest">${NEXT_COUNTS.map((c) =>
+        `<button data-n="${c}" aria-pressed="${c === n}">${c}</button>`).join("")}</div></div>
+    <p class="hint" style="margin-bottom:8px">${esc(sg.basis)}</p>
+    <div class="nx-list">${sg.workouts.slice(0, n).map((w) => `<div class="nx" style="--c:${typeColor(w.type)}">
+      <div class="when"><b>${when(w)}</b><span>${new Date(w.date + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span></div>
+      <div class="what"><b>${esc(w.title)}</b><div class="d">${esc(w.details)}</div>
+        ${target(w) ? `<div class="tgt">${esc(target(w))}</div>` : ""}<div class="why">${esc(w.why)}</div></div>
+      <div class="mins">${w.minutes} min</div></div>`).join("")}</div>`;
+}
+$("next-up").addEventListener("click", (e) => {
+  const n = Number(e.target.dataset.n);
+  if (!n) return;
+  try { localStorage.setItem("nextCount", n); } catch {}
+  renderNextUp();
+});
+
 function render() {
   // Nothing synced yet: a welcome card instead of empty charts (set first, so cards have their width)
   const empty = !state.activities.length;
@@ -848,14 +883,15 @@ function render() {
   $("welcome").hidden = !empty || PHONE;
   renderToday();
   renderConsistency();
-  renderTiles(); renderNotes($("notes"), state.insights); renderWeekPlan(); renderExplain(); renderCompare();
+  renderTiles(); renderNextUp(); renderNotes($("notes"), state.insights); renderWeekPlan(); renderExplain(); renderCompare();
   renderCharts(); renderSettings(); renderTable();
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes, plan] = await Promise.all(
-    ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u)));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan });
+  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions] = await Promise.all(
+    ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u))
+      .concat(getJSON("/api/suggestions").catch(() => null)));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions });
   populateTypes(); render(); ready();
   // Phone: confirm a data import that just happened
   try {

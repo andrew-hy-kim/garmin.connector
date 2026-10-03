@@ -479,6 +479,23 @@ summary.week-head::-webkit-details-marker { display: none; }
 .headline .chg.up { color: var(--good); }
 .headline .dim { font-size: 13px; }
 
+/* suggested next workouts, at the top of Coach notes */
+.next-up { margin-bottom: 6px; }
+.next-up .seg button { min-height: 26px; padding: 2px 12px; }
+.nx-list { border-radius: 12px; background: var(--surface-2); overflow: hidden; }
+.nx { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; gap: 12px; padding: 10px 14px; border-left: 4px solid var(--c);
+  border-top: 1px solid var(--grid); font-size: 14px; }
+.nx:first-child { border-top: 0; }
+.nx .when b { display: block; font-weight: 650; }
+.nx .when span { color: var(--text-muted); font-size: 12px; }
+.nx .what b { display: block; }
+.nx .what .d { color: var(--text-secondary); font-size: 13px; }
+.nx .what .tgt { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+.nx .what .why { color: var(--text-muted); font-size: 12px; font-style: italic; margin-top: 2px; }
+.nx .mins { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.next-up + .notes { border-top: 1px solid var(--grid); padding-top: 14px; margin-top: 14px; }
+@media (max-width: 600px) { .nx { grid-template-columns: 64px minmax(0, 1fr) auto; gap: 8px; padding: 10px 10px; } }
+
 /* six summary tiles: one row on wide screens, two rows of three in between (never an orphan) */
 .tiles.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1060px) { .tiles.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

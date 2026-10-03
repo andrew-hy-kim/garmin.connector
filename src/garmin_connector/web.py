@@ -10,7 +10,7 @@ from pathlib import Path
 import anthropic
 from flask import Flask, abort, jsonify, request, send_from_directory
 
-from . import ai, api, auth, config, db, export, insights, planner, processing, sync
+from . import ai, api, auth, config, db, export, insights, planner, processing, suggest, sync
 
 log = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / "static"
@@ -105,6 +105,11 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     def overview_insights():
         with conn() as c:
             return jsonify(insights.overview_insights(c))
+
+    @app.get("/api/suggestions")
+    def next_workouts():
+        with conn() as c:
+            return jsonify(suggest.suggest(c))
 
     @app.get("/api/ai/review")
     def get_ai_review():

@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import api, config, db, insights
+from . import api, config, db, insights, suggest
 
 log = logging.getLogger(__name__)
 
@@ -130,6 +130,7 @@ def snapshot(conn: sqlite3.Connection) -> dict[str, Any]:
             "records": api.records(conn),
             "settings": api.settings_with_zones(conn),
             "insights": insights.overview_insights(conn),
+            "suggestions": suggest.suggest(conn),
             "plan": api.plan(conn),
             "ai_reviews": reviews,
         },

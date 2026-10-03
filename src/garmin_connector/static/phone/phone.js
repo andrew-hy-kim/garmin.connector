@@ -165,6 +165,12 @@
       return s;
     },
     "/api/insights": () => overview.insights,
+    // Suggestions were made on the Mac on export day; drop any whose date has passed
+    "/api/suggestions": () => {
+      const sg = overview.suggestions || { source: "none", basis: "Update the app on your Mac to get suggested workouts.", workouts: [] };
+      const d = new Date(), today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      return { ...sg, workouts: sg.workouts.filter((w) => w.date >= today) };
+    },
     "/api/plan": () => overview.plan,
   };
 

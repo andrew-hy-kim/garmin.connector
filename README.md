@@ -9,6 +9,13 @@ your threshold (the COROS approach) plus the watch's workout laps and pace surge
 Easy, Easy + strides, Long, Progression, Tempo, Threshold, Threshold intervals, VO2 max
 intervals, Speed session, Fartlek, Race. Each tag comes with the reason.
 
+**Your next workouts:** at the top of the coach notes, your next 3, 5 or 7 sessions, each with
+a date, length, how to run it, HR/pace target and why it was picked. With a training plan
+running they're the plan's next sessions; otherwise they're built from your last 8 weeks:
+the days you usually run, your usual long-run day and lengths, and the hard sessions you do
+(on your usual days, rotated and gently progressed), with hard days 48 hours apart, never the
+day before the long run, and none while you're overreaching or early in a comeback.
+
 **Coach notes:** feedback on each workout and on your training overall (easy days drifting
 too hard, HR drift, rep pacing, efficiency vs. your usual, 80/20 balance, mileage jumps,
 ramp rate, new bests, and how you're building back after a break of 3+ weeks), worked out
