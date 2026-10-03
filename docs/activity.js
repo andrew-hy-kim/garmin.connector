@@ -35,6 +35,7 @@ function rolling(values, window) {
 function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))]; }
 
 function derive() {
+  wholeRun = null;
   const s = D.streams, n = s.t.length, u = Units.get();
   const dt = s.t.map((t, i) => { const g = i ? t - s.t[i - 1] : 1; return g > 0 && g <= PAUSE_GAP_S ? g : 1; });
   // carry distance forward over gaps so the distance axis is continuous
@@ -404,6 +405,25 @@ function renderReadout() {
   $("readout").innerHTML = parts.filter(([, v]) => v).map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join("");
 }
 
+// How a selected stretch compares with the whole workout: "(0:42 faster)", "(+12 bpm)"
+let wholeRun = null;
+function vsWhole(what, s) {
+  if (!wholeRun) wholeRun = summarize(0, S.n - 1);
+  const w = wholeRun;
+  if (what === "hr") {
+    if (!s.hr || !w.hr) return "";
+    const d = Math.round(s.hr - w.hr);
+    return Math.abs(d) < 1 ? "" : ` <span class="vs">${d > 0 ? "+" : "−"}${Math.abs(d)} vs run</span>`;
+  }
+  if (!s.speed || !w.speed) return "";
+  if (usesPace()) {
+    const d = Math.round(paceSeconds(s.speed) - paceSeconds(w.speed));
+    return Math.abs(d) < 2 ? "" : ` <span class="vs">${fmtDuration(Math.abs(d))} ${d < 0 ? "faster" : "slower"}</span>`;
+  }
+  const d = (s.speed - w.speed) * 3600 / M_PER[Units.get()];
+  return Math.abs(d) < 0.1 ? "" : ` <span class="vs">${d > 0 ? "+" : "−"}${Math.abs(d).toFixed(1)} vs run</span>`;
+}
+
 function renderSelection() {
   const el = $("selection");
   if (!selection) { el.classList.remove("show"); el.innerHTML = ""; updateMapSelection(); return; }
@@ -412,9 +432,9 @@ function renderSelection() {
     ["Selected", `${fmtDuration(S.t[i0])}–${fmtDuration(S.t[i1])}`],
     ["Time", fmtDuration(s.time)],
     ["Distance", fmtDist(s.meters)],
-    [run ? "Avg pace" : "Avg speed", fmtPaceOrSpeed(s.speed, D.activity.activity_type)],
+    [run ? "Avg pace" : "Avg speed", fmtPaceOrSpeed(s.speed, D.activity.activity_type) + vsWhole("pace", s)],
     ["GAP", run && s.gap ? fmtPace(s.gap) : null],
-    ["Avg HR", s.hr ? `${Math.round(s.hr)} bpm` : null],
+    ["Avg HR", s.hr ? `${Math.round(s.hr)} bpm${vsWhole("hr", s)}` : null],
     ["Max HR", s.hrMax ? `${Math.round(s.hrMax)}` : null],
     ["Cadence", s.cadence ? `${Math.round(s.cadence)} ${cadUnit()}` : null],
     ["Elev.", `+${Math.round(s.up)} / −${Math.round(s.down)} ${u === "mi" ? "ft" : "m"}`],

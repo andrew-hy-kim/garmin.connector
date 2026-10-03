@@ -254,6 +254,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 .readout .idle { color: var(--text-muted); }
 .selection { background: var(--accent-soft); border-radius: 10px; padding: 8px 12px; font-size: 14px; margin-top: 10px; display: none; font-variant-numeric: tabular-nums; }
 .selection.show { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
+.selection .vs { font-weight: 500; color: var(--text-secondary); font-size: 13px; }
 .selection button { min-height: 30px; padding: 3px 12px; }
 #map { height: 340px; border-radius: 10px; background: var(--surface-2); }
 /* map controls in the app's style; dark map tiles in dark mode */
