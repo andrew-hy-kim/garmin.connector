@@ -97,17 +97,7 @@ function setStatus(msg, isError = false) {
 }
 
 // Pages start hidden ("loading") and fade in once their data is drawn, so empty cards never flash.
-// The browser jumps to a #section link before the page has data, and the cards
-// above it then grow, so the first click would land in the wrong place. Jump
-// again once the page has rendered.
-let hashDone = false;
-function ready() {
-  document.body.classList.remove("loading");
-  if (hashDone) return;
-  hashDone = true;
-  const target = /^#[a-z][\w-]*$/i.test(location.hash) && document.getElementById(location.hash.slice(1));
-  if (target) requestAnimationFrame(() => requestAnimationFrame(() => target.scrollIntoView({ block: "start" })));
-}
+function ready() { document.body.classList.remove("loading"); }
 setTimeout(ready, 4000); // never stay hidden if something goes wrong
 
 // Printing: open every folded section so nothing is left out, then restore
