@@ -24,6 +24,17 @@ async function getJSON(url, options) {
   return body;
 }
 
+// "Click" with a mouse or trackpad, "Tap" on a touch screen
+const act = () => (matchMedia("(hover: hover)").matches ? "Click" : "Tap");
+// The same for the fixed hints written in the pages
+for (const el of document.querySelectorAll(".hint")) {
+  const word = act();
+  for (const node of el.childNodes) {
+    if (node.nodeType !== Node.TEXT_NODE || !/click/i.test(node.textContent)) continue;
+    node.textContent = node.textContent.replace(/Tap or click/g, word).replace(/\bClick\b/g, word).replace(/\bclick\b/g, word.toLowerCase());
+  }
+}
+
 // ---------- units (remembered per browser) ----------
 const Units = {
   get() { try { return localStorage.getItem("units") || "mi"; } catch { return "mi"; } },
@@ -257,4 +268,13 @@ const TYPE_ZONE = {
 const typeColor = (type) => (TYPE_ZONE[type] ? `var(--z${TYPE_ZONE[type]})` : "var(--z1)");
 const tagHtml = (label, quality, type) => (label
   ? `<span class="tag ${quality ? "q" : ""}" style="--c:${typeColor(type)}">${esc(label)}</span>` : "");
+// A planned or suggested session, said once: "Easy run" already means easy and conversational
+// (the plan's guidance says so), so that sentence isn't repeated on every easy day.
+function sessionDetails(d) {
+  if (!d.details) return "";
+  return ["easy", "long"].includes(d.type)
+    ? d.details.replace(/^Easy and conversational( the whole way)?\.\s*/, "") : d.details;
+}
+// "HR under 153 bpm · about 8:42 /mi"
+const sessionTarget = (d) => [d.hr ? `HR ${d.hr}` : "", d.speed ? `about ${fmtPace(d.speed)}` : ""].filter(Boolean).join(" · ");
 const QUALITY = new Set(["race", "progression", "tempo", "threshold", "intervals_threshold", "intervals_vo2", "speed", "fartlek"]);

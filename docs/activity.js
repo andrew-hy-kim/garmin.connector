@@ -547,7 +547,7 @@ function renderLaps() {
       (hrs.length ? ` at ${Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length)} bpm` : "") +
       `, varying by ±${Math.round(spread)} s. Bars show each lap's speed, colored by its heart-rate zone.`;
   } else {
-    $("laps-hint").textContent = `Click a lap to analyze it on the timeline. Bars show each lap's speed${hasHr() ? ", colored by its heart-rate zone" : ""}.`;
+    $("laps-hint").textContent = `${act()} a lap to analyze it on the timeline. Bars show each lap's speed${hasHr() ? ", colored by its heart-rate zone" : ""}.`;
   }
   const fastest = Math.max(...laps.map((l) => l.avg_speed || 0)) || 1;
   let rep = 0;

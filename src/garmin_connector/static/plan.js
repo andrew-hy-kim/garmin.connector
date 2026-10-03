@@ -107,6 +107,8 @@ function renderPlan() {
   $("guidance").innerHTML = plan.guidance.map((g) => `<li>${esc(g)}</li>`).join("");
 
   const today = todayIso();
+  // This week and next are open; finished weeks and later ones fold to their summary line
+  const nowIdx = Math.max(0, S.progress.findIndex((p) => p.status !== "past"));
   $("weeks").innerHTML = plan.weeks.map((w, i) => {
     const prog = S.progress[i];
     const current = prog.status === "current";
@@ -115,16 +117,16 @@ function renderPlan() {
       <div class="progress" role="img" aria-label="${Math.round(Math.min(1, prog.done_minutes / (prog.planned_minutes || 1)) * 100)}% of planned minutes done"><div style="width:${Math.min(100, (prog.done_minutes / (prog.planned_minutes || 1)) * 100)}%"></div></div>`;
     const days = w.days.map((d, k) => {
       const iso = addDays(w.start, k);
-      const tgt = [d.hr ? `HR ${d.hr}` : "", paceText(d.speed, d.type)].filter(Boolean).join(" · ");
+      const tgt = sessionTarget(d);
       return `<div class="day ${d.type === "rest" ? "rest" : ""} ${iso === today ? "today" : ""}" style="--c:${typeColor(d.type)}">
         <div class="dname">${d.day}<div class="date">${shortDate(iso)}</div></div>
         <div class="what"><b>${esc(d.title)}${HARD.has(d.type) ? ` <span class="badge">Workout</span>` : ""}</b>
-          ${d.type === "rest" ? "" : `<div class="d">${esc(d.details)}</div>${tgt ? `<div class="tgt">${esc(tgt)}</div>` : ""}`}</div>
+          ${d.type === "rest" ? "" : `${sessionDetails(d) ? `<div class="d">${esc(sessionDetails(d))}</div>` : ""}${tgt ? `<div class="tgt">${esc(tgt)}</div>` : ""}`}</div>
         <div class="mins">${d.minutes ? `${d.minutes} min` : ""}${dayResult(d, iso, today)}</div></div>`;
     }).join("");
-    // Finished weeks fold up to their summary line, so this week is near the top
     const past = prog.status === "past";
-    return `<details class="week ${current ? "current" : ""} ${past ? "past" : ""}" ${past ? "" : "open"}>
+    const open = i >= nowIdx && i <= nowIdx + 1;
+    return `<details class="week ${current ? "current" : ""} ${past ? "past" : ""}" ${open ? "open" : ""}>
       <summary class="week-head"><h3>Week ${w.week}${current ? " (this week)" : ""}</h3>
         <span class="meta">${shortDate(w.start)} – ${shortDate(addDays(w.start, 6))} · ${esc(w.focus)} · ${w.minutes} min planned</span>${done}</summary>
       ${days}</details>`;

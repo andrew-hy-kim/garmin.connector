@@ -197,6 +197,7 @@ tr.muted .pbar { opacity: .4; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--text-secondary); margin: 0 0 8px; }
 .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
 .legend .lbl { color: var(--text-muted); }
+.cal-legend span::before { border-radius: 50%; }
 .legend .lbl::before { display: none; }
 
 .table-wrap { overflow-x: auto; }
@@ -389,9 +390,9 @@ button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14p
 .week-head { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; padding: 14px 18px 12px; }
 summary.week-head { cursor: pointer; list-style: none; }
 summary.week-head::-webkit-details-marker { display: none; }
-.week.past summary.week-head h3::after { content: " ›"; color: var(--text-muted); display: inline-block; transition: transform .15s; }
-.week.past[open] summary.week-head h3::after { transform: rotate(90deg); }
-.week.past:not([open]) .week-head { padding-bottom: 14px; }
+.week summary.week-head h3::after { content: " ›"; color: var(--text-muted); display: inline-block; transition: transform .15s; }
+.week[open] summary.week-head h3::after { transform: rotate(90deg); }
+.week:not([open]) .week-head { padding-bottom: 14px; }
 .week-head h3 { margin: 0; font-size: 19px; letter-spacing: -0.02em; }
 .week-head .meta { color: var(--text-secondary); font-size: 13px; font-variant-numeric: tabular-nums; }
 .week-head .done { margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
@@ -462,21 +463,12 @@ summary.week-head::-webkit-details-marker { display: none; }
 #rows tr.group:first-child td { padding-top: 4px; }
 
 /* milestones under personal records */
-/* race predictor: one box per distance */
-.races { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.race { background: var(--surface-2); border-radius: 14px; padding: 12px 14px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.race .label { color: var(--text-muted); font-size: 13px; font-weight: 600; }
-.race .big { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.race .pace { color: var(--text-secondary); font-size: 13px; }
-.race .chg { font-size: 13px; color: var(--text-muted); }
-.race .chg.up { color: var(--good); font-weight: 600; }
-.race .garmin { font-size: 13px; color: var(--text-secondary); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--grid); }
-.race .garmin b { font-variant-numeric: tabular-nums; }
-.race .basis { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-.race .caveat { font-size: 12px; color: var(--warn-c); margin-top: 4px; }
-.race.none .big { color: var(--text-muted); }
-@media (max-width: 900px) { .races { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .races { gap: 8px; } .race { padding: 10px 12px; } .race .big { font-size: 24px; } }
+/* race predictor: a table like the records */
+.races-table .chg { font-weight: 600; color: var(--text-secondary); }
+.races-table .chg.up { color: var(--good); }
+.caveat { color: var(--warn-c); font-weight: 700; }
+.races-table.no-garmin th:nth-child(5), .races-table.no-garmin td:nth-child(5) { display: none; }
+.races-foot { margin: 10px 0 0; font-size: 12px; }
 
 .milestones { display: grid; gap: 0; }
 .milestones > div { display: grid; grid-template-columns: 120px auto 1fr; gap: 2px 12px; align-items: baseline; padding: 8px 10px; border-bottom: 1px solid var(--grid); font-size: 14px; }
@@ -510,7 +502,12 @@ summary.week-head::-webkit-details-marker { display: none; }
 .nx .what .why { color: var(--text-muted); font-size: 12px; font-style: italic; margin-top: 2px; }
 .nx .mins { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .next-up + .notes { border-top: 1px solid var(--grid); padding-top: 14px; margin-top: 14px; }
-@media (max-width: 600px) { .nx { grid-template-columns: 64px minmax(0, 1fr) auto; gap: 8px; padding: 10px 10px; } }
+/* phone: day and minutes on one line, the session below at full width */
+@media (max-width: 600px) {
+  .nx { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "when mins" "what what"; gap: 2px 8px; padding: 10px 12px; }
+  .nx .when { grid-area: when; } .nx .mins { grid-area: mins; } .nx .what { grid-area: what; }
+  .nx .when b { display: inline; margin-right: 6px; }
+}
 
 /* six summary tiles: one row on wide screens, two rows of three in between (never an orphan) */
 .tiles.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
@@ -524,7 +521,8 @@ summary.week-head::-webkit-details-marker { display: none; }
 /* half-width cards between phone and wide desktop: drop a column so tables fit */
 @media (min-width: 601px) and (max-width: 1120px) {
   .splits-table th:nth-child(5), .splits-table td:nth-child(5),
-  .records-table th:nth-child(3), .records-table td:nth-child(3) { display: none; }
+  .records-table th:nth-child(3), .records-table td:nth-child(3),
+  .races-table th:nth-child(3), .races-table td:nth-child(3) { display: none; }
 }
 @media (max-width: 600px) { .splits-table .pbar { max-width: 16px; margin-right: 6px; } }
 
@@ -556,6 +554,15 @@ summary.week-head::-webkit-details-marker { display: none; }
   .tiles, .tiles.six { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 12px; }
   .tile { padding: 12px 14px; }
   .tile .value { font-size: 22px; }
+  /* the Summary's six tiles: three across, compact, so the first screen isn't only numbers */
+  .tiles.six { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .tiles.six .tile { padding: 10px 10px; border-radius: 14px; }
+  .tiles.six .tile .label { font-size: 12px; }
+  .tiles.six .tile .value { font-size: 20px; margin-top: 2px; }
+  .tiles.six .tile .value small { font-size: 12px; margin-left: 2px; }
+  .tiles.six .tile .sub { font-size: 11.5px; line-height: 1.3; }
+  .tiles.six .tile.with-ring { display: block; position: relative; }
+  .tiles.six .tile .ring { width: 22px; height: 22px; position: absolute; top: 9px; right: 9px; margin: 0; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .topbar { gap: 10px; padding: 10px 0; margin-bottom: 12px; }
@@ -573,6 +580,9 @@ summary.week-head::-webkit-details-marker { display: none; }
   .records-table th:nth-child(3), .records-table td:nth-child(3),
   .records-table th:nth-child(4), .records-table td:nth-child(4),
   .records-table td .when { display: none; }
+  .races-table th:nth-child(3), .races-table td:nth-child(3) { display: none; }
+  .races-table th, .races-table td { padding-left: 6px; padding-right: 6px; }
+  .races-table td:first-child { white-space: normal; }
   .day { grid-template-columns: 44px minmax(0, 1fr) 56px; gap: 8px; padding: 9px 12px; }
   .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .week-head .done { margin-left: 0; width: 100%; }
@@ -616,5 +626,5 @@ summary.week-head::-webkit-details-marker { display: none; }
   body.loading main > * { opacity: 1 !important; }
   a { color: inherit; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .week.past summary.week-head h3::after { display: none; }
+  .week summary.week-head h3::after { display: none; }
 }

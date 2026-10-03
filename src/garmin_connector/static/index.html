@@ -45,7 +45,8 @@
 
   <section class="card needs-data" id="consistency">
     <div class="toolbar" style="margin-bottom:2px"><h2 style="margin:0">Consistency</h2><span class="spacer"></span><span class="hint" style="margin:0" id="cons-stats"></span></div>
-    <p class="hint">Every run, colored by workout type; a bigger dot is a longer run. Select a dot to open that run.</p>
+    <p class="hint">Every run, colored by workout type; a bigger dot is a longer run. Click a dot to open that run.</p>
+    <div class="legend cal-legend"><span style="--c:var(--z2)">Easy &amp; long</span><span style="--c:var(--z3)">Tempo</span><span style="--c:var(--z4)">Threshold</span><span style="--c:var(--z5)">VO2 max, speed &amp; races</span><span style="--c:var(--z1)">Recovery &amp; other</span></div>
     <div class="cal-wrap"><div class="cal" id="cal"></div></div>
   </section>
 
@@ -134,12 +135,6 @@
     </div>
   </section>
 
-  <section class="card needs-data" id="races-card">
-    <h2>Race predictor</h2>
-    <p class="hint" id="races-hint"></p>
-    <div class="races" id="races"></div>
-  </section>
-
   <section class="grid">
     <div class="card needs-data">
       <h2>Personal records</h2>
@@ -151,8 +146,20 @@
       <h3 class="sub-h">Milestones</h3>
       <div class="milestones" id="milestones"></div>
     </div>
-    <div class="card" id="hr-settings">
-      <h2>Heart-rate settings</h2>
+    <div class="card needs-data" id="races-card">
+      <h2>Race predictor</h2>
+      <p class="hint" id="races-hint"></p>
+      <div class="table-wrap"><table class="races-table">
+        <thead><tr><th>Distance</th><th class="num">Predicted</th><th class="num">Pace</th><th class="num" id="races-chg-h">vs 3 months ago</th><th class="num">Garmin</th></tr></thead>
+        <tbody id="races"></tbody>
+      </table></div>
+      <p class="hint races-foot" id="races-foot"></p>
+    </div>
+  </section>
+
+  <section class="card wide" id="hr-settings">
+    <div class="head"><h2>Heart-rate settings</h2></div>
+    <div>
       <p class="hint server-only">These set your zones, workout tags and training load. Each sync pulls them from your Garmin account; anything Garmin doesn't have is estimated from your data. Type a value only to override Garmin; clear the box to go back.</p>
       <p class="hint phone-only" id="phone-zone-note"></p>
       <form id="settings" class="settings-form">
@@ -165,6 +172,8 @@
         </select></label>
         <button type="submit" class="server-only">Save</button>
       </form>
+    </div>
+    <div>
       <div class="zones" id="zones"></div>
     </div>
   </section>

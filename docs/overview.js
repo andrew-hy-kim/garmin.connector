@@ -362,7 +362,7 @@ function renderVolume() {
   const u = Units.get();
   $("volume-title").textContent = b.monthly ? "Monthly distance" : "Weekly distance";
   const avg = totals.reduce((s, v) => s + v, 0) / (totals.length || 1);
-  $("volume-hint").textContent = `${matchMedia("(hover: hover)").matches ? "Click" : "Tap"} a bar to list those runs.`;
+  $("volume-hint").textContent = `${act()} a bar to list those runs.`;
   $("vol-head").innerHTML = `<span class="big">${fmtNum(avg, 1)}<small>${u}</small></span><span class="dim">average per ${b.monthly ? "month" : "week"} ${state.range === "All" ? "since you started" : `over ${state.range}`}</span>`;
   const opts = chartBase();
   opts.plugins.tooltip = { callbacks: { title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`,
@@ -370,7 +370,7 @@ function renderVolume() {
   opts.scales.y.ticks.callback = (v) => `${v} ${u}`;
   opts.onClick = (e, els) => { if (els.length) showPeriod(b, els[0].index); };
   opts.onHover = clickCursor;
-  opts.plugins.tooltip.callbacks.footer = () => `${matchMedia("(hover: hover)").matches ? "Click" : "Tap"} to list these ${state.type === "run" ? "runs" : "activities"}`;
+  opts.plugins.tooltip.callbacks.footer = () => `${act()} to list these ${state.type === "run" ? "runs" : "activities"}`;
   drawChart("weekly", "weekly", {
     type: "bar",
     // the current week or month is still in progress: drawn lighter
@@ -771,7 +771,7 @@ function setupTable() {
   });
 }
 
-for (const id of ["rows", "records"]) {
+for (const id of ["rows", "records", "races"]) {
   $(id).addEventListener("click", (e) => {
     const row = e.target.closest("tr.clickable");
     if (row && !e.target.closest("a")) location.href = pageUrl("activity", { id: row.dataset.id, t: row.dataset.t });
@@ -809,11 +809,11 @@ function todayCard(d, done) {
   if (!d) return "";
   if (d.type === "rest") return `<div class="today-card rest"><span class="eyebrow">Today</span><b>Rest or cross-train</b>
     <span class="dim">Recovery is when the training sinks in.</span></div>`;
-  const target = [d.hr ? `HR ${d.hr}` : "", d.speed ? `about ${fmtPace(d.speed)}` : ""].filter(Boolean).join(" · ");
+  const target = sessionTarget(d);
   return `<div class="today-card" style="--c:${typeColor(d.type)}">
     <span class="eyebrow">Today${done ? ` · <span class="tick">✓ Done</span>` : ""}</span>
     <b>${esc(d.title)}${d.minutes ? ` · ${d.minutes} min` : ""}</b>
-    <span>${esc(d.details || "")}</span>${target ? `<span class="dim">${esc(target)}</span>` : ""}</div>`;
+    ${sessionDetails(d) ? `<span>${esc(sessionDetails(d))}</span>` : ""}${target ? `<span class="dim">${esc(target)}</span>` : ""}</div>`;
 }
 
 function renderWeekPlan() {
@@ -844,32 +844,40 @@ function renderWeekPlan() {
 }
 
 // ---------- race predictor ----------
+// A table like the records: predicted time and pace, the change over three months, and Garmin's.
 function renderRaces() {
   const rp = state.races;
   const card = $("races-card");
   card.hidden = !rp || !rp.races.some((r) => r.seconds || r.garmin_seconds);
   if (card.hidden) return;
   const months = Math.round(rp.trend_days / 30);
+  // no Garmin predictions at all (not synced yet, or none on the account): drop that column
+  $("races").closest("table").classList.toggle("no-garmin", !rp.races.some((r) => r.garmin_seconds));
+  $("races-chg-h").innerHTML = `vs ${months}<span class="wide-only"> months ago</span><span class="narrow-only"> mo</span>`;
+  $("races-hint").textContent = `From your fastest stretches in the last ${rp.window_days} days, scaled to each distance. ` +
+    `Training efforts are rarely all-out, so on race day you may well be faster. ${act()} a row to see the stretch it's based on.`;
   // negative = faster, which is good
-  const change = (s, what) => (s == null || Math.abs(s) < 5 ? ""
-    : `<span class="chg ${s < 0 ? "up" : ""}">${s < 0 ? "▼" : "▲"} ${fmtDuration(Math.abs(s))} ${s < 0 ? "faster" : "slower"}${what}</span>`);
-  $("races-hint").textContent = `Your likely finish times, from your fastest stretches in the last ${rp.window_days} days ` +
-    "(any outdoor run, not only races), scaled to each distance. Efforts in training runs are rarely all-out, so on race day you may well be faster." +
-    (rp.garmin_date ? ` Garmin's prediction is from ${fmtDate(rp.garmin_date, { month: "short", day: "numeric" })}.` : "");
+  const change = (s) => (s == null ? `<span class="dim">–</span>` : Math.abs(s) < 5 ? `<span class="dim">same</span>`
+    : `<span class="chg ${s < 0 ? "up" : ""}">${s < 0 ? "▼" : "▲"} ${fmtDuration(Math.abs(s))}</span>`);
   $("races").innerHTML = rp.races.map((r) => {
     const e = r.basis;
-    const basis = e ? `<a href="${pageUrl("activity", { id: e.activity_id, t: span(e) })}">From your ${esc(e.label)} ${e.race ? "race" : "effort"} on ${esc(fmtDate(e.date, { month: "short", day: "numeric" }))}</a>` : "";
-    const garmin = r.garmin_seconds ? `<div class="garmin">Garmin: <b>${fmtDuration(r.garmin_seconds)}</b>${
-      r.garmin_change_s && Math.abs(r.garmin_change_s) >= 5 ? ` <span class="dim">(${r.garmin_change_s < 0 ? "−" : "+"}${fmtDuration(Math.abs(r.garmin_change_s))})</span>` : ""}</div>` : "";
+    const garmin = r.garmin_seconds ? fmtDuration(r.garmin_seconds) : `<span class="dim">–</span>`;
     if (!r.seconds) {
-      return `<div class="race none"><span class="label">${esc(r.race)}</span><span class="big">–</span>
-        <span class="pace">No recent hard effort long enough to predict this yet.</span>${garmin}</div>`;
+      return `<tr><td>${esc(r.race)}</td><td class="num dim" title="No recent hard effort long enough to predict this yet">–</td>
+        <td class="num"></td><td class="num"></td><td class="num">${garmin}</td></tr>`;
     }
-    return `<div class="race"><span class="label">${esc(r.race)}</span><span class="big">${fmtDuration(r.seconds)}</span>
-      <span class="pace">${fmtPace(r.meters / r.seconds)}</span>
-      ${change(r.change_s, ` than ${months} months ago`)}
-      ${garmin}<span class="basis">${basis}</span>${r.longest_run_m ? `<span class="caveat">Assumes you train for the distance: your longest run in the last 8 weeks was ${esc(fmtDist(r.longest_run_m, Units.get(), 1))}.</span>` : ""}</div>`;
+    const from = `From your ${e.label} ${e.race ? "race" : "effort"} on ${fmtDate(e.date, { month: "short", day: "numeric" })}`;
+    return `<tr class="clickable" tabindex="0" data-id="${e.activity_id}" data-t="${span(e)}" title="${esc(from)}">
+      <td>${esc(r.race)}${r.longest_run_m ? ` <span class="caveat" aria-label="see note below">*</span>` : ""}</td>
+      <td class="num"><b>${fmtDuration(r.seconds)}</b></td><td class="num">${fmtPace(r.meters / r.seconds)}</td>
+      <td class="num">${change(r.change_s)}</td><td class="num">${garmin}</td></tr>`;
   }).join("");
+  const long = rp.races.find((r) => r.longest_run_m);
+  $("races-foot").innerHTML = [
+    long ? `<span class="caveat">*</span> Assumes you train for the distance: your longest run in the last 8 weeks was ${esc(fmtDist(long.longest_run_m, Units.get(), 1))}.` : "",
+    rp.garmin_date ? `Garmin's prediction as of ${esc(fmtDate(rp.garmin_date, { month: "short", day: "numeric" }))}.` : "",
+  ].filter(Boolean).join(" ");
+  $("races-foot").hidden = !$("races-foot").innerHTML;
 }
 
 // ---------- suggested next workouts (in Coach notes) ----------
@@ -888,16 +896,17 @@ function renderNextUp() {
   const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return isoDay(d); })();
   const when = (w) => (w.date === today ? "Today" : w.date === tomorrow ? "Tomorrow"
     : new Date(w.date + "T12:00").toLocaleDateString(undefined, { weekday: "short" }));
-  const target = (w) => [w.hr ? `HR ${w.hr}` : "", w.speed ? `about ${fmtPace(w.speed)}` : ""].filter(Boolean).join(" · ");
+
   el.innerHTML = `<div class="toolbar" style="margin:4px 0 2px">
       <h3 class="sub-h" style="margin:0">Your next ${n === 1 ? "workout" : `${n} workouts`}</h3><span class="spacer"></span>
       <div class="seg" role="group" aria-label="How many workouts to suggest">${NEXT_COUNTS.map((c) =>
         `<button data-n="${c}" aria-pressed="${c === nextCount()}">${c}</button>`).join("")}</div></div>
     <p class="hint" style="margin-bottom:8px">${esc(sg.basis)}</p>
-    <div class="nx-list">${sg.workouts.slice(0, n).map((w) => `<div class="nx" style="--c:${typeColor(w.type)}">
+    <div class="nx-list">${sg.workouts.slice(0, n).map((w, k) => `<div class="nx" style="--c:${typeColor(w.type)}">
       <div class="when"><b>${when(w)}</b><span>${new Date(w.date + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span></div>
-      <div class="what"><b>${esc(w.title)}</b><div class="d">${esc(w.details)}</div>
-        ${target(w) ? `<div class="tgt">${esc(target(w))}</div>` : ""}<div class="why">${esc(w.why)}</div></div>
+      <div class="what"><b>${esc(w.title)}</b>${sessionDetails(w) ? `<div class="d">${esc(sessionDetails(w))}</div>` : ""}
+        ${sessionTarget(w) ? `<div class="tgt">${esc(sessionTarget(w))}</div>` : ""}${
+        k && sg.workouts[k - 1].why === w.why ? "" : `<div class="why">${esc(w.why)}</div>`}</div>
       <div class="mins">${w.minutes} min</div></div>`).join("")}</div>`;
 }
 $("next-up").addEventListener("click", (e) => {
