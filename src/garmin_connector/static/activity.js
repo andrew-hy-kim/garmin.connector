@@ -486,11 +486,25 @@ function showColumns(table, cols) {
   }
 }
 
+// One line on what the zone mix means
+function zoneTake(sec) {
+  const total = sec.reduce((a, b) => a + b, 0);
+  if (!total || sec.length < 5) return "";
+  const pct = (a) => Math.round((a / total) * 100);
+  const easy = pct(sec[0] + sec[1]), mid = pct(sec[2]), hard = pct(sec[3] + sec[4]);
+  let text;
+  if (hard >= 25) text = `<b>${hard}% in Z4–Z5:</b> a hard session. An easy day next lets it pay off.`;
+  else if (easy >= 80) text = `<b>${easy}% in Z1–Z2:</b> easy aerobic running, the kind that builds your base.`;
+  else if (mid >= 30) text = `<b>${mid}% in Z3:</b> moderate "tempo" effort. Useful, but easy days should stay easier than this.`;
+  else text = `<b>${easy}% easy, ${hard}% hard:</b> a mixed effort.`;
+  return `<p class="zone-take">${text}</p>`;
+}
+
 function renderZones() {
   const m = D.metrics;
   $("zones-card").hidden = !m?.zone_seconds;
   if (!m?.zone_seconds) return;
-  $("zones").innerHTML = zoneRows(D.zones, m.zone_seconds);
+  $("zones").innerHTML = zoneRows(D.zones, m.zone_seconds) + zoneTake(m.zone_seconds);
   $("zones-hint").innerHTML = `${esc(zoneBasis(D.settings))}. <a href="${pageUrl("dashboard")}#hr-settings">Change zones</a>`;
 }
 

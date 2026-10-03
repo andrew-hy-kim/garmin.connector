@@ -227,6 +227,8 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 .zone-row .val { text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .zone-row .range { color: var(--text-muted); font-size: 12px; }
 .zone-row .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); margin-right: 6px; vertical-align: -1px; }
+.zone-take { margin: 8px 0 0; padding-top: 12px; border-top: 1px solid var(--grid); font-size: 14px; color: var(--text-secondary); }
+.zone-take b { color: var(--text-primary); }
 .zone-strip { display: flex; height: 10px; border-radius: 6px; overflow: hidden; gap: 2px; margin: 4px 0 12px; }
 .zone-strip > div { background: var(--c); }
 #zones.compact { gap: 6px; }
