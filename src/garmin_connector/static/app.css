@@ -569,7 +569,18 @@ summary.week-head::-webkit-details-marker { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 @media print {
-  .topbar .controls, .tabs, .data-bar, .ai-box, .filters, .pager { display: none !important; }
-  body { background: #fff; }
-  .card, .tile, .week { box-shadow: none; break-inside: avoid; }
+  @page { margin: 14mm; }
+  .topbar, .tabs, .data-bar, .ai-box, .filters, .pager, #status, .head-nav, button, .toolbar .spacer + a,
+  details.more > summary, .tiles .ring { display: none !important; }
+  html, body { background: #fff !important; }
+  :root { --surface-0: #fff; --surface-1: #fff; --surface-2: #f4f4f6; --shadow: none; }
+  main { max-width: none; padding: 0; }
+  .card, .tile, .week, .stats { box-shadow: none !important; border: 1px solid #ddd; break-inside: avoid; }
+  .week { break-inside: auto; }
+  .week-head, .day { break-inside: avoid; }
+  .page-head { margin-top: 0; }
+  body.loading main > * { opacity: 1 !important; }
+  a { color: inherit; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .week.past summary.week-head h3::after { display: none; }
 }

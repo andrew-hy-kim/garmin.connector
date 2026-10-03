@@ -100,6 +100,14 @@ function setStatus(msg, isError = false) {
 function ready() { document.body.classList.remove("loading"); }
 setTimeout(ready, 4000); // never stay hidden if something goes wrong
 
+// Printing: open every folded section so nothing is left out, then restore
+let printOpened = [];
+window.addEventListener("beforeprint", () => {
+  printOpened = [...document.querySelectorAll("details:not([open])")];
+  printOpened.forEach((d) => { d.open = true; });
+});
+window.addEventListener("afterprint", () => { printOpened.forEach((d) => { d.open = false; }); printOpened = []; });
+
 // Busy state for a button while something runs: label changes, button disabled.
 async function busy(button, label, work) {
   const old = button.textContent;
