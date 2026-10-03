@@ -12,6 +12,8 @@ import zlib
 from pathlib import Path
 from typing import Any, Iterable
 
+from . import gear, health
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS activities (
     activity_id        INTEGER PRIMARY KEY,
@@ -147,7 +149,7 @@ _ACTIVITY_FIELDS = [
 def connect(path: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
+    conn.executescript(SCHEMA + health.SCHEMA + gear.SCHEMA)
     return conn
 
 

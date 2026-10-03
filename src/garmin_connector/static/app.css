@@ -732,3 +732,43 @@ summary.week-head::-webkit-details-marker { display: none; }
   .place .pl-bar { grid-column: 1 / -1; grid-row: 2; }
   .pl-stats { font-size: 12px; }
 }
+
+/* ---------- statistics ---------- */
+.stats-table .sbar { display: inline-block; height: 8px; border-radius: 4px; background: var(--pace); margin-right: 8px; vertical-align: 0; opacity: .8; }
+@media (min-width: 601px) and (max-width: 1120px) { .stats-table th:nth-child(7), .stats-table td:nth-child(7), .stats-table th:nth-child(9), .stats-table td:nth-child(9) { display: none; } }
+@media (max-width: 600px) {
+  .stats-table th:nth-child(n+4), .stats-table td:nth-child(n+4) { display: none; }
+  .stats-table th:nth-child(5), .stats-table td:nth-child(5) { display: table-cell; }
+  .stats-table th, .stats-table td { padding-left: 6px; padding-right: 6px; }
+  .stats-table .sbar { display: none; }
+  #stats-card .toolbar { flex-wrap: wrap; gap: 8px; }
+}
+
+/* ---------- recovery ---------- */
+.rd-warn { color: var(--warn-c) !important; font-weight: 600; font-size: 14px; }
+.rd-recovery span { background: transparent; box-shadow: inset 0 0 0 1px var(--border); }
+.up-bad { color: var(--warn-c); font-style: normal; font-weight: 700; }
+.recovery-kv { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 12px; }
+.recovery-kv b { font-size: 20px; display: block; font-variant-numeric: tabular-nums; }
+.recovery-kv small { color: var(--text-muted); font-size: 12px; }
+.band-key::before { background: color-mix(in srgb, var(--pace) 20%, transparent) !important; }
+@media (max-width: 600px) { .recovery-kv { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- shoes ---------- */
+.gear-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(90px, 1fr) minmax(0, 1.2fr); gap: 16px; align-items: center;
+  padding: 11px 0; border-bottom: 1px solid var(--grid); }
+.gear-row:last-child { border-bottom: 0; }
+.gear-row.retired { opacity: .65; }
+.g-name b, .g-num b { display: block; }
+.g-name .dim, .g-num .dim { font-size: 12.5px; }
+.g-num { text-align: right; font-variant-numeric: tabular-nums; }
+.g-num b { display: inline; }
+.g-num .dim:last-child { display: block; }
+.g-bar { height: 8px; border-radius: 4px; background: var(--fill); overflow: hidden; }
+.g-bar i { display: block; height: 100%; border-radius: 4px; background: var(--good); }
+.g-bar.near i { background: var(--z4); }
+.g-bar.over i { background: var(--danger); }
+@media (max-width: 600px) {
+  .gear-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; }
+  .gear-row .g-bar { grid-column: 1 / -1; grid-row: 2; }
+}

@@ -110,3 +110,15 @@ def test_not_enough_history(tmp_path):
     conn = db.connect(tmp_path / "e.db")
     out = suggest.suggest(conn)
     assert out["source"] == "none" and out["workouts"] == []
+
+
+def test_recovery_signals_keep_the_next_days_easy(conn, monkeypatch):
+    from garmin_connector import health
+    real = health.summary
+    monkeypatch.setattr(health, "summary", lambda c, t=None: {"flags": ["HRV has been below your normal range for 3 nights"]})
+    out = suggest.suggest(conn, count=7)
+    today = date.today()
+    early = [w for w in out["workouts"] if (date.fromisoformat(w["date"]) - today).days < 2]
+    assert all(w["type"] in ("easy", "long") for w in early)
+    assert "HRV" in out["basis"] or "resting heart rate" in out["basis"]
+    monkeypatch.setattr(health, "summary", real)

@@ -39,7 +39,10 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
 **Today**: how you're doing and what to do now
 - **Readiness:** fresh / balanced / building / tired from your form, with fitness and fatigue,
   how many easy days until you're fresh, and the most training load you can do today and stay
-  balanced, next to today's session (from your plan, or the next suggested workout)
+  balanced, next to today's session (from your plan, or the next suggested workout). With
+  recovery data from your watch it also shows last night's resting heart rate, HRV and sleep
+  and Garmin's training readiness. When resting HR or HRV has been off your normal for a few
+  days, it says **Recovering** and the suggested workouts stay easy for two days.
 - **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
   its coach notes
 - This week / month / year (each opens its runs), this week's plan, coach notes with your next
@@ -53,6 +56,9 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   - **Marathon shape:** whether your training has the endurance long races need. Weekly
     distance over 6 months counts two thirds, long runs over 13 km in the last 10 weeks one
     third, against targets that grow with your VO2max.
+- **Recovery:** resting heart rate and HRV (as 7-day averages, with your normal HRV range) and
+  sleep, from your watch. Several days of a raised resting HR, low HRV or short sleep also show
+  up as coach notes.
 - **Fitness, fatigue & form** in plain language, plus **monotony** and **training strain**
   (Foster) for the last 7 days, what resting would do, and your fitness now vs. earlier and
   at its peak
@@ -65,8 +71,13 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   easy runs) and **long runs** (your longest each week against the long-run threshold and your
   marathon target). Each chart leads with its headline number, and a click on a week opens its
   runs.
+- **Statistics** by year, month or week: runs, distance, time, pace, heart rate, climb, longest
+  run and VO2max. Click a row to list its runs.
 - **Personal records** from the fastest stretch of any outdoor run (all-time and within the
   range) and milestones (longest run, biggest week and month)
+- **Shoes:** distance on each pair from your gear in Garmin Connect, against its limit (or
+  500 miles), with how much you've run in it this month. A coach note warns when a pair you're
+  still using passes 85%. Each workout shows the shoes it was run in.
 - Heart-rate settings (max, resting, threshold) and **zones pulled from your Garmin account**
   on every sync, so zones match your watch. You can override any value, and anything Garmin
   doesn't have is estimated from your data.

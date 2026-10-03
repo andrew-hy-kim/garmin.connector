@@ -72,7 +72,7 @@ function fmtPace(mps, u = Units.get(), withUnit = true) {
 function fmtSpeed(mps, u = Units.get()) { return mps ? `${(mps * 3600 / M_PER[u]).toFixed(1)} ${u === "mi" ? "mph" : "km/h"}` : ""; }
 const PACE_TYPES = /run|walk|hik/;
 const fmtPaceOrSpeed = (mps, type, u) => (PACE_TYPES.test(type || "") ? fmtPace(mps, u) : fmtSpeed(mps, u));
-const fmtElev = (m, u = Units.get()) => (m == null ? "" : u === "mi" ? `${Math.round(m * 3.28084)} ft` : `${Math.round(m)} m`);
+const fmtElev = (m, u = Units.get()) => (m == null ? "" : `${Math.round(u === "mi" ? m * 3.28084 : m).toLocaleString()} ${u === "mi" ? "ft" : "m"}`);
 const elevUnit = (m, u = Units.get()) => (u === "mi" ? m * 3.28084 : m);
 const prettyType = (t) => (t || "other").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const isRun = (t) => /run/.test(t || "");

@@ -859,7 +859,7 @@ function populateTypes() {
 // Everything that depends on the time range
 function renderCharts() {
   renderMilestones();
-  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf();
+  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderRecovery(); renderGear();
 }
 
 // Did you run on day k of the plan week starting `start`?
@@ -988,6 +988,67 @@ $("next-up")?.addEventListener("click", (e) => {
   renderNextUp();
 });
 
+// ---------- statistics: totals by year, month or week ----------
+let statsBy = (() => { try { return localStorage.getItem("statsBy") || "year"; } catch { return "year"; } })();
+function renderStats() {
+  const el = $("stats");
+  if (!el) return;
+  const u = Units.get();
+  const runs = filtered();
+  const keyOf = { year: (d) => `${d.getFullYear()}`, month: (d) => isoDay(startOfMonth(d)), week: (d) => isoDay(startOfWeek(d)) }[statsBy];
+  const groups = new Map();
+  for (const a of runs) {
+    const d = localDate(a.start_time_local), k = keyOf(d);
+    const g = groups.get(k) || { k, d, n: 0, m: 0, s: 0, moving: 0, hrS: 0, hrT: 0, up: 0, longest: 0, vo2: 0, vo2T: 0 };
+    const secs = a.moving_duration_s || a.duration_s || 0;
+    g.n++; g.m += a.distance_m || 0; g.s += a.duration_s || 0; g.moving += a.distance_m ? secs : 0;
+    if (a.avg_hr) { g.hrS += a.avg_hr * secs; g.hrT += secs; }
+    g.up += a.elevation_gain_m || 0; g.longest = Math.max(g.longest, a.distance_m || 0);
+    if (a.vo2max_eff) { g.vo2 += a.vo2max_eff * secs; g.vo2T += secs; }
+    groups.set(k, g);
+  }
+  const limit = { year: 99, month: 24, week: 26 }[statsBy];
+  const rows = [...groups.values()].sort((a, b) => (a.k < b.k ? 1 : -1)).slice(0, limit);
+  const best = Math.max(...rows.map((g) => g.m), 1);
+  const label = (g) => statsBy === "year" ? g.k : statsBy === "month"
+    ? g.d.toLocaleDateString(undefined, { month: "short", year: "numeric" })
+    : `Week of ${new Date(g.k + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" })}`;
+  const range = (g) => {
+    if (statsBy === "year") return [`${g.k}-01-01`, `${g.k}-12-31`];
+    const start = new Date(g.k + "T12:00");
+    const end = statsBy === "month" ? new Date(start.getFullYear(), start.getMonth() + 1, 0) : new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+    return [g.k, isoDay(end)];
+  };
+  $("stats-period-h").textContent = { year: "Year", month: "Month", week: "Week" }[statsBy];
+  $("stats-hint").textContent = `${state.type === "run" ? "Your running" : "Your activities"} ${{ year: "by year", month: "over the last 24 months", week: "over the last 26 weeks" }[statsBy]}; the bar shows distance against your biggest ${statsBy}. ${act()} a row to list its runs.`;
+  el.innerHTML = rows.map((g) => {
+    const [from, to] = range(g);
+    return `<tr class="clickable" tabindex="0" data-from="${from}" data-to="${to}">
+      <td><b>${esc(label(g))}</b></td><td class="num">${fmtNum(g.n)}</td>
+      <td class="num"><span class="sbar" style="width:${Math.round((g.m / best) * 56)}px"></span>${fmtNum(dist(g.m, u), dist(g.m, u) >= 100 ? 0 : 1)} ${u}</td>
+      <td class="num">${fmtTotal(g.s)}</td><td class="num">${g.moving && g.m ? fmtPace(g.m / g.moving) : ""}</td>
+      <td class="num">${g.hrT ? Math.round(g.hrS / g.hrT) : ""}</td><td class="num">${g.up ? fmtElev(g.up) : ""}</td>
+      <td class="num">${fmtDist(g.longest, u, 1)}</td><td class="num">${g.vo2T ? (g.vo2 / g.vo2T).toFixed(1) : ""}</td></tr>`;
+  }).join("") || `<tr><td colspan="9" class="empty">Nothing yet.</td></tr>`;
+}
+$("stats-by")?.addEventListener("click", (e) => {
+  const by = e.target.dataset.by;
+  if (!by) return;
+  statsBy = by;
+  try { localStorage.setItem("statsBy", by); } catch {}
+  $("stats-by").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.by === by));
+  renderStats();
+});
+$("stats-by")?.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.by === statsBy));
+const openPeriod = (e) => {
+  const row = e.target.closest("tr[data-from]");
+  if (!row || (e.type === "keydown" && e.key !== "Enter" && e.key !== " ")) return;
+  e.preventDefault();
+  location.href = pageUrl("activities", { query: { from: row.dataset.from, to: row.dataset.to } });
+};
+$("stats")?.addEventListener("click", openPeriod);
+$("stats")?.addEventListener("keydown", openPeriod);
+
 // ---------- Today: readiness, latest run, recent activities ----------
 // Monotony and strain over the last 7 days, rest days until fresh, and the most load you
 // can do today and stay balanced (RUNALYZE's calculations; same model as the charts).
@@ -1054,11 +1115,29 @@ function renderReadiness() {
         <b>${esc(d.title)}${d.minutes ? ` · ${d.minutes} min` : ""}</b>${sessionDetails(d) ? `<span>${esc(sessionDetails(d))}</span>` : ""}
         ${sessionTarget(d) ? `<span class="dim">${esc(sessionTarget(d))}</span>` : ""}</div>`;
   }
-  el.innerHTML = `<div class="rd-main" style="--c:var(${textColor(st)})">
+  // recovery from the watch, when it records it
+  const h = state.health;
+  const recovery = [];
+  if (h) {
+    if (h.resting_hr) {
+      const d = h.resting_hr_normal ? Math.round(h.resting_hr - h.resting_hr_normal) : 0;
+      recovery.push(`Resting HR <b>${Math.round(h.resting_hr)}</b>${d >= 3 ? ` <em class="up-bad">+${d}</em>` : ""}`);
+    }
+    if (h.hrv) {
+      const low = h.hrv_low && h.hrv < h.hrv_low;
+      recovery.push(`HRV <b>${Math.round(h.hrv)}</b> ms${low ? ` <em class="up-bad">low</em>` : ""}`);
+    }
+    if (h.sleep_s) recovery.push(`Sleep <b>${fmtTotal(h.sleep_s)}</b>${h.sleep_score ? ` · ${Math.round(h.sleep_score)}` : ""}`);
+    if (h.readiness) recovery.push(`Garmin readiness <b>${Math.round(h.readiness)}</b>`);
+  }
+  // recovery signals off your normal outrank what the training load says
+  const strained = h && h.flags && h.flags.length;
+  el.innerHTML = `<div class="rd-main" style="--c:var(${strained ? "--warn-c" : textColor(st)})">
       <span class="eyebrow">Readiness</span>
-      <div class="rd-word"><b>${word}</b><span class="rd-form" title="Form: fitness minus fatigue">Form ${sign(today.form)}</span></div>
-      <p>${advice}</p>
+      <div class="rd-word"><b>${strained ? "Recovering" : word}</b><span class="rd-form" title="Form: fitness minus fatigue">Form ${sign(today.form)}</span></div>
+      <p>${strained ? `${esc(h.flags.join(". "))}. Your training load says ${word.toLowerCase()}, but your body may still be recovering: keep today easy.` : advice}</p>
       <div class="rd-facts">${facts.map((f) => `<span>${f}</span>`).join("")}</div>
+      ${recovery.length ? `<div class="rd-facts rd-recovery">${recovery.map((f) => `<span>${f}</span>`).join("")}</div>` : ""}
     </div>${session}`;
 }
 
@@ -1129,6 +1208,76 @@ function renderRecent() {
       <td class="num">${fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)}</td>
       <td class="num">${a.avg_hr ? `${Math.round(a.avg_hr)} bpm` : ""}</td></tr>`).join("")}</tbody></table>`
     : `<p class="hint">No activities yet.</p>`;
+}
+
+// ---------- Progress: shoes ----------
+function renderGear() {
+  const card = $("gear-card");
+  if (!card) return;
+  const list = state.gear || [];
+  card.hidden = !list.length;
+  if (!list.length) return;
+  const u = Units.get();
+  const row = (g) => {
+    const share = g.share == null ? null : Math.min(1, g.share);
+    const level = g.share >= 1 ? "over" : g.share >= 0.85 ? "near" : "";
+    return `<div class="gear-row ${g.retired ? "retired" : ""}">
+      <div class="g-name"><b>${esc(g.name)}</b><span class="dim">${[g.type, g.since ? `since ${fmtDate(g.since, { month: "short", year: "numeric" })}` : "", g.retired ? "retired" : ""].filter(Boolean).join(" · ")}</span></div>
+      <div class="g-bar ${level}">${share == null ? "" : `<i style="width:${(share * 100).toFixed(0)}%"></i>`}</div>
+      <div class="g-num"><b>${fmtNum(dist(g.total_m, u), 0)} ${u}</b>${g.limit_m ? `<span class="dim"> of ${fmtNum(dist(g.limit_m, u), 0)}</span>` : ""}
+        <span class="dim">${g.activities ? `${fmtNum(g.activities)} runs` : ""}${g.month_m ? ` · ${fmtNum(dist(g.month_m, u), 0)} ${u} this month` : g.last_used ? ` · last ${fmtDate(g.last_used, { month: "short", day: "numeric" })}` : ""}</span></div>
+    </div>`;
+  };
+  const active = list.filter((g) => !g.retired), retired = list.filter((g) => g.retired);
+  $("gear").innerHTML = active.map(row).join("") +
+    (retired.length ? `<details class="more"><summary>${retired.length} retired</summary>${retired.map(row).join("")}</details>` : "");
+}
+
+// ---------- Progress: recovery (resting HR, HRV, sleep) ----------
+function renderRecovery() {
+  const card = $("recovery-card");
+  if (!card) return;
+  const h = state.health;
+  card.hidden = !h || !h.history?.length;
+  if (card.hidden) return;
+  const hist = h.history.filter((d) => inRange(d.date));
+  const avg = (k, n) => { const v = h.history.slice(-n).map((d) => d[k]).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const rhr7 = avg("resting_hr", 7), hrv7 = avg("hrv", 7), sleep7 = avg("sleep_s", 7);
+  $("recovery-kv").innerHTML = [
+    ["Resting HR", rhr7 ? `${Math.round(rhr7)} bpm` : "–", h.resting_hr_normal ? `7-day average; your normal is ${Math.round(h.resting_hr_normal)}` : "7-day average"],
+    ["HRV", hrv7 ? `${Math.round(hrv7)} ms` : "–", h.hrv_low ? `7-day average; normal range ${Math.round(h.hrv_low)}–${Math.round(h.hrv_high)}` : "7-day average"],
+    ["Sleep", sleep7 ? fmtTotal(sleep7) : "–", "a night, over the last week"],
+    ["Readiness", h.readiness ? `${Math.round(h.readiness)}` : "–", "Garmin's training readiness today"],
+  ].map(([k, v, sub]) => `<div><span>${k}</span><b>${v}</b><small>${esc(sub)}</small></div>`).join("");
+  const opts = chartBase();
+  opts.interaction = { mode: "index", intersect: false };
+  timeAxis(opts);
+  opts.scales.y.title = { display: false };
+  opts.scales.y.ticks.callback = (v) => `${v}`;
+  opts.scales.y2 = { position: "right", grid: { display: false }, border: { display: false }, ticks: { color: cssVar("--text-muted"), callback: (v) => `${v} ms` } };
+  opts.scales.y3 = { display: false, min: 0, max: 30 * 3600 };
+  opts.plugins.tooltip = { callbacks: {
+    title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
+    label: (i) => (i.dataset.label === "Sleep" ? `Sleep: ${fmtTotal(i.parsed.y)}` : /range|night/.test(i.dataset.label) ? null
+      : `${i.dataset.label} (7-day avg): ${Math.round(i.parsed.y)}${i.dataset.label === "HRV" ? " ms" : " bpm"}`),
+  } };
+  const pt = (k) => hist.filter((d) => d[k]).map((d) => ({ x: new Date(d.date + "T12:00").getTime(), y: d[k] }));
+  // a 7-day average shows the trend through the night-to-night noise
+  const smooth = (k) => { const p = pt(k); return p.map((q, i) => { const w = p.slice(Math.max(0, i - 6), i + 1); return { x: q.x, y: w.reduce((t, r) => t + r.y, 0) / w.length }; }); };
+  const band = cssVar("--pace");
+  drawChart("recovery", "recovery", {
+    type: "line",
+    data: { datasets: [
+      { label: "HRV range low", yAxisID: "y2", data: pt("hrv_low"), borderWidth: 0, pointRadius: 0, fill: false },
+      { label: "HRV range high", yAxisID: "y2", data: pt("hrv_high"), borderWidth: 0, pointRadius: 0, backgroundColor: band + "1c", fill: "-1" },
+      { label: "Resting HR", data: smooth("resting_hr"), borderColor: cssVar("--hr"), borderWidth: 2.2, pointRadius: 0, tension: 0.3 },
+      { label: "HRV", yAxisID: "y2", data: smooth("hrv"), borderColor: band, borderWidth: 2.2, pointRadius: 0, tension: 0.3 },
+      { type: "scatter", label: "Resting HR (night)", data: pt("resting_hr"), backgroundColor: cssVar("--hr") + "40", pointRadius: 1.5 },
+      { type: "scatter", label: "HRV (night)", yAxisID: "y2", data: pt("hrv"), backgroundColor: band + "40", pointRadius: 1.5 },
+      { type: "bar", label: "Sleep", yAxisID: "y3", data: pt("sleep_s"), backgroundColor: cssVar("--elev") + "55", barPercentage: 1, categoryPercentage: 1, order: 9 },
+    ] },
+    options: opts,
+  });
 }
 
 // ---------- Progress: VO2max shape, marathon shape, training paces ----------
@@ -1224,14 +1373,14 @@ function render() {
   renderReadiness(); renderLatest(); renderConsistency();
   renderTiles(); renderNextUp(); renderRaces(); renderWeekPlan(); renderExplain(); renderCompare();
   if ($("notes")) renderNotes($("notes"), $("readiness") ? state.insights.filter((n) => !n.title.startsWith("Form:")) : state.insights);
-  renderRecent(); renderCharts(); renderSettings(); renderTable();
+  renderRecent(); renderCharts(); renderStats(); renderSettings(); renderTable();
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions, races, perf] = await Promise.all(
+  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions, races, perf, health, gear] = await Promise.all(
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u))
-      .concat(["/api/suggestions", "/api/race-predictions", "/api/performance"].map((u) => getJSON(u).catch(() => null))));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions, races, perf });
+      .concat(["/api/suggestions", "/api/race-predictions", "/api/performance", "/api/health", "/api/gear"].map((u) => getJSON(u).catch(() => null))));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions, races, perf, health, gear });
   populateTypes(); render(); ready();
   // Phone: confirm a data import that just happened
   try {

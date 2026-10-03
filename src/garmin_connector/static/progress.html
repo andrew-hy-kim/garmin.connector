@@ -39,6 +39,14 @@
     </div>
   </section>
 
+  <section class="card needs-data" id="recovery-card" hidden>
+    <h2>Recovery</h2>
+    <p class="hint">Resting heart rate and HRV from your watch. A resting heart rate creeping up or HRV dropping below your normal range for a few days is often the first sign of fatigue, illness or stress.</p>
+    <div class="kv recovery-kv" id="recovery-kv"></div>
+    <div class="legend"><span style="--c:var(--hr)">Resting HR</span><span style="--c:var(--pace)">HRV</span><span class="band-key">HRV normal range</span><span style="--c:var(--elev)">Sleep</span></div>
+    <div class="chart-box"><canvas id="recovery" role="img" aria-label="Resting heart rate, HRV and sleep over time"></canvas></div>
+  </section>
+
   <section class="grid needs-data">
     <div class="card">
       <h2 id="volume-title">Weekly distance</h2>
@@ -65,6 +73,16 @@
       <div class="headline" id="longruns-head"></div>
       <div class="chart-box"><canvas id="longruns" role="img" aria-label="Bar chart of the longest run each week"></canvas></div>
     </div>
+  </section>
+
+  <section class="card needs-data" id="stats-card">
+    <div class="toolbar"><h2 style="margin:0">Statistics</h2><span class="spacer"></span>
+      <div class="seg" id="stats-by" role="group" aria-label="Group by"><button data-by="year" aria-pressed="true">Years</button><button data-by="month" aria-pressed="false">Months</button><button data-by="week" aria-pressed="false">Weeks</button></div></div>
+    <p class="hint" id="stats-hint"></p>
+    <div class="table-wrap"><table class="stats-table">
+      <thead><tr><th id="stats-period-h">Year</th><th class="num">Runs</th><th class="num">Distance</th><th class="num">Time</th><th class="num">Avg pace</th><th class="num">Avg HR</th><th class="num">Climb</th><th class="num">Longest</th><th class="num">VO2max</th></tr></thead>
+      <tbody id="stats"></tbody>
+    </table></div>
   </section>
 
   <section class="card needs-data" id="races-card">
@@ -95,6 +113,12 @@
     </div>
   </section>
 
+
+  <section class="card needs-data" id="gear-card" hidden>
+    <h2>Shoes</h2>
+    <p class="hint">Distance on each pair, from your gear in Garmin Connect, against the limit set there (or 500 miles). Assign shoes to runs in Garmin Connect.</p>
+    <div class="gear" id="gear"></div>
+  </section>
 
   <section class="card wide" id="hr-settings">
     <div class="head"><h2>Heart-rate settings</h2></div>

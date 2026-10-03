@@ -11,7 +11,7 @@ import sqlite3
 from dataclasses import asdict
 from typing import Any
 
-from . import analysis, db, insights, performance, planner, processing
+from . import analysis, db, gear, insights, performance, planner, processing
 
 
 def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -70,6 +70,7 @@ def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bo
     perf = perf or performance.summary(conn)
     result["effective_vo2max"] = perf["per_activity"].get(str(activity_id))
     result["vo2max_shape"] = perf["vo2max"]
+    result["gear"] = gear.for_activity(conn, activity_id)
     return result
 
 

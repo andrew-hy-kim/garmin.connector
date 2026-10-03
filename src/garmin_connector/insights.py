@@ -15,7 +15,7 @@ from datetime import date, timedelta
 from statistics import median
 from typing import Any
 
-from . import analysis, processing
+from . import analysis, gear, health, processing
 
 EASY_TYPES = {"easy", "recovery", "long", "easy_strides"}
 BREAK_DAYS = 21       # this long without running counts as a break (injury, illness, off-season)
@@ -380,6 +380,21 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
             notes.append(_note("info", f"Aerobic efficiency down {-change:.0%}",
                                "Less distance per heartbeat on easy runs than a month ago. Often fatigue, "
                                "heat or a training break."))
+
+    # Recovery: resting heart rate, HRV and sleep off your normal for a few days
+    rec = health.summary(conn, today)
+    for flag in (rec or {}).get("flags", []):
+        notes.append(_note("warn", flag,
+                           "Several days off your normal often comes before illness or burnout, and also follows poor "
+                           "sleep, stress or a hard block. Make the next day or two easy, sleep more, and see if it settles."))
+
+    # Shoes you're still running in, close to their limit
+    for g in gear.summary(conn, today):
+        if g["retired"] or not g["share"] or g["share"] < 0.85 or not g["month_m"]:
+            continue
+        notes.append(_note("info", f"{g['name']}: {g['share']:.0%} of their distance",
+                           f"{round(g['total_m'] / 1000)} of {round(g['limit_m'] / 1000)} km. Cushioning wears out "
+                           f"before the upper does; a new pair rotated in now spreads the change."))
 
     vo2 = conn.execute("SELECT date, value FROM vo2max WHERE sport = 'running' ORDER BY date").fetchall()
     if len(vo2) >= 2:
