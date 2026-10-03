@@ -15,7 +15,7 @@ from datetime import date, timedelta
 from statistics import median
 from typing import Any
 
-from . import analysis, gear, health, processing
+from . import analysis, gear, health, performance, processing
 
 EASY_TYPES = {"easy", "recovery", "long", "easy_strides"}
 BREAK_DAYS = 21       # this long without running counts as a break (injury, illness, off-season)
@@ -380,6 +380,21 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
             notes.append(_note("info", f"Aerobic efficiency down {-change:.0%}",
                                "Less distance per heartbeat on easy runs than a month ago. Often fatigue, "
                                "heat or a training break."))
+
+    # Running fitness (RUNALYZE-style): VO2max shape trend, and days that all look the same
+    perf = performance.summary(conn, today)
+    change = perf.get("vo2max_change_4w")
+    if perf.get("vo2max") and change is not None and abs(change) >= 1:
+        notes.append(_note("good" if change > 0 else "info",
+                           f"VO2max shape {'up' if change > 0 else 'down'} {abs(change):.1f} in 4 weeks",
+                           f"Now {perf['vo2max']:.1f}, from your runs' pace and heart rate. " + (
+                               "Your aerobic engine is responding to the training." if change > 0 else
+                               "Normal after a break, illness or a block of hard training; heat also drags it down.")))
+    extras = perf.get("load")
+    if extras and extras["monotony"] >= 2 and extras["week_load"] > 150:
+        notes.append(_note("warn", f"Monotony {extras['monotony']:.1f}: every day looks the same",
+                           "Your training load was very similar day after day this week. Varying it, with real easy "
+                           "or rest days between the hard ones, lowers the risk of illness and overtraining."))
 
     # Recovery: resting heart rate, HRV and sleep off your normal for a few days
     rec = health.summary(conn, today)

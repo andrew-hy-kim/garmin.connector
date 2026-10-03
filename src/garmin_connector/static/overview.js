@@ -1364,6 +1364,31 @@ function renderPaces() {
       <b>${z.label}</b><span class="pace-range">${fmtPace(z.slow_mps, undefined, false)}–${fmtPace(z.fast_mps)}</span><span class="dim">${esc(z.about)}</span></div>`).join("");
 }
 
+// Jump links on Progress: hide the ones with nothing to show, mark the section you're reading
+function updateJump() {
+  const nav = document.querySelector(".jump");
+  if (!nav) return;
+  nav.querySelectorAll("a[data-needs]").forEach((a) => { a.hidden = !$(a.dataset.needs) || $(a.dataset.needs).hidden; });
+  if (nav.dataset.watching) return;
+  nav.dataset.watching = "1";
+  const links = [...nav.querySelectorAll("a")];
+  let frame = 0;
+  const mark = () => {
+    const line = nav.getBoundingClientRect().bottom + 40;
+    let current = links[0];
+    for (const a of links) {
+      const t = $(a.getAttribute("href").slice(1));
+      if (t && !t.hidden && t.getBoundingClientRect().top <= line) current = a;
+    }
+    // at the very bottom, the last section counts even if it never reaches the line
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) current = links.filter((a) => !a.hidden).at(-1);
+    links.forEach((a) => a.setAttribute("aria-current", a === current ? "true" : "false"));
+    current.scrollIntoView({ block: "nearest", inline: "nearest" });
+  };
+  addEventListener("scroll", () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(mark); }, { passive: true });
+  mark();
+}
+
 function render() {
   // Nothing synced yet: a welcome card instead of empty charts (set first, so cards have their width)
   const empty = !state.activities.length;
@@ -1373,7 +1398,7 @@ function render() {
   renderReadiness(); renderLatest(); renderConsistency();
   renderTiles(); renderNextUp(); renderRaces(); renderWeekPlan(); renderExplain(); renderCompare();
   if ($("notes")) renderNotes($("notes"), $("readiness") ? state.insights.filter((n) => !n.title.startsWith("Form:")) : state.insights);
-  renderRecent(); renderCharts(); renderStats(); renderSettings(); renderTable();
+  renderRecent(); renderCharts(); renderStats(); renderSettings(); renderTable(); updateJump();
 }
 
 async function load() {

@@ -30,9 +30,24 @@
   </header>
   <div class="page-head"><div class="eyebrow" id="today"></div><h1>Progress</h1></div>
 
+  <nav class="jump" aria-label="On this page">
+    <a href="#perf">Fitness</a><a href="#races-card">Races</a><a href="#load-card">Load</a><a href="#recovery-card" data-needs="recovery-card">Recovery</a>
+    <a href="#training">Training</a><a href="#stats-card">Statistics</a><a href="#records-grid">Records</a><a href="#gear-card" data-needs="gear-card">Shoes</a><a href="#hr-settings">Settings</a>
+  </nav>
+
   <section class="card needs-data" id="perf"></section>
 
-  <section class="card wide needs-data">
+  <section class="card needs-data" id="races-card">
+      <h2>Race predictor</h2>
+      <p class="hint" id="races-hint"></p>
+      <div class="table-wrap"><table class="races-table">
+        <thead><tr><th>Distance</th><th class="num">Predicted</th><th class="num">Pace</th><th class="num" id="races-chg-h">vs 3 months ago</th><th class="num" title="Your fastest recent stretch, scaled to this distance">From best effort</th><th class="num">Garmin</th></tr></thead>
+        <tbody id="races"></tbody>
+      </table></div>
+      <p class="hint races-foot" id="races-foot"></p>
+  </section>
+
+  <section class="card wide needs-data" id="load-card">
     <div class="head"><h2>Fitness, fatigue &amp; form</h2></div>
     <div>
       <div class="explain" id="explain"></div>
@@ -55,7 +70,7 @@
     <div class="chart-box"><canvas id="recovery" role="img" aria-label="Resting heart rate, HRV and sleep over time"></canvas></div>
   </section>
 
-  <section class="grid needs-data">
+  <section class="grid needs-data" id="training">
     <div class="card">
       <h2 id="volume-title">Weekly distance</h2>
       <p class="hint" id="volume-hint"></p>
@@ -93,17 +108,7 @@
     </table></div>
   </section>
 
-  <section class="card needs-data" id="races-card">
-      <h2>Race predictor</h2>
-      <p class="hint" id="races-hint"></p>
-      <div class="table-wrap"><table class="races-table">
-        <thead><tr><th>Distance</th><th class="num">Predicted</th><th class="num">Pace</th><th class="num" id="races-chg-h">vs 3 months ago</th><th class="num" title="Your fastest recent stretch, scaled to this distance">From best effort</th><th class="num">Garmin</th></tr></thead>
-        <tbody id="races"></tbody>
-      </table></div>
-      <p class="hint races-foot" id="races-foot"></p>
-  </section>
-
-  <section class="grid">
+  <section class="grid" id="records-grid">
     <div class="card needs-data">
       <h2>Personal records</h2>
       <p class="hint">Fastest stretch of any outdoor run, not only whole races. Click one to see that stretch in its run.</p>
@@ -120,7 +125,6 @@
       <div class="paces" id="paces"></div>
     </div>
   </section>
-
 
   <section class="card needs-data" id="gear-card" hidden>
     <h2>Shoes</h2>

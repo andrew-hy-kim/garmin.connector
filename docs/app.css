@@ -772,3 +772,20 @@ summary.week-head::-webkit-details-marker { display: none; }
   .gear-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; }
   .gear-row .g-bar { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* ---------- jump links on long pages ---------- */
+.jump { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: -6px -2px 14px; padding: 8px 2px;
+  position: sticky; top: 0; z-index: 400; background: color-mix(in srgb, var(--surface-0) 88%, transparent);
+  -webkit-backdrop-filter: saturate(1.8) blur(16px); backdrop-filter: saturate(1.8) blur(16px); }
+.jump::-webkit-scrollbar { display: none; }
+.jump a { flex: none; white-space: nowrap; padding: 6px 12px; border-radius: 999px; background: var(--fill); color: var(--text-secondary);
+  font-size: 13px; font-weight: 600; text-decoration: none; }
+.jump a[aria-current="true"] { background: var(--text-primary); color: var(--surface-1); }
+.jump a[hidden] { display: none; }
+@media (hover: hover) { .jump a:hover { color: var(--text-primary); text-decoration: none; } }
+body[data-page="progress"] main > section { scroll-margin-top: 64px; }
+@media (min-width: 901px) {
+  .jump { top: var(--topbar-h, 57px); }
+  body[data-page="progress"] main > section { scroll-margin-top: calc(var(--topbar-h, 57px) + 64px); }
+}
+@media print { .jump { display: none; } }

@@ -16,6 +16,12 @@ function pageUrl(page, params = {}) {
   return PHONE ? "index.html" : "/";
 }
 
+// The sticky top bar's height, for things that stick just below it
+{
+  const bar = document.querySelector(".topbar");
+  if (bar) new ResizeObserver(() => document.documentElement.style.setProperty("--topbar-h", `${bar.offsetHeight}px`)).observe(bar);
+}
+
 // Highlight this page's tab (a workout belongs to Activities)
 {
   const page = document.body.dataset.page || (/plan/.test(location.pathname) ? "plan" : /activit/.test(location.pathname) ? "activities" : "today");
