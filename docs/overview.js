@@ -856,6 +856,13 @@ async function load() {
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u)));
   Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan });
   populateTypes(); render(); ready();
+  // Phone: confirm a data import that just happened
+  try {
+    const imp = JSON.parse(sessionStorage.getItem("phoneImported") || "null");
+    sessionStorage.removeItem("phoneImported");
+    if (imp) setStatus(imp.added == null ? `Imported ${fmtNum(imp.total)} activities.`
+      : imp.added ? `Updated: ${imp.added} new ${imp.added === 1 ? "activity" : "activities"}.` : "Updated. You were already up to date.");
+  } catch {}
   setupAiBox($("ai"), "overview");
 }
 

@@ -70,6 +70,10 @@
     onStatus("Reading the file…");
     const snap = await readFile(file);
     onStatus(`Saving ${snap.overview.activities.length} activities on this phone…`);
+    // remember what changed, to confirm it after the reload
+    const before = overview ? new Set(overview.activities.map((a) => a.activity_id)) : null;
+    const added = before ? snap.overview.activities.filter((a) => !before.has(a.activity_id)).length : null;
+    try { sessionStorage.setItem("phoneImported", JSON.stringify({ added, total: snap.overview.activities.length })); } catch {}
     const db = await openDb();
     await saveSnapshot(db, snap, file.size);
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
