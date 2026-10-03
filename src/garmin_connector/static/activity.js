@@ -162,6 +162,8 @@ function renderTiles() {
     ["HR drift", drift != null ? `${drift.toFixed(1)}%` : null,
       drift == null ? "" : drift < 5 ? "Steady: strong aerobic base" : drift < 8 ? "Some drift" : "High (heat, fatigue or too fast)"],
     ["Efficiency", m.efficiency ? withUnit(`${m.efficiency.toFixed(2)} m/beat`) : null, "Distance per heartbeat"],
+    ["VO2max", D.effective_vo2max ? D.effective_vo2max.toFixed(1) : null,
+      D.vo2max_shape ? `From pace and HR · your shape ${D.vo2max_shape.toFixed(1)}` : "From pace and heart rate"],
   ].filter(([, v]) => v != null);
   const cell = ([l, v, sub]) => `<div class="tile"${l === "Avg heart rate" && a.avg_hr ? ' style="--vc:var(--hr)"' : ""}><div class="label">${l}</div><div class="value">${v || "–"}</div><div class="sub">${esc(sub)}</div></div>`;
   $("tiles").innerHTML = hero.map(cell).join("");
@@ -525,7 +527,7 @@ function renderZones() {
   $("zones-card").hidden = !m?.zone_seconds;
   if (!m?.zone_seconds) return;
   $("zones").innerHTML = zoneRows(D.zones, m.zone_seconds) + zoneTake(m.zone_seconds);
-  $("zones-hint").innerHTML = `${esc(zoneBasis(D.settings))}. <a href="${pageUrl("dashboard")}#hr-settings">Change zones</a>`;
+  $("zones-hint").innerHTML = `${esc(zoneBasis(D.settings))}. <a href="${pageUrl("progress", { hash: "hr-settings" })}">Change zones</a>`;
 }
 
 function renderLaps() {

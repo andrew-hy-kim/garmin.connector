@@ -1,8 +1,11 @@
 """Race predictor: likely finish times at the same distances as your personal records.
 
-Two views side by side:
+Three views side by side:
 
-- Ours, from your own running: the fastest stretch you've run recently (best
+- From your fitness (the main one, as RUNALYZE does it): VO2max shape from every
+  run's pace and heart rate, reduced for long races when your marathon shape (weekly
+  distance and long runs) is short of what the distance needs. See performance.py.
+- From your fastest efforts: the fastest stretch you've run recently (best
   efforts over standard distances, found in every outdoor run), scaled to each
   race distance with Riegel's formula, ``T2 = T1 × (D2 / D1) ^ 1.06``. An
   effort has to be at least as long as the race, and for 5 km and up at least
@@ -11,7 +14,7 @@ Two views side by side:
   recent long runs are short of what the distance needs.
 - Garmin's, as your watch shows it (saved at each sync), when available.
 
-Both come with the change over the last three months.
+Each comes with the change over the last three months.
 """
 
 from __future__ import annotations
@@ -20,7 +23,7 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Any
 
-from . import analysis, insights
+from . import analysis, insights, performance
 
 # The personal-record distances, with the same names
 RACES = list(analysis.BEST_EFFORT_DISTANCES.items())
@@ -77,8 +80,11 @@ def _garmin(conn: sqlite3.Connection, as_of: date) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def predictions(conn: sqlite3.Connection, today: date | None = None) -> dict[str, Any]:
+def predictions(conn: sqlite3.Connection, today: date | None = None,
+                perf: dict[str, Any] | None = None) -> dict[str, Any]:
     today = today or date.today()
+    perf = perf or performance.summary(conn, today)
+    fitness = {r["race"]: r for r in perf.get("races") or []}
     earlier = today - timedelta(days=TREND_DAYS)
     runs = insights._runs(conn, (earlier - timedelta(days=WINDOW_DAYS + 1)).isoformat())
     now, then = _predict(runs, today), _predict(runs, earlier)
@@ -97,8 +103,12 @@ def predictions(conn: sqlite3.Connection, today: date | None = None) -> dict[str
         g_before = race in GARMIN_KEYS and garmin_then and garmin_then.get(GARMIN_KEYS[race])
         # set when your recent long runs are short of what this race needs (the page explains it)
         short_long_run = bool(p and race in LONG_RUN_NEEDED and longest < meters * LONG_RUN_NEEDED[race])
+        f = fitness.get(race) or {}
         out.append({
             "race": race, "meters": meters,
+            # from VO2max shape and marathon shape (RUNALYZE's model): the main prediction
+            "fitness_seconds": f.get("seconds"), "fitness_change_s": f.get("change_s"),
+            "endurance_limited": f.get("limited_by_endurance", False),
             "seconds": p["seconds"] if p else None,
             "change_s": p["seconds"] - before["seconds"] if p and before else None,
             "basis": p["basis"] if p else None,
@@ -106,5 +116,6 @@ def predictions(conn: sqlite3.Connection, today: date | None = None) -> dict[str
             "garmin_seconds": round(g) if g else None,
             "garmin_change_s": round(g - g_before) if g and g_before else None,
         })
-    return {"window_days": WINDOW_DAYS, "trend_days": TREND_DAYS,
+    return {"window_days": WINDOW_DAYS, "trend_days": TREND_DAYS, "vo2max": perf.get("vo2max"),
+            "marathon_shape": (perf.get("marathon_shape") or {}).get("percent"),
             "garmin_date": garmin_now["date"] if garmin_now else None, "races": out}

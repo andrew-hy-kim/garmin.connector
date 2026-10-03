@@ -64,6 +64,7 @@ function buckets() {
 
 function setupRange() {
   const el = $("range");
+  if (!el) return;
   el.innerHTML = RANGES.map(([k]) => `<button data-r="${k}">${k}</button>`).join("");
   const sync = () => el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.r === state.range));
   el.addEventListener("click", (e) => {
@@ -78,6 +79,7 @@ function setupRange() {
 
 // ---------- tiles ----------
 function renderTiles() {
+  if (!$("tiles")) return;
   const now = new Date();
   const week = startOfWeek(now);
   const periods = [
@@ -117,7 +119,7 @@ function renderTiles() {
     return `<span class="${goodWhenUp && d > 0 ? "up" : ""}">${d > 0 ? "▲" : "▼"} ${Math.abs(d)}</span> vs last week`;
   };
   const st = today && formState(today);
-  const load = today ? [
+  const load = today && !$("readiness") ? [
     `<div class="tile"><div class="label">Fitness</div><div class="value">${today.fitness.toFixed(0)}</div><div class="sub">${delta("fitness", true)}</div></div>`,
     `<div class="tile"><div class="label">Fatigue</div><div class="value">${today.fatigue.toFixed(0)}</div><div class="sub">${delta("fatigue")}</div></div>`,
     `<div class="tile state" style="--c:var(${textColor(st)})"><div class="label">Form</div><div class="value">${(today.form > 0 ? "+" : "") + today.form.toFixed(0)}</div><div class="sub">${st.label}</div></div>`,
@@ -140,17 +142,14 @@ function tileFilter(e) {
   const tile = e.target.closest(".tile.link");
   if (!tile || (e.type === "keydown" && e.key !== "Enter" && e.key !== " ")) return;
   e.preventDefault();
-  Object.assign(state.table, { when: "custom", from: tile.dataset.from, to: isoDay(new Date()), page: 0 });
-  $("f-when").value = "custom"; $("f-custom").hidden = false;
-  $("f-from").value = state.table.from; $("f-to").value = state.table.to;
-  renderTable();
-  $("activities").scrollIntoView({ behavior: "smooth", block: "start" });
+  location.href = pageUrl("activities", { query: { from: tile.dataset.from, to: isoDay(new Date()) } });
 }
-$("tiles").addEventListener("click", tileFilter);
-$("tiles").addEventListener("keydown", tileFilter);
+$("tiles")?.addEventListener("click", tileFilter);
+$("tiles")?.addEventListener("keydown", tileFilter);
 
 // ---------- training load ----------
 function renderLoad() {
+  if (!$("load")) return;
   const startDay = isoDay(rangeStart());
   const days = state.load.filter((d) => d.date >= startDay);
   const long = days.length > 400;
@@ -220,6 +219,7 @@ function renderLoad() {
 
 // Plain-language reading of the numbers, plus what resting would do.
 function renderExplain() {
+  if (!$("explain")) return;
   const today = state.load.at(-1);
   if (!today) { $("explain").innerHTML = `<p>Appears once workouts with heart rate are synced.</p>`; return; }
   const st = formState(today);
@@ -244,16 +244,33 @@ function renderExplain() {
       : `, ${trend > 0 ? "up" : "down"} ${Math.abs(trend).toFixed(0)} from 6 weeks ago`}. Fatigue is <b>${today.fatigue.toFixed(0)}</b>.
       If you rested completely, form would be <b>${sign(proj[3].form)}</b> in 3 days and <b>${sign(proj[7].form)}</b> in 7${
       freshDay && st.key !== "fresh" ? ` (fresh after about ${freshDay} day${freshDay > 1 ? "s" : ""})` : ""}, while fitness would slip to ${proj[7].fitness.toFixed(0)}.</div>
+    ${loadExtrasHtml()}
     <details class="more"><summary>What do fitness, fatigue and form mean?</summary>
       <p><b>Fitness</b> is the average training load you've carried per day over about 6 weeks: the endurance you've banked.
       <b>Fatigue</b> is the same over the last week: how tired that training has made you. Each workout's load comes from how long
       you spent at each heart rate, with hard minutes counting much more than easy ones.</p>
+      <p><b>Monotony</b> is how similar your days were over the last week (average load over its spread). Varied days,
+      hard and easy, keep it under 1.5; above 2, the same load day after day raises the risk of illness and overtraining.
+      <b>Strain</b> is the week's load times its monotony.</p>
       <p><b>Form</b> is fitness minus fatigue. Building fitness means carrying some fatigue; resting before a race (a taper)
       trades a little fitness for a lot of freshness.</p></details>`;
 }
 
+function loadExtrasHtml() {
+  const x = loadExtras(state.load);
+  if (!x) return "";
+  const mono = x.monotony >= 2 ? ["warn", "too uniform"] : x.monotony >= 1.5 ? ["warn", "a bit uniform"] : ["good", "nicely varied"];
+  return `<div class="kv load-kv">
+    <div><span>Monotony</span><b class="${mono[0] === "warn" ? "warn-text" : ""}">${x.monotony.toFixed(1)}</b><small>${mono[1]}</small></div>
+    <div><span>Strain</span><b>${Math.round(x.strain)}</b><small>this week's load ${Math.round(x.weekLoad)}</small></div>
+    <div><span>To fresh</span><b>${x.restDays ? `${x.restDays} day${x.restDays > 1 ? "s" : ""}` : "now"}</b><small>of rest or easy running</small></div>
+    <div><span>Today</span><b>≤ ${Math.round(x.balanced)}</b><small>load keeps you balanced</small></div>
+  </div>`;
+}
+
 // Fitness now vs. earlier points and your all-time peak.
 function renderCompare() {
+  if (!$("compare")) return;
   if (!state.load.length) { $("compare").innerHTML = ""; return; }
   const byDate = new Map(state.load.map((d) => [d.date, d]));
   const at = (daysAgo) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); return byDate.get(isoDay(d)); };
@@ -274,17 +291,14 @@ function showPeriod(b, i) {
   const from = b.list[i];
   const to = b.monthly ? new Date(from.getFullYear(), from.getMonth() + 1, 1) : new Date(from.getFullYear(), from.getMonth(), from.getDate() + 7);
   const last = new Date(to); last.setDate(last.getDate() - 1);
-  Object.assign(state.table, { when: "custom", from: isoDay(from), to: isoDay(last), page: 0 });
-  $("f-when").value = "custom"; $("f-custom").hidden = false;
-  $("f-from").value = state.table.from; $("f-to").value = state.table.to;
-  renderTable();
-  $("activities").scrollIntoView({ behavior: "smooth", block: "start" });
+  location.href = pageUrl("activities", { query: { from: isoDay(from), to: isoDay(last) } });
 }
 // Pointer cursor over clickable marks
 const clickCursor = (e, els) => { e.native.target.style.cursor = els.length ? "pointer" : "default"; };
 
 // ---------- consistency calendar ----------
 function renderConsistency() {
+  if (!$("cal")) return;
   // as many weeks as fit the card (up to a year)
   const step = matchMedia("(max-width: 600px)").matches ? 19 : 20;
   const weeks = Math.max(8, Math.min(53, Math.floor(($("cal").parentElement.clientWidth - 18) / step)));
@@ -339,20 +353,21 @@ function renderConsistency() {
 }
 // "/" jumps to the activity search, like many Mac apps
 document.addEventListener("keydown", (e) => {
-  if (e.key !== "/" || e.target.closest("input, select, textarea")) return;
+  if (e.key !== "/" || !$("f-search") || e.target.closest("input, select, textarea")) return;
   e.preventDefault();
   $("f-search").focus();
   $("activities").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 let calTimer;
 window.addEventListener("resize", () => { clearTimeout(calTimer); calTimer = setTimeout(() => state.activities.length && renderConsistency(), 150); });
-$("cal").addEventListener("click", (e) => {
+$("cal")?.addEventListener("click", (e) => {
   const cell = e.target.closest("i.run.link");
   if (cell) location.href = pageUrl("activity", { id: cell.dataset.id });
 });
 
 // ---------- volume ----------
 function renderVolume() {
+  if (!$("weekly")) return;
   const b = buckets();
   const totals = b.list.map(() => 0);
   for (const a of filtered()) {
@@ -380,9 +395,45 @@ function renderVolume() {
   });
 }
 
+// ---------- long runs ----------
+// The longest run of each week: endurance for long races comes from these (see marathon shape).
+function renderLongRuns() {
+  if (!$("longruns")) return;
+  const b = buckets();
+  const longest = b.list.map(() => 0);
+  for (const a of state.activities) {
+    if (!isRun(a.activity_type)) continue;
+    const i = b.indexOf(localDate(a.start_time_local));
+    if (i != null) longest[i] = Math.max(longest[i], dist(a.distance_m));
+  }
+  const u = Units.get();
+  const threshold = dist(13000);
+  const target = state.perf?.marathon_shape ? dist(state.perf.marathon_shape.long_target_km * 1000) : null;
+  const recent = longest.slice(-10).filter((v) => v > threshold).length;
+  $("longruns-head").innerHTML = `<span class="big">${fmtNum(Math.max(...longest.slice(-4), 0), 1)}<small>${u}</small></span><span class="dim">longest in the last 4 ${b.monthly ? "months" : "weeks"}${b.monthly ? "" : ` · ${recent} long run${recent === 1 ? "" : "s"} in 10 weeks`}</span>`;
+  const opts = chartBase();
+  opts.scales.y.ticks.callback = (v) => `${v} ${u}`;
+  opts.onClick = (e, els) => { if (els.length) showPeriod(b, els[0].index); };
+  opts.onHover = clickCursor;
+  opts.plugins.tooltip = { callbacks: { title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`,
+    label: (i) => (i.datasetIndex ? `${i.dataset.label}: ${i.parsed.y.toFixed(1)} ${u}` : `Longest run: ${i.parsed.y.toFixed(1)} ${u}`) } };
+  const line = (label, v, color, dash) => ({ type: "line", label, data: b.list.map(() => v), borderColor: color, borderWidth: 1.5,
+    borderDash: dash, pointRadius: 0, pointHoverRadius: 0 });
+  drawChart("longruns", "longruns", {
+    type: "bar",
+    data: { labels: b.labels, datasets: [
+      { data: longest, backgroundColor: longest.map((v) => cssVar(v > threshold ? "--pace" : "--surface-3")), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 18 },
+      line("Counts as a long run above", threshold, cssVar("--text-muted"), [4, 3]),
+      ...(target ? [line("Marathon long-run target", target, cssVar("--elev"), [])] : []),
+    ] },
+    options: opts,
+  });
+}
+
 // ---------- intensity mix ----------
 const MIX = [["Easy", "--z2"], ["Tempo", "--z3"], ["Threshold", "--z4"], ["VO2 max", "--z5"]];
 function renderMix() {
+  if (!$("mix")) return;
   const b = buckets();
   const mins = MIX.map(() => b.list.map(() => 0));
   for (const a of state.activities) {
@@ -428,6 +479,7 @@ function timeAxis(opts) {
 
 // ---------- efficiency ----------
 function renderEfficiency() {
+  if (!$("efficiency")) return;
   const easyCeiling = state.settings ? 0.9 * state.settings.lthr : 999;
   const all = state.activities
     .filter((a) => isRun(a.activity_type) && a.efficiency && a.avg_hr && a.avg_hr < easyCeiling && !(a.cadence_lock > 0.2))
@@ -479,6 +531,7 @@ function headline(value, change, fmt, what) {
 
 // ---------- VO2 max ----------
 function renderVo2() {
+  if (!$("vo2")) return;
   const sports = [["running", "Running", "--pace"], ["cycling", "Cycling", "--gap"]].filter(([k]) => state.vo2.some((r) => r.sport === k));
   $("vo2-legend").innerHTML = sports.length > 1 ? sports.map(([, l, c]) => `<span style="--c:var(${c})">${l}</span>`).join("") : "";
   const opts = chartBase();
@@ -504,6 +557,7 @@ function renderVo2() {
 // ---------- records ----------
 const span = (e) => (e.start_t != null ? `${Math.round(e.start_t)}-${Math.round(e.start_t + e.seconds)}` : "");
 function renderRecords() {
+  if (!$("records")) return;
   const entries = Object.entries(state.records);
   const showRange = rangeDays() != null;
   $("range-best-head").hidden = !showRange;
@@ -524,6 +578,7 @@ function renderRecords() {
 
 // Longest run, biggest week and month: all-time, and the best within the chart range
 function renderMilestones() {
+  if (!$("milestones")) return;
   const runs = state.activities.filter((a) => isRun(a.activity_type) && a.distance_m);
   if (!runs.length) { $("milestones").innerHTML = ""; return; }
   const u = Units.get();
@@ -555,6 +610,7 @@ function renderMilestones() {
 
 // ---------- settings ----------
 function renderSettings() {
+  if (!$("settings")) return;
   const s = state.settings;
   if (!s) return;
   const form = $("settings");
@@ -606,7 +662,7 @@ function renderPhoneZoneChoice(form, s) {
   $("phone-zone-note").textContent = note;
 }
 
-$("settings").addEventListener("change", async (e) => {
+$("settings")?.addEventListener("change", async (e) => {
   if (!PHONE || e.target.name !== "zone_system") return;
   const value = e.target.value;
   window.PhoneData.setZoneSystem(value === state.settings.mac_zone_system ? null : value);
@@ -614,7 +670,7 @@ $("settings").addEventListener("change", async (e) => {
   renderSettings();
 });
 
-$("settings").addEventListener("submit", async (e) => {
+$("settings")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target.elements;
   const body = Object.fromEntries(["max_hr", "resting_hr", "lthr"].map((k) => [k, f[k].value ? Number(f[k].value) : null]));
@@ -671,6 +727,7 @@ function tableRows() {
 }
 
 function renderTable() {
+  if (!$("rows")) return;
   const t = state.table;
   const all = tableRows();
   const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
@@ -714,7 +771,7 @@ function renderTable() {
     if (k === lastKey) return "";
     lastKey = k;
     const w = weekTotals.get(k);
-    return `<tr class="group"><td colspan="10"><b>${weekName(k)}</b><span>${fmtNum(dist(w.m), 1)} ${Units.get()} · ${w.n} ${w.n === 1 ? (state.type === "run" ? "run" : "activity") : (state.type === "run" ? "runs" : "activities")}</span></td></tr>`;
+    return `<tr class="group"><td colspan="11"><b>${weekName(k)}</b><span>${fmtNum(dist(w.m), 1)} ${Units.get()} · ${w.n} ${w.n === 1 ? (state.type === "run" ? "run" : "activity") : (state.type === "run" ? "runs" : "activities")}</span></td></tr>`;
   };
   $("rows").innerHTML = list.length ? list.map((a) => `${header(a)}<tr class="${a.has_streams ? "clickable" : ""}" ${a.has_streams ? 'tabindex="0"' : ""} data-id="${a.activity_id}">
       <td>${byDate ? fmtDate(a.start_time_local, { weekday: "short", month: "short", day: "numeric" }) : fmtDate(a.start_time_local)}</td>
@@ -727,8 +784,9 @@ function renderTable() {
       <td>${a.has_streams && a.avg_hr ? `<span class="badge">${a.external_hr ? "Arm band" : "Wrist"}</span>` : ""}</td>
       <td class="num">${a.trimp != null ? Math.round(a.trimp) : ""}</td>
       <td class="num">${a.decoupling_pct != null ? a.decoupling_pct.toFixed(1) + "%" : ""}</td>
+      <td class="num">${a.vo2max_eff != null ? a.vo2max_eff.toFixed(1) : ""}</td>
     </tr>`).join("")
-    : `<tr><td colspan="10" class="empty">${state.activities.length ? "No activities match these filters." : "No activities yet. Click <b>Sync now</b>, or run <code>garmin-connector sync</code>."}</td></tr>`;
+    : `<tr><td colspan="11" class="empty">${state.activities.length ? "No activities match these filters." : "No activities yet. Click <b>Sync now</b>, or run <code>garmin-connector sync</code>."}</td></tr>`;
   $("pager").innerHTML = all.length > PAGE_SIZE ? `
     <span>${t.page * PAGE_SIZE + 1}–${Math.min(all.length, (t.page + 1) * PAGE_SIZE)} of ${all.length}</span>
     <button data-p="-1" ${t.page === 0 ? "disabled" : ""}>‹ Newer</button>
@@ -736,8 +794,15 @@ function renderTable() {
 }
 
 function setupTable() {
+  if (!$("rows")) return;
   const t = state.table;
+  // Opened with filters from another page (a tile on Today, a bar on Progress)
+  const q = new URLSearchParams(location.search);
+  if (q.get("from") || q.get("to")) Object.assign(t, { when: "custom", from: q.get("from") || "", to: q.get("to") || "" });
+  if (q.get("workout")) t.workout = q.get("workout");
   $("f-workout").innerHTML = WORKOUT_FILTERS.map(([k, label]) => `<option value="${k}">${label}</option>`).join("");
+  $("f-workout").value = t.workout;
+  if (t.when === "custom") { $("f-when").value = "custom"; $("f-custom").hidden = false; $("f-from").value = t.from; $("f-to").value = t.to; }
   const update = () => { t.page = 0; renderTable(); };
   let timer;
   $("f-search").addEventListener("input", (e) => { clearTimeout(timer); timer = setTimeout(() => { t.search = e.target.value; update(); }, 150); });
@@ -771,12 +836,12 @@ function setupTable() {
   });
 }
 
-for (const id of ["rows", "records", "races"]) {
-  $(id).addEventListener("click", (e) => {
+for (const id of ["rows", "records", "races", "recent-list"]) {
+  $(id)?.addEventListener("click", (e) => {
     const row = e.target.closest("tr.clickable");
     if (row && !e.target.closest("a")) location.href = pageUrl("activity", { id: row.dataset.id, t: row.dataset.t });
   });
-  $(id).addEventListener("keydown", (e) => {
+  $(id)?.addEventListener("keydown", (e) => {
     const row = e.target.closest("tr.clickable");
     if (row && e.target === row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); location.href = pageUrl("activity", { id: row.dataset.id, t: row.dataset.t }); }
   });
@@ -784,6 +849,7 @@ for (const id of ["rows", "records", "races"]) {
 
 // ---------- page ----------
 function populateTypes() {
+  if (!$("type")) return;
   const types = [...new Set(state.activities.map((a) => a.activity_type).filter((t) => t && !isRun(t)))].sort();
   $("type").innerHTML = `<option value="run">Running</option><option value="all">All activities</option>` +
     types.map((t) => `<option value="${esc(t)}">${esc(prettyType(t))}</option>`).join("");
@@ -793,7 +859,7 @@ function populateTypes() {
 // Everything that depends on the time range
 function renderCharts() {
   renderMilestones();
-  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderRecords();
+  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf();
 }
 
 // Did you run on day k of the plan week starting `start`?
@@ -817,6 +883,7 @@ function todayCard(d, done) {
 }
 
 function renderWeekPlan() {
+  if (!$("week-plan")) return;
   const el = $("week-plan");
   const p = state.plan && state.plan.plan;
   if (!p) {
@@ -837,44 +904,48 @@ function renderWeekPlan() {
     <p class="hint" style="margin:0"><b class="plan-goal">${esc(p.goal_label)}</b> · week ${w.week} of ${p.weeks.length}${upcoming ? `, starts ${startText}` : ""}
       · ${esc(w.focus)} · ${w.minutes} min planned${pr.status === "upcoming" ? ""
       : ` · ${pr.done_minutes} min done, ${pr.done_runs}/${pr.planned_runs} runs`}${finished ? ". Pick a new goal on the plan page." : ""}</p>
-    ${!upcoming && !finished ? todayCard(w.days[todayIdx], ranOn(w.start, todayIdx)) : ""}
+    ${!upcoming && !finished && !$("readiness") ? todayCard(w.days[todayIdx], ranOn(w.start, todayIdx)) : ""}
     <div class="this-week">${w.days.map((d, k) => `<div class="${d.type === "rest" ? "rest" : ""} ${!upcoming && !finished && k === todayIdx ? "today" : ""}"
         style="${d.type === "rest" ? "" : `--c:${typeColor(d.type)}`}">
       <b>${d.day}${ranOn(w.start, k) ? ` <span class="tick" title="Done">✓</span>` : ""}</b><span>${esc(d.title)}</span><span class="m">${d.minutes ? `${d.minutes} min` : ""}</span></div>`).join("")}</div>`;
 }
 
 // ---------- race predictor ----------
-// A table like the records: predicted time and pace, the change over three months, and Garmin's.
+// The main prediction comes from VO2max shape and marathon shape (RUNALYZE's model); your
+// fastest recent efforts scaled to each distance, and Garmin's prediction, sit alongside.
 function renderRaces() {
+  if (!$("races")) return;
   const rp = state.races;
   const card = $("races-card");
-  card.hidden = !rp || !rp.races.some((r) => r.seconds || r.garmin_seconds);
+  card.hidden = !rp || !rp.races.some((r) => r.fitness_seconds || r.seconds || r.garmin_seconds);
   if (card.hidden) return;
   const months = Math.round(rp.trend_days / 30);
-  // no Garmin predictions at all (not synced yet, or none on the account): drop that column
-  $("races").closest("table").classList.toggle("no-garmin", !rp.races.some((r) => r.garmin_seconds));
   $("races-chg-h").innerHTML = `vs ${months}<span class="wide-only"> months ago</span><span class="narrow-only"> mo</span>`;
-  $("races-hint").textContent = `From your fastest stretches in the last ${rp.window_days} days, scaled to each distance. ` +
-    `Training efforts are rarely all-out, so on race day you may well be faster. ${act()} a row to see the stretch it's based on.`;
+  const table = $("races").closest("table");
+  table.classList.toggle("no-garmin", !rp.races.some((r) => r.garmin_seconds));
+  table.classList.toggle("no-effort", !rp.races.some((r) => r.seconds));
+  $("races-hint").textContent = rp.vo2max
+    ? `From your VO2max shape (${rp.vo2max.toFixed(1)}) and marathon shape (${rp.marathon_shape}%): long races are held back when your endurance is short of what they need. ${act()} a row to see your fastest recent stretch at that distance.`
+    : `From your fastest stretches in the last ${rp.window_days} days, scaled to each distance. ${act()} a row to see the stretch it's based on.`;
   // negative = faster, which is good
   const change = (s) => (s == null ? `<span class="dim">–</span>` : Math.abs(s) < 5 ? `<span class="dim">same</span>`
     : `<span class="chg ${s < 0 ? "up" : ""}">${s < 0 ? "▼" : "▲"} ${fmtDuration(Math.abs(s))}</span>`);
+  const dash = `<span class="dim">–</span>`;
   $("races").innerHTML = rp.races.map((r) => {
+    const main = r.fitness_seconds || r.seconds;
+    const chg = r.fitness_seconds ? r.fitness_change_s : r.change_s;
     const e = r.basis;
-    const garmin = r.garmin_seconds ? fmtDuration(r.garmin_seconds) : `<span class="dim">–</span>`;
-    if (!r.seconds) {
-      return `<tr><td>${esc(r.race)}</td><td class="num dim" title="No recent hard effort long enough to predict this yet">–</td>
-        <td class="num"></td><td class="num"></td><td class="num">${garmin}</td></tr>`;
-    }
-    const from = `From your ${e.label} ${e.race ? "race" : "effort"} on ${fmtDate(e.date, { month: "short", day: "numeric" })}`;
-    return `<tr class="clickable" tabindex="0" data-id="${e.activity_id}" data-t="${span(e)}" title="${esc(from)}">
-      <td>${esc(r.race)}${r.longest_run_m ? ` <span class="caveat" aria-label="see note below">*</span>` : ""}</td>
-      <td class="num"><b>${fmtDuration(r.seconds)}</b></td><td class="num">${fmtPace(r.meters / r.seconds)}</td>
-      <td class="num">${change(r.change_s)}</td><td class="num">${garmin}</td></tr>`;
+    const effort = r.seconds ? fmtDuration(r.seconds) : dash;
+    const garmin = r.garmin_seconds ? fmtDuration(r.garmin_seconds) : dash;
+    const mark = r.endurance_limited ? ` <span class="caveat" aria-label="limited by endurance, see note">*</span>` : "";
+    const attrs = e ? `class="clickable" tabindex="0" data-id="${e.activity_id}" data-t="${span(e)}" title="${esc(`Fastest stretch: your ${e.label} ${e.race ? "race" : "effort"} on ${fmtDate(e.date, { month: "short", day: "numeric" })}`)}"` : "";
+    return `<tr ${attrs}><td>${esc(r.race)}${mark}</td>
+      <td class="num">${main ? `<b>${fmtDuration(main)}</b>` : dash}</td><td class="num">${main ? fmtPace(r.meters / main) : ""}</td>
+      <td class="num">${main ? change(chg) : ""}</td><td class="num">${effort}</td><td class="num">${garmin}</td></tr>`;
   }).join("");
-  const long = rp.races.find((r) => r.longest_run_m);
+  const limited = rp.races.some((r) => r.endurance_limited);
   $("races-foot").innerHTML = [
-    long ? `<span class="caveat">*</span> Assumes you train for the distance: your longest run in the last 8 weeks was ${esc(fmtDist(long.longest_run_m, Units.get(), 1))}.` : "",
+    limited ? `<span class="caveat">*</span> Held back by endurance: your training so far supports these distances less well than your speed does. More weekly distance and long runs close the gap.` : "",
     rp.garmin_date ? `Garmin's prediction as of ${esc(fmtDate(rp.garmin_date, { month: "short", day: "numeric" }))}.` : "",
   ].filter(Boolean).join(" ");
   $("races-foot").hidden = !$("races-foot").innerHTML;
@@ -885,6 +956,7 @@ const NEXT_COUNTS = [3, 5, 7];
 const nextCount = () => { try { return Number(localStorage.getItem("nextCount")) || 3; } catch { return 3; } };
 
 function renderNextUp() {
+  if (!$("next-up")) return;
   const el = $("next-up");
   const sg = state.suggestions;
   if (!sg || !sg.workouts.length) {
@@ -909,29 +981,257 @@ function renderNextUp() {
         k && sg.workouts[k - 1].why === w.why ? "" : `<div class="why">${esc(w.why)}</div>`}</div>
       <div class="mins">${w.minutes} min</div></div>`).join("")}</div>`;
 }
-$("next-up").addEventListener("click", (e) => {
+$("next-up")?.addEventListener("click", (e) => {
   const n = Number(e.target.dataset.n);
   if (!n) return;
   try { localStorage.setItem("nextCount", n); } catch {}
   renderNextUp();
 });
 
+// ---------- Today: readiness, latest run, recent activities ----------
+// Monotony and strain over the last 7 days, rest days until fresh, and the most load you
+// can do today and stay balanced (RUNALYZE's calculations; same model as the charts).
+function loadExtras(series) {
+  if (!series || series.length < 7) return null;
+  const week = series.slice(-7).map((d) => d.load);
+  const avg = week.reduce((a, b) => a + b, 0) / 7;
+  const sd = Math.sqrt(week.reduce((a, b) => a + (b - avg) ** 2, 0) / 7);
+  const monotony = sd ? Math.min(10, avg / sd) : avg ? 10 : 0;
+  const { fitness, fatigue } = series.at(-1);
+  const la = 1 / 7, lc = 1 / 42;
+  const restDays = fatigue > fitness && fatigue > 0 ? Math.ceil(Math.log(Math.max(1, fitness) / fatigue) / Math.log((1 - la) / (1 - lc))) : 0;
+  const balanced = Math.max(0, (fitness * (1 - lc) - fatigue * (1 - la)) / (la - lc));
+  return { monotony, strain: avg * 7 * monotony, weekLoad: avg * 7, restDays, balanced };
+}
+
+// Today's session: from the plan, else the first suggested workout if it's for today
+function todaysSession() {
+  const p = state.plan?.plan, prog = state.plan?.progress;
+  if (p && prog) {
+    const i = prog.findIndex((w) => w.status === "current");
+    if (i >= 0) {
+      const k = (new Date().getDay() + 6) % 7;
+      return { session: p.weeks[i].days[k], from: "plan", done: ranOn(p.weeks[i].start, k) };
+    }
+  }
+  const w = state.suggestions?.workouts?.[0];
+  if (w && w.date === isoDay(new Date())) return { session: w, from: "suggestion", done: false };
+  if (w) return { session: w, from: "next", done: false };
+  return null;
+}
+
+const READY = {
+  fresh: ["Fresh", "A good day for a hard session or a race."],
+  neutral: ["Balanced", "Train normally: an easy run or your planned workout."],
+  productive: ["Building", "You're carrying useful fatigue. Keep today easy unless a workout is planned."],
+  overreaching: ["Tired", "Fatigue is high. Rest, or keep it short and very easy."],
+};
+
+function renderReadiness() {
+  const el = $("readiness");
+  if (!el) return;
+  const today = state.load.at(-1);
+  if (!today) { el.hidden = true; return; }
+  el.hidden = false;
+  const st = formState(today);
+  const [word, advice] = READY[st.key];
+  const x = loadExtras(state.load);
+  const t = todaysSession();
+  const sign = (v) => `${v > 0 ? "+" : ""}${v.toFixed(0)}`;
+  const facts = [
+    `Fitness <b>${today.fitness.toFixed(0)}</b>`, `Fatigue <b>${today.fatigue.toFixed(0)}</b>`,
+    x && x.restDays ? `<b>${x.restDays}</b> easy day${x.restDays > 1 ? "s" : ""} to fresh` : "",
+    x ? `Up to <b>${Math.round(x.balanced)}</b> load today stays balanced` : "",
+  ].filter(Boolean);
+  let session = "";
+  if (t) {
+    const d = t.session;
+    session = d.type === "rest"
+      ? `<div class="rd-session"><span class="eyebrow">Today${t.from === "plan" ? " · plan" : ""}</span><b>Rest or cross-train</b><span class="dim">Recovery is when the training sinks in.</span></div>`
+      : `<div class="rd-session" style="--c:${typeColor(d.type)}"><span class="eyebrow">${t.from === "next"
+          ? `Next up · ${esc(new Date(d.date + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }))}`
+          : `Today${t.from === "plan" ? " · plan" : " · suggested"}`}${t.done ? ` · <span class="tick">✓ Done</span>` : ""}</span>
+        <b>${esc(d.title)}${d.minutes ? ` · ${d.minutes} min` : ""}</b>${sessionDetails(d) ? `<span>${esc(sessionDetails(d))}</span>` : ""}
+        ${sessionTarget(d) ? `<span class="dim">${esc(sessionTarget(d))}</span>` : ""}</div>`;
+  }
+  el.innerHTML = `<div class="rd-main" style="--c:var(${textColor(st)})">
+      <span class="eyebrow">Readiness</span>
+      <div class="rd-word"><b>${word}</b><span class="rd-form" title="Form: fitness minus fatigue">Form ${sign(today.form)}</span></div>
+      <p>${advice}</p>
+      <div class="rd-facts">${facts.map((f) => `<span>${f}</span>`).join("")}</div>
+    </div>${session}`;
+}
+
+// A route drawn from the workout's GPS points: no map tiles needed, so it works offline
+function routeSvg(lat, lon, color) {
+  const pts = lat.map((y, i) => [lon[i], y]).filter(([x, y]) => x != null && y != null);
+  if (pts.length < 2) return "";
+  const k = Math.cos((pts[0][1] * Math.PI) / 180);
+  const xs = pts.map((p) => p[0] * k), ys = pts.map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const span = Math.max(x1 - x0, y1 - y0) || 1, W = 100, pad = 6;
+  const sx = (x) => pad + ((x - x0) / span) * (W - 2 * pad) + ((span - (x1 - x0)) / span) * (W - 2 * pad) / 2;
+  const sy = (y) => pad + ((y1 - y) / span) * (W - 2 * pad) + ((span - (y1 - y0)) / span) * (W - 2 * pad) / 2;
+  const step = Math.max(1, Math.floor(pts.length / 400));
+  const d = pts.filter((_, i) => i % step === 0).map(([x, y], i) => `${i ? "L" : "M"}${sx(x * k).toFixed(1)} ${sy(y).toFixed(1)}`).join("");
+  return `<svg class="mini-route" viewBox="0 0 ${W} ${W}" role="img" aria-label="Route"><path d="${d}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+let latestShown = null;
+async function renderLatest() {
+  const el = $("latest");
+  if (!el) return;
+  const a = state.activities.find((x) => isRun(x.activity_type)) || state.activities[0];
+  if (!a) { el.hidden = true; return; }
+  el.hidden = false;
+  const u = Units.get();
+  const color = a.workout_type ? typeColor(a.workout_type) : "var(--z2)";
+  const stats = [
+    ["Distance", fmtDist(a.distance_m)], ["Time", fmtDuration(a.moving_duration_s || a.duration_s)],
+    [PACE_TYPES.test(a.activity_type || "") ? "Pace" : "Speed", fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)],
+    ["Avg HR", a.avg_hr ? `${Math.round(a.avg_hr)} bpm` : ""], ["Load", a.trimp != null ? Math.round(a.trimp) : ""],
+    ["VO2max", a.vo2max_eff ? a.vo2max_eff.toFixed(1) : ""],
+  ].filter(([, v]) => v !== "" && v != null);
+  const when = fmtDate(a.start_time_local, { weekday: "long", month: "short", day: "numeric" });
+  const href = a.has_streams ? pageUrl("activity", { id: a.activity_id }) : null;
+  el.innerHTML = `<div class="toolbar"><h2 style="margin:0">Latest run</h2><span class="spacer"></span>${href ? `<a href="${href}">Details ›</a>` : ""}</div>
+    <div class="latest">
+      <div class="latest-route" id="latest-route"></div>
+      <div class="latest-main">
+        <div class="latest-title"><b>${esc(a.name || prettyType(a.activity_type))}</b> ${a.workout_label ? tagHtml(a.workout_label, QUALITY.has(a.workout_type), a.workout_type) : ""}</div>
+        <div class="dim">${esc(when)}</div>
+        <div class="latest-stats">${stats.map(([k, v]) => `<div><span>${k}</span><b>${esc(String(v))}</b></div>`).join("")}</div>
+        <div class="notes compact" id="latest-notes"></div>
+      </div>
+    </div>`;
+  if (!a.has_streams) return;
+  // the route and the run's coach notes come with its details
+  const id = a.activity_id;
+  latestShown = id;
+  try {
+    const d = await getJSON(`/api/activities/${id}`);
+    if (latestShown !== id) return;
+    if (d.streams?.lat) $("latest-route").innerHTML = routeSvg(d.streams.lat, d.streams.lon, color);
+    const notes = (d.insights || []).filter((n) => !n.title.startsWith("Tagged:")).slice(0, 2);
+    if (notes.length) renderNotes($("latest-notes"), notes);
+  } catch {}
+  $("latest-route").hidden = !$("latest-route").innerHTML;
+}
+
+function renderRecent() {
+  const el = $("recent-list");
+  if (!el) return;
+  const list = filtered().slice(0, 6);
+  el.innerHTML = list.length ? `<table class="recent-table"><tbody>${list.map((a) => `<tr class="${a.has_streams ? "clickable" : ""}" ${a.has_streams ? 'tabindex="0"' : ""} data-id="${a.activity_id}">
+      <td class="when">${esc(fmtDate(a.start_time_local, { weekday: "short", month: "short", day: "numeric" }))}</td>
+      <td class="name">${esc(a.name)}${a.workout_label ? `<div>${tagHtml(a.workout_label, QUALITY.has(a.workout_type), a.workout_type)}</div>` : ""}</td>
+      <td class="num">${fmtDist(a.distance_m)}</td>
+      <td class="num">${fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)}</td>
+      <td class="num">${a.avg_hr ? `${Math.round(a.avg_hr)} bpm` : ""}</td></tr>`).join("")}</tbody></table>`
+    : `<p class="hint">No activities yet.</p>`;
+}
+
+// ---------- Progress: VO2max shape, marathon shape, training paces ----------
+function renderPerf() {
+  const el = $("perf");
+  if (!el) return;
+  const p = state.perf;
+  if (!p || !p.vo2max) {
+    el.innerHTML = `<h2>Running fitness</h2><p class="hint">Appears once you have a few runs with heart rate.</p>`;
+    $("paces-card") && ($("paces-card").hidden = true);
+    return;
+  }
+  const ms = p.marathon_shape;
+  const watch = state.vo2.filter((r) => r.sport === "running").at(-1);
+  const chg = p.vo2max_change_4w;
+  const shapeFor = (pct) => (pct >= 100 ? "the marathon" : pct >= 42 ? "the half marathon" : pct >= 17 ? "10K" : "5K");
+  const u = Units.get();
+  el.innerHTML = `<h2>Running fitness</h2>
+    <p class="hint">Estimated from every run's pace and heart rate, like RUNALYZE does it${p.calibrated_by ? ", calibrated by your best race" : ""}.</p>
+    <div class="perf-grid">
+      <div class="perf-item">
+        <span class="label">VO2max shape</span>
+        <span class="big">${p.vo2max.toFixed(1)}</span>
+        <span class="sub">${chg == null ? "" : Math.abs(chg) < 0.2 ? "Steady over 4 weeks" : `<span class="${chg > 0 ? "up" : ""}">${chg > 0 ? "▲" : "▼"} ${Math.abs(chg).toFixed(1)}</span> over 4 weeks`}${watch ? ` · watch says ${watch.value.toFixed(0)}` : ""}</span>
+      </div>
+      <div class="perf-item">
+        <span class="label">Marathon shape</span>
+        <span class="big">${ms.percent}<small>%</small></span>
+        <span class="sub">Enough endurance for ${shapeFor(ms.percent)}</span>
+        <div class="meter" role="img" aria-label="${ms.percent}% of marathon endurance"><div style="width:${Math.min(100, ms.percent)}%"></div>
+          <i style="left:17%" title="10K"></i><i style="left:42.5%" title="Half"></i></div>
+      </div>
+      <div class="perf-item">
+        <span class="label">Weekly distance</span>
+        <span class="big">${fmtNum(dist(ms.weekly_km * 1000), 1)}<small>${u}</small></span>
+        <span class="sub">${ms.weekly_percent}% of the ${fmtNum(dist(ms.weekly_target_km * 1000), 0)} ${u} a week a marathon at your VO2max calls for</span>
+      </div>
+      <div class="perf-item">
+        <span class="label">Long runs</span>
+        <span class="big">${ms.long_runs}</span>
+        <span class="sub">over ${fmtNum(dist(13000), 1)} ${u} in 10 weeks; the target is about ${fmtNum(dist(ms.long_target_km * 1000), 0)} ${u}</span>
+      </div>
+    </div>
+    <div class="legend" style="margin-top:14px"><span style="--c:var(--pace)">VO2max shape</span><span style="--c:var(--gap)">Watch VO2max</span><span style="--c:var(--elev)">Marathon shape %</span></div>
+    <div class="chart-box"><canvas id="perf-chart" role="img" aria-label="VO2max shape and marathon shape over time"></canvas></div>
+    <details class="more"><summary>How these are worked out</summary>
+      <p><b>VO2max shape</b> is the average of each run's effective VO2max over 30 days, weighted by duration. For each run, your pace says how much oxygen it took, and your heart rate as a share of your max says what share of your maximum that was. Your watch's estimate is shown for comparison.</p>
+      <p><b>Marathon shape</b> asks whether your training has the endurance for long races: your weekly distance over 6 months (two thirds) and your long runs over 13 km in the last 10 weeks (one third), against targets that grow with your VO2max. A 10K needs 17 %, a half marathon 42 %, a marathon 100 %. The race predictor uses both.</p></details>`;
+  const h = p.history.filter((d) => inRange(d.date));
+  const opts = chartBase();
+  opts.interaction = { mode: "nearest", intersect: false };
+  timeAxis(opts);
+  opts.scales.y.grace = "8%";
+  opts.scales.y2 = { position: "right", grid: { display: false }, border: { display: false }, min: 0,
+    ticks: { color: cssVar("--text-muted"), callback: (v) => `${v}%` } };
+  opts.plugins.tooltip = { callbacks: {
+    title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
+    label: (i) => `${i.dataset.label}: ${i.parsed.y.toFixed(i.datasetIndex === 2 ? 0 : 1)}${i.datasetIndex === 2 ? "%" : ""}`,
+  } };
+  drawChart("perf", "perf-chart", {
+    type: "line",
+    data: { datasets: [
+      { label: "VO2max shape", data: h.map((d) => ({ x: new Date(d.date + "T12:00").getTime(), y: d.vo2max })),
+        borderColor: cssVar("--pace"), borderWidth: 2.5, pointRadius: 0, tension: 0.25 },
+      { label: "Watch VO2max", data: state.vo2.filter((r) => r.sport === "running" && inRange(r.date)).map((r) => ({ x: new Date(r.date + "T12:00").getTime(), y: r.value })),
+        borderColor: cssVar("--gap"), borderWidth: 1.5, pointRadius: 0, borderDash: [4, 3], tension: 0.2 },
+      { label: "Marathon shape", yAxisID: "y2", data: h.map((d) => ({ x: new Date(d.date + "T12:00").getTime(), y: d.marathon_shape })),
+        borderColor: cssVar("--elev"), backgroundColor: cssVar("--elev") + "22", fill: "origin", borderWidth: 1.5, pointRadius: 0, tension: 0.25 },
+    ] },
+    options: opts,
+  });
+  renderPaces();
+}
+
+function renderPaces() {
+  const el = $("paces");
+  if (!el) return;
+  const p = state.perf;
+  $("paces-card").hidden = !p?.paces?.length;
+  if (!p?.paces?.length) return;
+  $("paces-hint").textContent = `From your VO2max shape of ${p.vo2max.toFixed(1)}, using Jack Daniels' training intensities. As your fitness changes, so do these.`;
+  const zone = { easy: 2, marathon: 3, threshold: 4, interval: 5, repetition: 5 };
+  el.innerHTML = p.paces.map((z) => `<div class="pace-row" style="--c:var(--z${zone[z.key]})">
+      <b>${z.label}</b><span class="pace-range">${fmtPace(z.slow_mps, undefined, false)}–${fmtPace(z.fast_mps)}</span><span class="dim">${esc(z.about)}</span></div>`).join("");
+}
+
 function render() {
   // Nothing synced yet: a welcome card instead of empty charts (set first, so cards have their width)
   const empty = !state.activities.length;
   document.body.classList.toggle("no-data", empty);
-  $("welcome").hidden = !empty || PHONE;
+  if ($("welcome")) $("welcome").hidden = !empty || PHONE;
   renderToday();
-  renderConsistency();
-  renderTiles(); renderNextUp(); renderRaces(); renderNotes($("notes"), state.insights); renderWeekPlan(); renderExplain(); renderCompare();
-  renderCharts(); renderSettings(); renderTable();
+  renderReadiness(); renderLatest(); renderConsistency();
+  renderTiles(); renderNextUp(); renderRaces(); renderWeekPlan(); renderExplain(); renderCompare();
+  if ($("notes")) renderNotes($("notes"), $("readiness") ? state.insights.filter((n) => !n.title.startsWith("Form:")) : state.insights);
+  renderRecent(); renderCharts(); renderSettings(); renderTable();
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions, races] = await Promise.all(
+  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions, races, perf] = await Promise.all(
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u))
-      .concat(getJSON("/api/suggestions").catch(() => null), getJSON("/api/race-predictions").catch(() => null)));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions, races });
+      .concat(["/api/suggestions", "/api/race-predictions", "/api/performance"].map((u) => getJSON(u).catch(() => null))));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions, races, perf });
   populateTypes(); render(); ready();
   // Phone: confirm a data import that just happened
   try {
@@ -940,13 +1240,14 @@ async function load() {
     if (imp) setStatus(imp.added == null ? `Imported ${fmtNum(imp.total)} activities.`
       : imp.added ? `Updated: ${imp.added} new ${imp.added === 1 ? "activity" : "activities"}.` : "Updated. You were already up to date.");
   } catch {}
-  setupAiBox($("ai"), "overview");
+  if ($("ai")) setupAiBox($("ai"), "overview");
 }
 
-$("welcome-sync").addEventListener("click", () => $("sync").click());
-$("sync").addEventListener("click", async () => {
-  $("welcome-sync").disabled = true;
-  $("welcome-sync").textContent = "Syncing… this can take a few minutes the first time";
+$("welcome-sync")?.addEventListener("click", () => $("sync").click());
+$("sync")?.addEventListener("click", async () => {
+  const welcome = $("welcome-sync") || {};
+  welcome.disabled = true;
+  welcome.textContent = "Syncing… this can take a few minutes the first time";
   setStatus("Syncing with Garmin Connect…");
   try {
     const before = state.activities.length;
@@ -955,10 +1256,10 @@ $("sync").addEventListener("click", async () => {
     const added = state.activities.length - before;
     setStatus(added > 0 ? `Synced ${added} new ${added === 1 ? "activity" : "activities"}.` : "You're up to date. No new activities.");
   } catch (err) { setStatus(err.message, true); }
-  finally { $("welcome-sync").disabled = false; $("welcome-sync").textContent = "Sync with Garmin"; }
+  finally { welcome.disabled = false; welcome.textContent = "Sync with Garmin"; }
 });
 
-$("type").addEventListener("change", (e) => { state.type = e.target.value; state.table.page = 0; render(); });
+$("type")?.addEventListener("change", (e) => { state.type = e.target.value; state.table.page = 0; render(); });
 function renderToday() {
   const today = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   const last = state.activities.find((a) => isRun(a.activity_type));

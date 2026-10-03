@@ -10,7 +10,7 @@ from pathlib import Path
 import anthropic
 from flask import Flask, abort, jsonify, request, send_from_directory
 
-from . import ai, api, auth, config, db, export, insights, planner, processing, races, suggest, sync
+from . import ai, api, auth, config, db, export, heatmap, insights, performance, planner, processing, races, suggest, sync
 
 log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
@@ -43,6 +43,18 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     @app.get("/plan")
     def plan_page():
         return send_from_directory(STATIC, "plan.html")
+
+    @app.get("/progress")
+    def progress_page():
+        return send_from_directory(STATIC, "progress.html")
+
+    @app.get("/activities")
+    def activities_page():
+        return send_from_directory(STATIC, "activities.html")
+
+    @app.get("/map")
+    def map_page():
+        return send_from_directory(STATIC, "map.html")
 
     @app.get("/api/plan")
     def get_plan():
@@ -112,6 +124,16 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     def next_workouts():
         with conn() as c:
             return jsonify(suggest.suggest(c))
+
+    @app.get("/api/heatmap")
+    def heatmap_tracks():
+        with conn() as c:
+            return jsonify(heatmap.tracks(c))
+
+    @app.get("/api/performance")
+    def performance_summary():
+        with conn() as c:
+            return jsonify(performance.summary(c))
 
     @app.get("/api/race-predictions")
     def race_predictions():

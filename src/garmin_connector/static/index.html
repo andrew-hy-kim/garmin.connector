@@ -3,24 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Running Dashboard</title>
+<title>Today · Running</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpolyline points='5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/app.css">
 </head>
-<body class="loading">
+<body class="loading" data-page="today">
 <main>
   <header class="topbar">
     <a class="brand" href="/" aria-label="Running dashboard home"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2a78d6"/><polyline points="5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Running</a>
-    <nav class="tabs" aria-label="Pages"><a href="/" aria-current="page"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M21 20H3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Summary</span></a><a href="/plan"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Training Plan</span></a></nav>
+    <nav class="tabs" aria-label="Pages"><a href="/" data-page="today"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Today</span></a><a href="/progress" data-page="progress"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M21 20H3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Progress</span></a><a href="/activities" data-page="activities"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.4" fill="currentColor"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor"/><circle cx="4.5" cy="18" r="1.4" fill="currentColor"/></svg><span>Activities</span></a><a href="/map" data-page="map"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.8-6.5-11A6.5 6.5 0 0 1 18.5 10c0 5.2-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.3" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>Map</span></a><a href="/plan" data-page="plan"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Plan</span></a></nav>
     <div class="controls">
-      <label>Show <select id="type"></select></label>
-      <div class="seg" id="range" role="group" aria-label="Time range for charts"></div>
       <div class="seg" id="units" role="group" aria-label="Units"></div>
       <button id="sync" class="primary server-only">Sync now</button>
     </div>
     <div id="status" role="status" aria-live="polite"></div>
   </header>
-  <div class="page-head"><div class="eyebrow" id="today"></div><h1>Summary</h1></div>
+  <div class="page-head"><div class="eyebrow" id="today"></div><h1>Today</h1></div>
+
+  <section class="card needs-data today-hero" id="readiness"></section>
+
+  <section class="card needs-data" id="latest"></section>
 
   <section class="tiles needs-data" id="tiles"></section>
 
@@ -42,140 +44,9 @@
     <div class="ai-box" id="ai"></div>
   </section>
 
-
-  <section class="card needs-data" id="consistency">
-    <div class="toolbar" style="margin-bottom:2px"><h2 style="margin:0">Consistency</h2><span class="spacer"></span><span class="hint" style="margin:0" id="cons-stats"></span></div>
-    <p class="hint">Every run, colored by workout type; a bigger dot is a longer run. Click a dot to open that run.</p>
-    <div class="legend cal-legend"><span style="--c:var(--z2)">Easy &amp; long</span><span style="--c:var(--z3)">Tempo</span><span style="--c:var(--z4)">Threshold</span><span style="--c:var(--z5)">VO2 max, speed &amp; races</span><span style="--c:var(--z1)">Recovery &amp; other</span></div>
-    <div class="cal-wrap"><div class="cal" id="cal"></div></div>
-  </section>
-
-  <section class="card needs-data" id="activities">
-    <h2>Activities</h2>
-    <p class="hint">Tap or click an activity for second-by-second detail.<span class="wide-only"> Click a column heading to sort.</span></p>
-    <div class="filters">
-      <input type="search" id="f-search" placeholder="Search names or workout types" aria-label="Search activities by name or workout type">
-      <select id="f-workout" aria-label="Workout type"></select>
-      <select id="f-when" aria-label="Date">
-        <option value="any">Any time</option>
-        <option value="range">Chart range</option>
-        <option value="30">Last 30 days</option>
-        <option value="90">Last 90 days</option>
-        <option value="year">This year</option>
-        <option value="lastyear">Last year</option>
-        <option value="custom">Custom dates…</option>
-      </select>
-      <span id="f-custom" hidden>
-        <input type="date" id="f-from" aria-label="From date"> to <input type="date" id="f-to" aria-label="To date">
-      </span>
-      <select id="f-sort" class="narrow-only" aria-label="Sort">
-        <option value="start_time_local:-1">Newest</option>
-        <option value="start_time_local:1">Oldest</option>
-        <option value="distance_m:-1">Longest</option>
-        <option value="avg_speed_mps:-1">Fastest pace</option>
-        <option value="trimp:-1">Hardest (load)</option>
-      </select>
-      <button type="button" id="f-clear">Clear</button>
-      <div class="summary" id="f-summary"></div>
-    </div>
-    <div class="table-wrap"><table>
-      <thead><tr id="table-head">
-        <th class="sortable" data-sort="start_time_local">Date</th><th class="sortable" data-sort="name">Name</th>
-        <th class="sortable" data-sort="workout_label">Workout</th><th class="num sortable" data-sort="distance_m">Distance</th>
-        <th class="num sortable" data-sort="duration_s">Time</th><th class="num sortable" data-sort="avg_speed_mps">Pace</th>
-        <th class="num sortable" data-sort="avg_hr">Avg HR</th><th title="Whether heart rate came from the watch on your wrist or an arm band / chest strap">HR sensor</th>
-        <th class="num sortable" data-sort="trimp" title="Training load: time at each heart rate, with hard minutes counting much more than easy ones">Load</th><th class="num sortable" data-sort="decoupling_pct" title="How much heart rate rose relative to pace over a steady run of 40+ minutes. Under 5% means a strong aerobic base">HR drift</th>
-      </tr></thead>
-      <tbody id="rows"></tbody>
-    </table></div>
-    <div class="pager" id="pager"></div>
-  </section>
-
-  <section class="card wide needs-data">
-    <div class="head"><h2>Fitness, fatigue &amp; form</h2></div>
-    <div>
-      <div class="explain" id="explain"></div>
-      <h3 class="sub-h">Fitness over time</h3>
-      <table class="compare"><tbody id="compare"></tbody></table>
-    </div>
-    <div>
-      <div class="legend"><span style="--c:var(--fitness)">Fitness</span><span style="--c:var(--fatigue)">Fatigue</span></div>
-      <div class="chart-box"><canvas id="load" role="img" aria-label="Line chart of fitness and fatigue"></canvas></div>
-      <div class="legend" style="margin-top:12px" id="form-legend"></div>
-      <div class="chart-box short"><canvas id="form" role="img" aria-label="Bar chart of form, colored by state"></canvas></div>
-    </div>
-  </section>
-
-  <section class="grid needs-data">
-    <div class="card">
-      <h2 id="volume-title">Weekly distance</h2>
-      <p class="hint" id="volume-hint"></p>
-      <div class="headline" id="vol-head"></div>
-      <div class="chart-box"><canvas id="weekly" role="img" aria-label="Bar chart of distance per week or month"></canvas></div>
-    </div>
-    <div class="card">
-      <h2>Easy vs. hard running</h2>
-      <p class="hint">Running minutes by intensity, relative to your threshold HR. Most runners improve fastest at roughly 80% easy.</p>
-      <div class="headline" id="mix-head"></div>
-      <div class="legend" id="mix-legend"></div>
-      <div class="chart-box"><canvas id="mix" role="img" aria-label="Stacked bar chart of running minutes by intensity"></canvas></div>
-    </div>
-    <div class="card">
-      <h2>Aerobic efficiency</h2>
-      <p class="hint">Distance covered per heartbeat on easy runs. Rising over time means your aerobic engine is improving. Each dot is a run; click one to open it.</p>
-      <div class="headline" id="eff-head"></div>
-      <div class="chart-box"><canvas id="efficiency" role="img" aria-label="Scatter chart of aerobic efficiency over time"></canvas></div>
-    </div>
-    <div class="card">
-      <h2>VO2 max</h2>
-      <p class="hint">As estimated by your watch.</p>
-      <div class="headline" id="vo2-head"></div>
-      <div class="legend" id="vo2-legend"></div>
-      <div class="chart-box"><canvas id="vo2" role="img" aria-label="Line chart of VO2 max over time"></canvas></div>
-    </div>
-  </section>
-
-  <section class="grid">
-    <div class="card needs-data">
-      <h2>Personal records</h2>
-      <p class="hint">Fastest stretch of any outdoor run, not only whole races. Click one to see that stretch in its run.</p>
-      <div class="table-wrap"><table class="records-table">
-        <thead><tr><th>Distance</th><th class="num">All-time best</th><th class="num">Pace</th><th>Date</th><th class="num" id="range-best-head">Best in range</th></tr></thead>
-        <tbody id="records"></tbody>
-      </table></div>
-      <h3 class="sub-h">Milestones</h3>
-      <div class="milestones" id="milestones"></div>
-    </div>
-    <div class="card needs-data" id="races-card">
-      <h2>Race predictor</h2>
-      <p class="hint" id="races-hint"></p>
-      <div class="table-wrap"><table class="races-table">
-        <thead><tr><th>Distance</th><th class="num">Predicted</th><th class="num">Pace</th><th class="num" id="races-chg-h">vs 3 months ago</th><th class="num">Garmin</th></tr></thead>
-        <tbody id="races"></tbody>
-      </table></div>
-      <p class="hint races-foot" id="races-foot"></p>
-    </div>
-  </section>
-
-  <section class="card wide" id="hr-settings">
-    <div class="head"><h2>Heart-rate settings</h2></div>
-    <div>
-      <p class="hint server-only">These set your zones, workout tags and training load. Each sync pulls them from your Garmin account; anything Garmin doesn't have is estimated from your data. Type a value only to override Garmin; clear the box to go back.</p>
-      <p class="hint phone-only" id="phone-zone-note"></p>
-      <form id="settings" class="settings-form">
-        <label><span>Max HR</span><input type="number" name="max_hr" min="120" max="230" inputmode="numeric"><span class="src"></span></label>
-        <label><span>Resting HR</span><input type="number" name="resting_hr" min="30" max="100" inputmode="numeric"><span class="src"></span></label>
-        <label><span>Threshold HR</span><input type="number" name="lthr" min="100" max="220" inputmode="numeric"><span class="src"></span></label>
-        <label>Zones<select name="zone_system">
-          <option value="threshold" title="Built around your threshold HR, like COROS">Threshold</option>
-          <option value="garmin" title="Exactly the zones set in Garmin Connect">Garmin</option>
-        </select></label>
-        <button type="submit" class="server-only">Save</button>
-      </form>
-    </div>
-    <div>
-      <div class="zones" id="zones"></div>
-    </div>
+  <section class="card needs-data" id="recent">
+    <div class="toolbar"><h2 style="margin:0">Recent activities</h2><span class="spacer"></span><a id="all-activities" href="/activities">All activities ›</a></div>
+    <div class="recent-list" id="recent-list"></div>
   </section>
 
 </main>

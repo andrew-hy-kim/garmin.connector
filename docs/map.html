@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Training Plan</title>
+<title>Map · Running</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpolyline points='5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="leaflet.css">
 <link rel="stylesheet" href="app.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -15,58 +16,58 @@
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 </head>
-<body class="loading" data-page="plan">
+<body class="loading" data-page="map">
 <main>
   <header class="topbar">
     <a class="brand" href="index.html" aria-label="Running dashboard home"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2a78d6"/><polyline points="5,17 10,17 12.5,12 15.5,21 18.5,9 21,17 27,17" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Running</a>
     <nav class="tabs" aria-label="Pages"><a href="index.html" data-page="today"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7M6 9.5V20h12V9.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Today</span></a><a href="progress.html" data-page="progress"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M21 20H3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Progress</span></a><a href="activities.html" data-page="activities"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.4" fill="currentColor"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor"/><circle cx="4.5" cy="18" r="1.4" fill="currentColor"/></svg><span>Activities</span></a><a href="map.html" data-page="map"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.8-6.5-11A6.5 6.5 0 0 1 18.5 10c0 5.2-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.3" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>Map</span></a><a href="plan.html" data-page="plan"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Plan</span></a></nav>
     <div class="controls">
       <div class="seg" id="units" role="group" aria-label="Units"></div>
+      <button id="sync" class="primary server-only">Sync now</button>
     </div>
     <div id="status" role="status" aria-live="polite"></div>
   </header>
-  <div class="page-head"><h1>Training Plan</h1></div>
+  <div class="page-head"><div class="eyebrow" id="today"></div><h1>Map</h1></div>
 
-  <section class="card" id="setup" hidden>
-    <h2>Pick a goal</h2>
-    <p class="hint">The plan is built from your recent running time, how often you run, your fitness and form,
-      any comeback from a break, your threshold HR and your recent best efforts. You can change it any time.</p>
-    <form id="plan-form">
-      <div class="goals" id="goals"></div>
-      <div class="filters">
-        <label>Weeks <select name="weeks"><option>4</option><option selected>6</option><option>8</option><option>12</option></select></label>
-        <label>Runs per week <select name="runs_per_week"><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
-        <label>Long run on <select name="long_day"><option value="Sun">Sunday</option><option value="Sat">Saturday</option></select></label>
-        <button type="submit" class="primary">Create plan</button>
-        <button type="button" id="cancel" hidden>Cancel</button>
-      </div>
-    </form>
+  <section class="card needs-data map-card">
+    <div class="map-filters" id="map-filters">
+      <div class="seg" id="m-mode" role="group" aria-label="Map style"><button data-mode="heat" aria-pressed="true">Heatmap</button><button data-mode="routes" aria-pressed="false">Routes</button></div>
+      <select id="m-when" aria-label="Date range">
+        <option value="all">All time</option>
+        <option value="365">Last 12 months</option>
+        <option value="90">Last 90 days</option>
+        <option value="30">Last 30 days</option>
+        <option value="year">This year</option>
+        <option value="lastyear">Last year</option>
+      </select>
+      <select id="m-type" aria-label="Activity type"></select>
+      <select id="m-workout" aria-label="Workout type"></select>
+      <select id="m-dist" aria-label="Distance">
+        <option value="0">Any distance</option>
+        <option value="5000">5 km or more</option>
+        <option value="10000">10 km or more</option>
+        <option value="16000">10 mi or more</option>
+        <option value="21000">Half marathon or more</option>
+      </select>
+      <span class="spacer"></span>
+      <span class="hint" id="m-summary" style="margin:0"></span>
+    </div>
+    <div class="heatmap-wrap"><div id="heatmap" aria-label="Map of your runs"></div>
+      <div class="map-key" id="map-key" aria-hidden="true"><span>Once</span><i></i><span>Often</span></div></div>
+    <p class="hint" id="m-hint" style="margin:10px 0 0"></p>
   </section>
 
-  <div id="plan" hidden>
-    <section class="card">
-      <div class="toolbar">
-        <h2 style="margin:0" id="plan-title"></h2>
-        <span class="spacer"></span>
-        <button id="ics" title="Download the remaining sessions as calendar events">Add to Calendar</button>
-        <button id="change" class="server-only">Change goal</button>
-        <button id="remove" class="server-only destructive">Remove plan</button>
-      </div>
-      <p class="hint" id="plan-sub"></p>
-      <div id="plan-notes" class="notes"></div>
-      <details class="more based"><summary>What this plan is based on</summary>
-        <div class="kv" id="based-on"></div>
-      </details>
-      <h3 class="sub-h">How to run it</h3>
-      <ul id="guidance" style="margin:6px 0 0;padding-left:20px;color:var(--text-secondary);font-size:14px"></ul>
-      <div class="ai-box" id="ai"></div>
-    </section>
-    <div id="weeks"></div>
-  </div>
+  <section class="card needs-data" id="places-card">
+    <h2>Where you run</h2>
+    <p class="hint">Your most-run places, by the location Garmin gives each run. Select one to zoom there.</p>
+    <div class="places" id="places"></div>
+  </section>
+
 </main>
 
+<script src="leaflet.js"></script>
 <script src="phone.js"></script>
 <script src="common.js"></script>
-<script src="plan.js"></script>
+<script src="map.js"></script>
 </body>
 </html>

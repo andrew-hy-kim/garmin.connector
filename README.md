@@ -29,36 +29,62 @@ break, your threshold HR and recent best efforts: mostly easy running, volume gr
 a lighter week every fourth week, progressing workouts with HR and pace targets, and no hard
 sessions until you've been consistent for about four weeks after a break. Each week shows
 planned vs. done (every past day is ticked with what you ran, or marked "Not done"), finished
-weeks fold away, the Summary leads with today's session and this week's plan (with a
+weeks fold away, Today leads with today's session and this week's plan (with a
 progress ring on the This week tile), and you can **Ask Claude** to review it. **Add to
 Calendar** downloads the remaining sessions as calendar events, and the plan prints cleanly.
 
-**Summary page** (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the time range for every chart)
-- **Fitness, fatigue & form** explained in plain language: what the numbers mean, your
-  current form state (fresh / maintaining / productive / overreaching), and what resting
-  would do, plus your fitness now vs. 3 months, 1, 2, 3 and 5 years ago and your peak
-- **Consistency calendar:** every run of the past year as a dot, colored by workout type and
-  sized by distance, with your recent runs per week and streak of 3+ run weeks
-- **Easy vs. hard running:** minutes by intensity per week (or per month on long ranges)
-- Weekly distance, VO2 max trend, and **aerobic efficiency** (distance per heartbeat on
-  easy runs), which shows whether your aerobic base is improving. Click a week's bar to list
-  those runs, or a dot on the efficiency chart to open that run
-- **Personal records** at 400 m, 1 km, mile, 5K, 10K, half and marathon, taken from the fastest
-  stretch of any outdoor run, all-time and within the selected range. Click one to open the
-  run with that stretch selected
-- **Race predictor** at the same distances as the records: your fastest stretch of the last 90
-  days scaled to each distance (Riegel's formula; at least as long as the race, at least 5 km for
-  10 km and the half, 10 km for the marathon), the change over three months, and Garmin's own
-  prediction alongside for 5K to marathon (saved at each sync). Long races get a note when
-  your recent long runs are short of the distance
-- **Activity list** grouped by week, with search (names or workout types; press `/`),
-  workout-type and date filters, sortable columns and paging. The This week / month / year
-  tiles open their runs
-- Each chart leads with the headline number: average distance, % easy, current efficiency
-  and VO2 max with their change over the selected range
+The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** and **Plan**
+(the same tabs sit at the bottom of the screen on a phone).
+
+**Today**: how you're doing and what to do now
+- **Readiness:** fresh / balanced / building / tired from your form, with fitness and fatigue,
+  how many easy days until you're fresh, and the most training load you can do today and stay
+  balanced, next to today's session (from your plan, or the next suggested workout)
+- **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
+  its coach notes
+- This week / month / year (each opens its runs), this week's plan, coach notes with your next
+  workouts, and your recent activities
+
+**Progress**: how you're trending (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the range)
+- **Running fitness**, the way [RUNALYZE](https://runalyze.com) does it:
+  - **VO2max shape:** an effective VO2max from every run's pace and heart rate (Daniels &
+    Gilbert), averaged over 30 days and weighted by duration. Races marked in Garmin
+    calibrate it. It's charted next to your watch's VO2 max.
+  - **Marathon shape:** whether your training has the endurance long races need. Weekly
+    distance over 6 months counts two thirds, long runs over 13 km in the last 10 weeks one
+    third, against targets that grow with your VO2max.
+- **Fitness, fatigue & form** in plain language, plus **monotony** and **training strain**
+  (Foster) for the last 7 days, what resting would do, and your fitness now vs. earlier and
+  at its peak
+- **Race predictor** at the record distances (400 m to marathon). The main prediction comes
+  from VO2max shape, held back for long races when marathon shape is short of what they need.
+  Next to it are your fastest recent stretch scaled to each distance (Riegel) and Garmin's
+  prediction (saved at each sync), each with its change over three months.
+- **Training paces** (easy, marathon, threshold, interval, repetition) from your VO2max shape
+- Weekly distance, easy vs. hard running, **aerobic efficiency** (distance per heartbeat on
+  easy runs) and **long runs** (your longest each week against the long-run threshold and your
+  marathon target). Each chart leads with its headline number, and a click on a week opens its
+  runs.
+- **Personal records** from the fastest stretch of any outdoor run (all-time and within the
+  range) and milestones (longest run, biggest week and month)
 - Heart-rate settings (max, resting, threshold) and **zones pulled from your Garmin account**
   on every sync, so zones match your watch. You can override any value, and anything Garmin
   doesn't have is estimated from your data.
+
+**Activities**
+- **Consistency calendar:** every run of the past year as a dot, colored by workout type and
+  sized by distance, with your runs per week and your streak of weeks with 3+ runs
+- **Activity list** grouped by week, with search (names or workout types; press `/`),
+  workout-type and date filters, sortable columns (including each run's effective VO2max)
+  and paging
+
+**Map**: a **heatmap** of everywhere you've run
+- The more often you've run a street, the brighter it glows. Tap anywhere to list the runs
+  that went through it. **Routes** shows each run as its own line, colored by workout type.
+- Filter by date (all time, last 12 months / 90 / 30 days, this or last year), activity type,
+  workout type and distance
+- **Where you run:** your most-run places, with runs, distance and your last visit. Select one
+  to zoom there. The map opens on the place you run most.
 
 **Workout page** (click any activity)
 - HR, pace + grade-adjusted pace, cadence and elevation on one synced timeline (by time or

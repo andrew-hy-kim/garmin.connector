@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import api, config, db, insights, processing, races, suggest
+from . import api, config, db, heatmap, insights, performance, processing, races, suggest
 
 log = logging.getLogger(__name__)
 
@@ -109,11 +109,12 @@ def _round(v, digits: int):
 
 def snapshot(conn: sqlite3.Connection) -> dict[str, Any]:
     """Everything the phone app needs, as one JSON-able dict."""
-    activities = api.activities(conn)
+    perf = performance.summary(conn)
+    activities = api.activities(conn, perf)
     details = {}
     with insights.cached_runs(conn):
         for a in activities:
-            d = api.activity_detail(conn, a["activity_id"], with_streams=False)
+            d = api.activity_detail(conn, a["activity_id"], with_streams=False, perf=perf)
             if d and a["has_streams"]:
                 d["streams"], d["external_hr"] = phone_streams(conn, a["activity_id"])
                 d["sample_step_s"] = STEP_S
@@ -132,11 +133,14 @@ def snapshot(conn: sqlite3.Connection) -> dict[str, Any]:
             "settings": api.settings_with_zones(conn),
             "insights": insights.overview_insights(conn),
             "suggestions": suggest.suggest(conn),
-            "race_predictions": races.predictions(conn),
+            "race_predictions": races.predictions(conn, perf=perf),
+            "performance": {k: v for k, v in perf.items() if k != "per_activity"},
             "plan": api.plan(conn),
             "ai_reviews": reviews,
         },
         "details": details,
+        # stored on the phone apart from the overview, so pages that don't show it load as fast as before
+        "heatmap": heatmap.tracks(conn),
     }
 
 

@@ -11,10 +11,11 @@ import sqlite3
 from dataclasses import asdict
 from typing import Any
 
-from . import analysis, db, insights, planner, processing
+from . import analysis, db, insights, performance, planner, processing
 
 
-def activities(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    per_run = (perf or performance.summary(conn))["per_activity"]
     rows = conn.execute(
         "SELECT a.activity_id, a.name, a.activity_type, a.start_time_local, a.distance_m, a.duration_s, "
         "a.moving_duration_s, a.elevation_gain_m, a.avg_hr, a.max_hr, a.avg_speed_mps, a.calories, "
@@ -31,11 +32,13 @@ def activities(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     for r in rows:
         row = dict(r)
         row["intensity_seconds"] = json.loads(row["intensity_seconds"]) if row["intensity_seconds"] else None
+        row["vo2max_eff"] = per_run.get(str(row["activity_id"]))
         out.append(row)
     return out
 
 
-def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bool = True) -> dict[str, Any] | None:
+def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bool = True,
+                    perf: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Everything the workout page shows, or None if there's no such activity."""
     row = conn.execute(
         "SELECT activity_id, name, activity_type, start_time_local, distance_m, duration_s, "
@@ -64,6 +67,9 @@ def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bo
     if loaded:
         result["streams"], result["external_hr"] = display_streams(*loaded)
     result["insights"] = insights.workout_insights(conn, activity_id)
+    perf = perf or performance.summary(conn)
+    result["effective_vo2max"] = perf["per_activity"].get(str(activity_id))
+    result["vo2max_shape"] = perf["vo2max"]
     return result
 
 

@@ -110,6 +110,13 @@ CREATE TABLE IF NOT EXISTS race_predictions (
     time_marathon  REAL
 );
 
+-- Each GPS track simplified for the heatmap (see heatmap.py); ``key`` changes with the method.
+CREATE TABLE IF NOT EXISTS heatmap_tracks (
+    activity_id  INTEGER PRIMARY KEY,
+    key          TEXT NOT NULL,
+    data         TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key    TEXT PRIMARY KEY,
     value  TEXT

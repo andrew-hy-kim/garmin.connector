@@ -36,6 +36,7 @@
       const meta = tx.objectStore("meta"), details = tx.objectStore("details");
       meta.clear(); details.clear();
       meta.put(snap.overview, "overview");
+      meta.put(snap.heatmap || [], "heatmap");
       meta.put({ generated_at: snap.generated_at, imported_at: new Date().toISOString(), size,
         activities: snap.overview.activities.length }, "info");
       for (const [id, detail] of Object.entries(snap.details)) details.put(detail, id);
@@ -202,6 +203,7 @@
     },
     "/api/plan": () => planToToday(structuredClone(overview.plan)),
     "/api/race-predictions": () => overview.race_predictions || null,
+    "/api/performance": () => overview.performance || null,
   };
 
   async function get(url, options) {
@@ -218,6 +220,7 @@
       if (!detail) throw new Error("This activity isn't in the imported data. Import the latest file.");
       return applyZonesToDetail(detail);
     }
+    if (u.pathname === "/api/heatmap") return (await idbGet(await dbPromise, "meta", "heatmap")) || [];
     if (u.pathname === "/api/ai/review") {
       const p = u.searchParams;
       const key = `${p.get("scope")}:${p.get("scope") === "activity" ? p.get("activity_id") : ""}:${p.get("units")}`;

@@ -9,7 +9,17 @@ function pageUrl(page, params = {}) {
   // `t` ("start-end" in seconds) opens the workout with that stretch selected
   if (page === "activity") return (PHONE ? `activity.html?id=${params.id}` : `/activity/${params.id}`) + (params.t ? `#t=${params.t}` : "");
   if (page === "plan") return (PHONE ? "plan.html" : "/plan") + (params.new ? "?new" : "");
+  if (["progress", "activities", "map"].includes(page)) {
+    const query = params.query ? `?${new URLSearchParams(params.query)}` : "";
+    return (PHONE ? `${page}.html` : `/${page}`) + query + (params.hash ? `#${params.hash}` : "");
+  }
   return PHONE ? "index.html" : "/";
+}
+
+// Highlight this page's tab (a workout belongs to Activities)
+{
+  const page = document.body.dataset.page || (/plan/.test(location.pathname) ? "plan" : /activit/.test(location.pathname) ? "activities" : "today");
+  document.querySelector(`.tabs a[data-page="${page}"]`)?.setAttribute("aria-current", "page");
 }
 
 const $ = (id) => document.getElementById(id);

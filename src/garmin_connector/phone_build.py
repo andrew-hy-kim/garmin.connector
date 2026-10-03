@@ -20,8 +20,8 @@ from pathlib import Path
 STATIC = Path(__file__).parent / "static"
 PHONE = STATIC / "phone"
 
-PAGES = ["index.html", "activity.html", "plan.html"]
-ASSETS = ["app.css", "common.js", "overview.js", "activity.js", "plan.js",
+PAGES = ["index.html", "progress.html", "activities.html", "map.html", "activity.html", "plan.html"]
+ASSETS = ["app.css", "common.js", "overview.js", "activity.js", "plan.js", "map.js",
           "chart.umd.min.js", "leaflet.js", "leaflet.css"]
 PHONE_ASSETS = ["phone.js", "icon-180.png", "icon-192.png", "icon-512.png"]
 
@@ -90,7 +90,9 @@ self.addEventListener("fetch", (event) => {
 def phone_page(html: str) -> str:
     """Turn a server page into its phone-app version."""
     html = html.replace('href="/static/', 'href="').replace('src="/static/', 'src="')
-    html = html.replace('href="/plan"', 'href="plan.html"').replace('href="/"', 'href="index.html"')
+    for page in ("plan", "progress", "activities", "map"):
+        html = html.replace(f'href="/{page}"', f'href="{page}.html"')
+    html = html.replace('href="/"', 'href="index.html"')
     html = html.replace("</head>", HEAD_EXTRA + "</head>", 1)
     marker = '<script src="common.js"></script>'
     if marker not in html:
