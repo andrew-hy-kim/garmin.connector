@@ -818,3 +818,6 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
 .watch-more summary { cursor: pointer; color: var(--link); font-size: 14px; font-weight: 600; padding: 2px 4px 10px; width: max-content; }
 .watch-more .stats { margin: 0; }
 .grid > .span-all { grid-column: 1 / -1; }
+.route-table tr.this td { background: var(--accent-soft); }
+.route-table tbody tr td:first-child { white-space: nowrap; }
+.link-btn { background: none; border: 0; color: var(--link); font: inherit; font-size: 14px; font-weight: 600; padding: 10px 0 0; cursor: pointer; }

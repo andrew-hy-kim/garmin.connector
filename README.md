@@ -106,6 +106,10 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   to zoom there. The map opens on the place you run most.
 
 **Workout page** (click any activity)
+- **Same route:** your other runs along the same line, start to finish, with time, pace, heart
+  rate and efficiency, how this one ranks against runs of the same kind, and your route record
+- **Same route:** your other runs along the same line, start to finish, with time, pace, heart
+  rate and efficiency, how this one ranks against runs of the same kind, and your route record
 - Training load and Garmin's training effect (with what it means: maintaining, improving…),
   HR drift, efficiency and effective VO2max; under **More from your watch**, calories, power,
   best pace, stride length, ground contact, vertical oscillation and ratio, Body Battery and
