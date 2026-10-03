@@ -139,8 +139,29 @@ const withUnit = (text) => {
   return m ? `${m[1]}<small>${esc(m[2])}</small>` : esc(text || "–");
 };
 
+// Garmin's training effect scale
+const teWord = (te) => (!te ? "" : te < 1 ? "No benefit" : te < 2 ? "Minor benefit" : te < 3 ? "Maintaining"
+  : te < 4 ? "Improving" : te < 5 ? "Highly improving" : "Overreaching");
+const prettyLabel = (s) => (s ? s.toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()).replace("Vo2max", "VO2 max") : "");
+
+// Running dynamics, power and the rest of what the watch measured
+function watchStats(w, run) {
+  const imperial = Units.get() === "mi";
+  const out = [];
+  if (w.calories) out.push(["Calories", withUnit(`${fmtNum(w.calories)} kcal`), ""]);
+  if (w.avg_power_w) out.push(["Power", withUnit(`${Math.round(w.avg_power_w)} W`), w.norm_power_w ? `Normalized ${Math.round(w.norm_power_w)} W` : ""]);
+  if (run && w.max_speed_mps) out.push(["Best pace", withUnit(fmtPace(w.max_speed_mps)), "Fastest moment of the run"]);
+  if (w.stride_cm) out.push(["Stride length", withUnit(imperial ? `${(w.stride_cm / 30.48).toFixed(2)} ft` : `${(w.stride_cm / 100).toFixed(2)} m`), ""]);
+  if (w.ground_contact_ms) out.push(["Ground contact", withUnit(`${Math.round(w.ground_contact_ms)} ms`), "Time each foot spends on the ground"]);
+  if (w.vertical_oscillation_cm) out.push(["Vertical oscillation", withUnit(imperial ? `${(w.vertical_oscillation_cm / 2.54).toFixed(1)} in` : `${w.vertical_oscillation_cm.toFixed(1)} cm`),
+    w.vertical_ratio_pct ? `Vertical ratio ${w.vertical_ratio_pct.toFixed(1)}%` : "Bounce with each step"]);
+  if (w.body_battery_change != null) out.push(["Body Battery", `${w.body_battery_change > 0 ? "+" : ""}${Math.round(w.body_battery_change)}`, "Change during the run"]);
+  if (w.sweat_loss_ml) out.push(["Sweat loss", withUnit(imperial ? `${Math.round(w.sweat_loss_ml / 29.574)} oz` : `${fmtNum(w.sweat_loss_ml)} ml`), "Estimated by Garmin"]);
+  return out;
+}
+
 function renderTiles() {
-  const a = D.activity, m = D.metrics || {};
+  const a = D.activity, m = D.metrics || {}, w = D.watch || {};
   const whole = S ? summarize(0, S.n - 1) : null;
   const run = usesPace();
   const drift = m.decoupling_pct;
@@ -159,18 +180,27 @@ function renderTiles() {
     ["Cadence", whole?.cadence ? withUnit(`${Math.round(whole.cadence)} ${cadUnit()}`) : null, ""],
     ["Elevation gain", a.elevation_gain_m != null ? withUnit(fmtElev(a.elevation_gain_m)) : null, ""],
     ["Training load", m.trimp != null ? String(Math.round(m.trimp)) : null,
-      a.aerobic_te ? `Aerobic TE ${a.aerobic_te.toFixed(1)} · Anaerobic ${a.anaerobic_te?.toFixed(1) ?? "–"}` : ""],
+      w.garmin_load ? `Garmin's load ${Math.round(w.garmin_load)}` : "TRIMP, from heart rate"],
+    ["Training effect", a.aerobic_te ? withUnit(`${a.aerobic_te.toFixed(1)} aerobic`) : null,
+      [teWord(a.aerobic_te), a.anaerobic_te != null ? `anaerobic ${a.anaerobic_te.toFixed(1)}` : "", prettyLabel(w.te_label)].filter(Boolean).join(" · ")],
     ["HR drift", drift != null ? `${drift.toFixed(1)}%` : null,
       drift == null ? "" : drift < 5 ? "Steady: strong aerobic base" : drift < 8 ? "Some drift" : "High (heat, fatigue or too fast)"],
     ["Efficiency", m.efficiency ? withUnit(`${m.efficiency.toFixed(2)} m/beat`) : null, "Distance per heartbeat"],
     ["VO2max", D.effective_vo2max ? D.effective_vo2max.toFixed(1) : null,
       D.vo2max_shape ? `From pace and HR · your shape ${D.vo2max_shape.toFixed(1)}` : "From pace and heart rate"],
   ].filter(([, v]) => v != null);
+  const extra = watchStats(w, run);
   const cell = ([l, v, sub]) => `<div class="tile"${l === "Avg heart rate" && a.avg_hr ? ' style="--vc:var(--hr)"' : ""}><div class="label">${l}</div><div class="value">${v || "–"}</div><div class="sub">${esc(sub)}</div></div>`;
   $("tiles").innerHTML = hero.map(cell).join("");
   $("stats").hidden = !stats.length;
-  $("stats").innerHTML = stats.map(([l, v, sub]) =>
-    `<div><div class="label">${l}</div><div class="value">${v}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div>`).join("");
+  const statCell = ([l, v, sub]) =>
+    `<div><div class="label">${l}</div><div class="value">${v}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div>`;
+  $("stats").innerHTML = stats.map(statCell).join("");
+  // Running dynamics and the rest: open on a wide screen, a tap away on a phone
+  const more = $("watch-more");
+  if (more.hidden && extra.length) more.open = matchMedia("(min-width: 700px)").matches;
+  more.hidden = !extra.length;
+  $("watch-stats").innerHTML = extra.map(statCell).join("");
 }
 
 function isIntervalWorkout() {

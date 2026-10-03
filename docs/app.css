@@ -814,3 +814,6 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
 .focus-top .go { margin-left: auto; color: var(--link); font-size: 14px; }
 @media (hover: hover) { .focus-top:hover .go { text-decoration: underline; } }
 .ytd { margin: 4px 0 18px; } .ytd-box { height: 200px; }
+.watch-more { margin: -8px 0 20px; }
+.watch-more summary { cursor: pointer; color: var(--link); font-size: 14px; font-weight: 600; padding: 2px 4px 10px; width: max-content; }
+.watch-more .stats { margin: 0; }

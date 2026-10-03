@@ -37,6 +37,26 @@ def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> 
     return out
 
 
+# What Garmin's own summary of a run adds: running dynamics, power, calories and the like
+WATCH_FIELDS = {
+    "calories": "calories", "avg_power_w": "avgPower", "norm_power_w": "normPower",
+    "stride_cm": "avgStrideLength", "vertical_oscillation_cm": "avgVerticalOscillation",
+    "vertical_ratio_pct": "avgVerticalRatio", "ground_contact_ms": "avgGroundContactTime",
+    "max_speed_mps": "maxSpeed", "elevation_loss_m": "elevationLoss", "steps": "steps",
+    "body_battery_change": "differenceBodyBattery", "sweat_loss_ml": "waterEstimated",
+    "garmin_load": "activityTrainingLoad", "te_label": "trainingEffectLabel",
+}
+
+
+def watch_extras(raw_json: str | None) -> dict[str, Any]:
+    try:
+        raw = json.loads(raw_json or "{}")
+    except ValueError:
+        return {}
+    out = {k: raw.get(v) for k, v in WATCH_FIELDS.items()}
+    return {k: v for k, v in out.items() if v not in (None, "", 0) or k == "body_battery_change" and v is not None}
+
+
 def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bool = True,
                     perf: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Everything the workout page shows, or None if there's no such activity."""
@@ -73,6 +93,8 @@ def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bo
     result["paces"] = perf.get("paces") or []
     result["pace_bounds_mps"] = perf.get("pace_bounds_mps")
     result["gear"] = gear.for_activity(conn, activity_id)
+    raw = conn.execute("SELECT raw_json FROM activities WHERE activity_id = ?", (activity_id,)).fetchone()
+    result["watch"] = watch_extras(raw[0] if raw else None)
     return result
 
 
