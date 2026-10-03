@@ -206,6 +206,7 @@
     "/api/performance": () => overview.performance || null,
     "/api/health": () => overview.health || null,
     "/api/gear": () => overview.gear || [],
+    "/api/focus": () => overview.focus || [],
   };
 
   async function get(url, options) {

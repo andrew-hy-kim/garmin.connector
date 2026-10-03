@@ -10,7 +10,7 @@ from pathlib import Path
 import anthropic
 from flask import Flask, abort, jsonify, request, send_from_directory
 
-from . import ai, api, auth, config, db, export, gear, health, heatmap, insights, performance, planner, processing, races, suggest, sync
+from . import ai, api, auth, config, db, export, focus, gear, health, heatmap, insights, performance, planner, processing, races, suggest, sync
 
 log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
@@ -139,6 +139,11 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     def heatmap_tracks():
         with conn() as c:
             return jsonify(heatmap.tracks(c))
+
+    @app.get("/api/focus")
+    def focus_areas():
+        with conn() as c:
+            return jsonify(focus.areas(c, performance.summary(c)))
 
     @app.get("/api/performance")
     def performance_summary():

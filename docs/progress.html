@@ -31,11 +31,17 @@
   <div class="page-head"><div class="eyebrow" id="today"></div><h1>Progress</h1></div>
 
   <nav class="jump" aria-label="On this page">
-    <a href="#perf">Fitness</a><a href="#races-card">Races</a><a href="#load-card">Load</a><a href="#recovery-card" data-needs="recovery-card">Recovery</a>
+    <a href="#perf">Fitness</a><a href="#focus-card" data-needs="focus-card">Improve</a><a href="#races-card">Races</a><a href="#load-card">Load</a><a href="#recovery-card" data-needs="recovery-card">Recovery</a>
     <a href="#training">Training</a><a href="#stats-card">Statistics</a><a href="#records-grid">Records</a><a href="#gear-card" data-needs="gear-card">Shoes</a><a href="#hr-settings">Settings</a>
   </nav>
 
   <section class="card needs-data" id="perf"></section>
+
+  <section class="card needs-data" id="focus-card" hidden>
+    <h2>Where to improve</h2>
+    <p class="hint">Your last three months, area by area: what's holding you back most, and the next step for it.</p>
+    <div class="focus" id="focus"></div>
+  </section>
 
   <section class="card needs-data" id="races-card">
       <h2>Race predictor</h2>
@@ -101,6 +107,11 @@
   <section class="card needs-data" id="stats-card">
     <div class="toolbar"><h2 style="margin:0">Statistics</h2><span class="spacer"></span>
       <div class="seg" id="stats-by" role="group" aria-label="Group by"><button data-by="year" aria-pressed="true">Years</button><button data-by="month" aria-pressed="false">Months</button><button data-by="week" aria-pressed="false">Weeks</button></div></div>
+    <div class="ytd" id="ytd" hidden>
+      <div class="headline" id="ytd-head"></div>
+      <div class="legend" id="ytd-legend"></div>
+      <div class="chart-box ytd-box"><canvas id="ytd-chart" role="img" aria-label="Distance so far this year against previous years"></canvas></div>
+    </div>
     <p class="hint" id="stats-hint"></p>
     <div class="table-wrap"><table class="stats-table">
       <thead><tr><th id="stats-period-h">Year</th><th class="num">Runs</th><th class="num">Distance</th><th class="num">Time</th><th class="num">Avg pace</th><th class="num">Avg HR</th><th class="num">Climb</th><th class="num">Longest</th><th class="num">VO2max</th></tr></thead>

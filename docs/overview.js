@@ -859,7 +859,7 @@ function populateTypes() {
 // Everything that depends on the time range
 function renderCharts() {
   renderMilestones();
-  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderRecovery(); renderGear();
+  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus(); renderRecovery(); renderGear();
 }
 
 // Did you run on day k of the plan week starting `start`?
@@ -990,7 +990,60 @@ $("next-up")?.addEventListener("click", (e) => {
 
 // ---------- statistics: totals by year, month or week ----------
 let statsBy = (() => { try { return localStorage.getItem("statsBy") || "year"; } catch { return "year"; } })();
+// Distance so far this year, day by day, against last year and your best year
+function renderYearToDate() {
+  const box = $("ytd");
+  if (!box) return;
+  const u = Units.get();
+  const now = new Date(), year = now.getFullYear();
+  const dayOf = (d) => Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(d.getFullYear(), 0, 1)) / 864e5);
+  const today = dayOf(now);
+  const byYear = new Map();
+  for (const a of filtered()) {
+    const d = localDate(a.start_time_local), y = d.getFullYear();
+    if (!byYear.has(y)) byYear.set(y, new Array(366).fill(0));
+    byYear.get(y)[dayOf(d)] += a.distance_m || 0;
+  }
+  const cum = (days, upTo = 365) => { let t = 0; return days.slice(0, upTo + 1).map((m) => (t += m, dist(t, u))); };
+  // A year your history starts partway through (after January) would compare unfairly; leave it out
+  const firstYear = Math.min(...byYear.keys());
+  if (firstYear < year && byYear.get(firstYear).slice(0, 31).every((m) => !m)) byYear.delete(firstYear);
+  const mine = byYear.get(year), last = byYear.get(year - 1);
+  box.hidden = !mine;
+  if (box.hidden) return;
+  const ytd = cum(mine, today);
+  const nowDist = ytd.at(-1);
+  const others = [...byYear.keys()].filter((y) => y < year - 1);
+  const best = others.sort((a, b) => cum(byYear.get(b)).at(-1) - cum(byYear.get(a)).at(-1))[0];
+  const lastCum = last ? cum(last) : null;
+  const yearDays = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 366 : 365;
+  const pace = nowDist / (today + 1) * yearDays;
+  let vs = "";
+  if (lastCum) {
+    const diff = nowDist - lastCum[today];
+    vs = ` · <span class="chg ${diff >= 0 ? "up" : ""}">${fmtNum(Math.abs(diff), 0)} ${u} ${diff >= 0 ? "ahead of" : "behind"}</span> ${year - 1} by this date`;
+  }
+  $("ytd-head").innerHTML = `<span class="big">${fmtNum(nowDist, 0)}<small>${u}</small></span><span class="dim">this year${vs} · on pace for ${fmtNum(pace, 0)} ${u}</span>`;
+  const sets = [{ label: `${year}`, data: ytd, borderColor: cssVar("--accent"), borderWidth: 2.5 }];
+  if (lastCum) sets.push({ label: `${year - 1}`, data: lastCum, borderColor: cssVar("--text-muted"), borderWidth: 1.5 });
+  if (best) sets.push({ label: `${best} (best)`, data: cum(byYear.get(best)), borderColor: cssVar("--elev"), borderWidth: 1.5, borderDash: [4, 3] });
+  sets.forEach((s) => Object.assign(s, { pointRadius: 0, pointHoverRadius: 3, tension: 0, fill: false }));
+  $("ytd-legend").hidden = sets.length < 2;
+  $("ytd-legend").innerHTML = sets.map((s) => `<span style="--c:${s.borderColor}">${esc(s.label)}</span>`).join("");
+  const opts = chartBase();
+  const monthStart = [...Array(12).keys()].map((m) => dayOf(new Date(year, m, 1)));
+  opts.scales.x = { ...opts.scales.x, type: "linear", min: 0, max: 365,
+    afterBuildTicks: (ax) => { ax.ticks = monthStart.map((v) => ({ value: v })); },
+    ticks: { ...opts.scales.x.ticks, autoSkip: true, callback: (v) => new Date(year, 0, 1 + v).toLocaleDateString(undefined, { month: "short" }) } };
+  opts.scales.y.ticks.callback = (v) => `${fmtNum(v)} ${u}`;
+  opts.plugins.tooltip = { callbacks: {
+    title: (i) => new Date(year, 0, 1 + i[0].parsed.x).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    label: (i) => `${i.dataset.label}: ${fmtNum(i.parsed.y, 0)} ${u}` } };
+  drawChart("ytd", "ytd-chart", { type: "line", data: { datasets: sets.map((s) => ({ ...s, data: s.data.map((y, x) => ({ x, y })) })) }, options: opts });
+}
+
 function renderStats() {
+  renderYearToDate();
   const el = $("stats");
   if (!el) return;
   const u = Units.get();
@@ -1210,6 +1263,33 @@ function renderRecent() {
     : `<p class="hint">No activities yet.</p>`;
 }
 
+// ---------- Progress: where to improve ----------
+const FOCUS_LABEL = { focus: "Work on", ok: "Fine", strength: "Strength" };
+function renderFocus() {
+  const list = state.focus || [];
+  const top = $("focus-top");
+  if (top) {
+    // Today: the longer-term thing to work on (recovery already leads the page when it's off)
+    const a = list.find((x) => x.level === "focus" && x.key !== "recovery");
+    top.hidden = !a;
+    if (a) {
+      top.href = pageUrl("progress", { hash: "focus-card" });
+      top.innerHTML = `<span class="dim">Biggest opportunity</span><b>${esc(a.title)}: ${esc(unitText(a.headline))}</b>
+        <span class="go">Where to improve ›</span>`;
+    }
+  }
+  const card = $("focus-card");
+  if (!card) return;
+  card.hidden = !list.length;
+  if (!list.length) return;
+  $("focus").innerHTML = list.map((a) => `<div class="focus-row lvl-${esc(a.level)}">
+      <div class="f-body">
+        <div class="f-head"><span class="f-pill">${FOCUS_LABEL[a.level] || ""}</span><b>${esc(a.title)}</b><span class="f-headline">${esc(unitText(a.headline))}</span></div>
+        <div class="f-detail">${esc(unitText(a.detail))}</div>
+        ${a.action ? `<div class="f-action"><b>Next step:</b> ${esc(unitText(a.action))}</div>` : ""}
+      </div></div>`).join("");
+}
+
 // ---------- Progress: shoes ----------
 function renderGear() {
   const card = $("gear-card");
@@ -1402,10 +1482,10 @@ function render() {
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions, races, perf, health, gear] = await Promise.all(
+  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions, races, perf, health, gear, focus] = await Promise.all(
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u))
-      .concat(["/api/suggestions", "/api/race-predictions", "/api/performance", "/api/health", "/api/gear"].map((u) => getJSON(u).catch(() => null))));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions, races, perf, health, gear });
+      .concat(["/api/suggestions", "/api/race-predictions", "/api/performance", "/api/health", "/api/gear", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions, races, perf, health, gear, focus });
   populateTypes(); render(); ready();
   // Phone: confirm a data import that just happened
   try {

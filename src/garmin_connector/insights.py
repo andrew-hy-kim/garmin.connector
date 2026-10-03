@@ -9,6 +9,7 @@ heart rate, time and percentages.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import date, timedelta
@@ -24,6 +25,20 @@ COMEBACK_DAYS = 56    # comeback notes for 8 weeks after returning
 
 def _note(level: str, title: str, detail: str) -> dict[str, str]:
     return {"level": level, "title": title, "detail": detail}
+
+
+_TOKEN = re.compile(r"\{\{([dp]):([0-9.]+)\}\}")
+
+
+def plain(text: str) -> str:
+    """Note text with its distance and pace tokens written out in km, for text that leaves the dashboard."""
+    def out(m: re.Match) -> str:
+        v = float(m.group(2))
+        if m.group(1) == "d":
+            return f"{v / 1000:.1f} km" if v < 10000 else f"{round(v / 1000)} km"
+        s = round(1000 / v) if v > 0 else 0
+        return f"{s // 60}:{s % 60:02d} /km"
+    return _TOKEN.sub(out, text)
 
 
 def _mins(seconds: float) -> str:
@@ -398,17 +413,19 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
 
     # Recovery: resting heart rate, HRV and sleep off your normal for a few days
     rec = health.summary(conn, today)
-    for flag in (rec or {}).get("flags", []):
-        notes.append(_note("warn", flag,
-                           "Several days off your normal often comes before illness or burnout, and also follows poor "
-                           "sleep, stress or a hard block. Make the next day or two easy, sleep more, and see if it settles."))
+    flags = (rec or {}).get("flags", [])
+    if flags:
+        also = f"Also: {'; '.join(flags[1:])}. " if len(flags) > 1 else ""
+        notes.append(_note("warn", flags[0],
+                           also + "Several days off your normal often comes before illness or burnout, and also follows "
+                           "poor sleep, stress or a hard block. Make the next day or two easy, sleep more, and see if it settles."))
 
     # Shoes you're still running in, close to their limit
     for g in gear.summary(conn, today):
         if g["retired"] or not g["share"] or g["share"] < 0.85 or not g["month_m"]:
             continue
         notes.append(_note("info", f"{g['name']}: {g['share']:.0%} of their distance",
-                           f"{round(g['total_m'] / 1000)} of {round(g['limit_m'] / 1000)} km. Cushioning wears out "
+                           f"{{{{d:{round(g['total_m'])}}}}} of {{{{d:{round(g['limit_m'])}}}}}. Cushioning wears out "
                            f"before the upper does; a new pair rotated in now spreads the change."))
 
     vo2 = conn.execute("SELECT date, value FROM vo2max WHERE sport = 'running' ORDER BY date").fetchall()

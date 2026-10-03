@@ -46,7 +46,7 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
 - **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
   its coach notes
 - This week / month / year (each opens its runs), this week's plan, coach notes with your next
-  workouts, and your recent activities
+  workouts and your biggest opportunity to improve, and your recent activities
 
 **Progress**: how you're trending (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the range)
 - **Running fitness**, the way [RUNALYZE](https://runalyze.com) does it:
@@ -56,6 +56,9 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   - **Marathon shape:** whether your training has the endurance long races need. Weekly
     distance over 6 months counts two thirds, long runs over 13 km in the last 10 weeks one
     third, against targets that grow with your VO2max.
+- **Where to improve:** your last three months area by area (consistency, endurance, easy vs.
+  hard, workouts, aerobic efficiency, recovery), each marked *work on*, *fine* or *strength*,
+  with what to work on first and a concrete next step using your own paces and distances
 - **Recovery:** resting heart rate and HRV (as 7-day averages, with your normal HRV range) and
   sleep, from your watch. Several days of a raised resting HR, low HRV or short sleep also show
   up as coach notes.
@@ -72,7 +75,9 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   marathon target). Each chart leads with its headline number, and a click on a week opens its
   runs.
 - **Statistics** by year, month or week: runs, distance, time, pace, heart rate, climb, longest
-  run and VO2max. Click a row to list its runs.
+  run and VO2max. Click a row to list its runs. Above it, a year-to-date chart of this year's
+  distance against last year and your best year: ahead or behind by this date, and what
+  you're on pace for.
 - **Personal records** from the fastest stretch of any outdoor run (all-time and within the
   range) and milestones (longest run, biggest week and month)
 - **Shoes:** distance on each pair from your gear in Garmin Connect, against its limit (or

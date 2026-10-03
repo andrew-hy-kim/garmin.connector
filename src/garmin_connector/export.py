@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import api, config, db, gear, health, heatmap, insights, performance, processing, races, suggest
+from . import api, config, db, focus, gear, health, heatmap, insights, performance, processing, races, suggest
 
 log = logging.getLogger(__name__)
 
@@ -137,6 +137,7 @@ def snapshot(conn: sqlite3.Connection) -> dict[str, Any]:
             "performance": {k: v for k, v in perf.items() if k != "per_activity"},
             "health": health.summary(conn),
             "gear": gear.summary(conn),
+            "focus": focus.areas(conn, perf),
             "plan": api.plan(conn),
             "ai_reviews": reviews,
         },

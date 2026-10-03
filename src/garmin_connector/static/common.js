@@ -199,6 +199,16 @@ function zoneRows(zones, seconds) {
   }).join("");
 }
 
+// Distances and paces in note text come as tokens ({{d:meters}}, {{p:m/s}}), shown in your units.
+function unitText(s, u = Units.get()) {
+  return String(s ?? "").replace(/\{\{([dp]):([0-9.]+)\}\}/g, (_, kind, v) => {
+    v = +v;
+    if (kind === "p") return fmtPace(v, u);
+    const n = dist(v, u);
+    return `${fmtNum(n, n < 10 ? 1 : 0)} ${u}`;
+  });
+}
+
 // ---------- coach notes & Claude reviews ----------
 const LEVEL_LABEL = { good: "Good", info: "Note", warn: "Watch" };
 const LEVEL_ICON = { good: "✓", info: "i", warn: "!" };
@@ -208,8 +218,8 @@ function renderNotes(el, notes, emptyText = "Nothing to flag yet. Notes appear a
   notes = [...notes].sort((a, b) => (rank[a.level] ?? 1) - (rank[b.level] ?? 1));
   el.innerHTML = notes.length ? notes.map((n) => `<div class="note lvl-${esc(n.level)}">
       <span class="ico" role="img" aria-label="${LEVEL_LABEL[n.level] || ""}">${LEVEL_ICON[n.level] || "i"}</span>
-      <div class="t">${esc(n.title)}</div>
-      ${n.detail ? `<div class="d">${esc(n.detail)}</div>` : ""}</div>`).join("")
+      <div class="t">${esc(unitText(n.title))}</div>
+      ${n.detail ? `<div class="d">${esc(unitText(n.detail))}</div>` : ""}</div>`).join("")
     : `<p class="hint" style="margin:0">${esc(emptyText)}</p>`;
 }
 
