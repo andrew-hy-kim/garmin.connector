@@ -201,6 +201,7 @@
       return { ...sg, workouts: sg.workouts.filter((w) => w.date >= today) };
     },
     "/api/plan": () => planToToday(structuredClone(overview.plan)),
+    "/api/race-predictions": () => overview.race_predictions || null,
   };
 
   async function get(url, options) {

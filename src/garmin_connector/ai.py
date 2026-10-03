@@ -18,7 +18,7 @@ from typing import Any
 import anthropic
 import keyring
 
-from . import insights, processing
+from . import insights, processing, races
 
 MODEL = "claude-opus-5-5"
 KEYCHAIN_SERVICE = "garmin-connector"
@@ -133,6 +133,8 @@ def _overview_context(conn: sqlite3.Connection, units: str) -> dict[str, Any]:
         "activities_last_8_weeks": recent,
         "vo2max_running": [{"date": d, "value": v} for d, v in vo2],
         "dashboard_coach_notes": insights.overview_insights(conn),
+        "race_predictions_seconds": [{k: r[k] for k in ("race", "seconds", "garmin_seconds")}
+                                     for r in races.predictions(conn)["races"]],
     }
 
 

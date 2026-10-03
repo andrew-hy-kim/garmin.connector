@@ -10,7 +10,7 @@ from pathlib import Path
 import anthropic
 from flask import Flask, abort, jsonify, request, send_from_directory
 
-from . import ai, api, auth, config, db, export, insights, planner, processing, suggest, sync
+from . import ai, api, auth, config, db, export, insights, planner, processing, races, suggest, sync
 
 log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
@@ -112,6 +112,11 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     def next_workouts():
         with conn() as c:
             return jsonify(suggest.suggest(c))
+
+    @app.get("/api/race-predictions")
+    def race_predictions():
+        with conn() as c:
+            return jsonify(races.predictions(c))
 
     @app.get("/api/ai/review")
     def get_ai_review():

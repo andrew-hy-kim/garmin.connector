@@ -67,6 +67,8 @@ def sync(
             log.info("VO2 max: checked %d of %d days", n, len(days))
         time.sleep(REQUEST_PAUSE_S)
 
+    fetch_race_predictions(client, conn, today)
+
     n_fit = 0
     if download_fit:
         n_fit = download_missing_fit(client, conn, fit_dir or config.fit_dir())
@@ -122,6 +124,23 @@ def fetch_hr_profile(client: Garmin, conn: sqlite3.Connection) -> dict:
             f"{label} {profile[key]}" for key, label in
             (("max_hr", "max"), ("resting_hr", "resting"), ("lthr", "threshold")) if key in profile))
     return profile
+
+
+def fetch_race_predictions(client: Garmin, conn: sqlite3.Connection, today: date | None = None) -> int:
+    """Save Garmin's race predictions: the last year on the first sync, then just the new days.
+
+    Best effort, like the heart-rate profile: a failure never stops the sync.
+    """
+    today = today or date.today()
+    latest = conn.execute("SELECT max(date) FROM race_predictions").fetchone()[0]
+    start = max(date.fromisoformat(latest) - timedelta(days=OVERLAP_DAYS), today - timedelta(days=365)) \
+        if latest else today - timedelta(days=365)
+    try:
+        response = client.get_race_predictions(start.isoformat(), today.isoformat(), "daily")
+        return db.upsert_race_predictions(conn, db.race_prediction_rows(response))
+    except Exception as err:
+        log.warning("Couldn't fetch race predictions from Garmin: %s", err)
+        return 0
 
 
 def vo2max_days_to_check(conn: sqlite3.Connection) -> list[str]:

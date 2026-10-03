@@ -101,6 +101,15 @@ CREATE TABLE IF NOT EXISTS export_streams (
     data         BLOB NOT NULL
 );
 
+-- Garmin's own race predictions (seconds), one row per day, saved at each sync.
+CREATE TABLE IF NOT EXISTS race_predictions (
+    date           TEXT PRIMARY KEY,
+    time_5k        REAL,
+    time_10k       REAL,
+    time_half      REAL,
+    time_marathon  REAL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key    TEXT PRIMARY KEY,
     value  TEXT
@@ -186,6 +195,28 @@ def upsert_vo2max(conn: sqlite3.Connection, rows: list[dict[str, Any]]) -> int:
         "ON CONFLICT (date, sport) DO UPDATE SET value = excluded.value, raw_json = excluded.raw_json",
         rows,
     )
+    conn.commit()
+    return len(rows)
+
+
+def race_prediction_rows(response: Any) -> list[dict[str, Any]]:
+    """Garmin's race predictions (one day, or a list of days) as table rows."""
+    entries = response if isinstance(response, list) else [response] if response else []
+    rows = []
+    for e in entries:
+        if not isinstance(e, dict) or not e.get("calendarDate"):
+            continue
+        row = {"date": str(e["calendarDate"])[:10], "time_5k": e.get("time5K"), "time_10k": e.get("time10K"),
+               "time_half": e.get("timeHalfMarathon"), "time_marathon": e.get("timeMarathon")}
+        if any(row[k] for k in ("time_5k", "time_10k", "time_half", "time_marathon")):
+            rows.append(row)
+    return rows
+
+
+def upsert_race_predictions(conn: sqlite3.Connection, rows: list[dict[str, Any]]) -> int:
+    conn.executemany(
+        "INSERT OR REPLACE INTO race_predictions (date, time_5k, time_10k, time_half, time_marathon) "
+        "VALUES (:date, :time_5k, :time_10k, :time_half, :time_marathon)", rows)
     conn.commit()
     return len(rows)
 

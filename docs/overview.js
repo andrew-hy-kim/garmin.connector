@@ -843,6 +843,35 @@ function renderWeekPlan() {
       <b>${d.day}${ranOn(w.start, k) ? ` <span class="tick" title="Done">✓</span>` : ""}</b><span>${esc(d.title)}</span><span class="m">${d.minutes ? `${d.minutes} min` : ""}</span></div>`).join("")}</div>`;
 }
 
+// ---------- race predictor ----------
+function renderRaces() {
+  const rp = state.races;
+  const card = $("races-card");
+  card.hidden = !rp || !rp.races.some((r) => r.seconds || r.garmin_seconds);
+  if (card.hidden) return;
+  const months = Math.round(rp.trend_days / 30);
+  // negative = faster, which is good
+  const change = (s, what) => (s == null || Math.abs(s) < 5 ? ""
+    : `<span class="chg ${s < 0 ? "up" : ""}">${s < 0 ? "▼" : "▲"} ${fmtDuration(Math.abs(s))} ${s < 0 ? "faster" : "slower"}${what}</span>`);
+  $("races-hint").textContent = `Your likely finish times, from your fastest stretches in the last ${rp.window_days} days ` +
+    "(any outdoor run, not only races), scaled to each distance. Efforts in training runs are rarely all-out, so on race day you may well be faster." +
+    (rp.garmin_date ? ` Garmin's prediction is from ${fmtDate(rp.garmin_date, { month: "short", day: "numeric" })}.` : "");
+  $("races").innerHTML = rp.races.map((r) => {
+    const e = r.basis;
+    const basis = e ? `<a href="${pageUrl("activity", { id: e.activity_id, t: span(e) })}">From your ${esc(e.label)} ${e.race ? "race" : "effort"} on ${esc(fmtDate(e.date, { month: "short", day: "numeric" }))}</a>` : "";
+    const garmin = r.garmin_seconds ? `<div class="garmin">Garmin: <b>${fmtDuration(r.garmin_seconds)}</b>${
+      r.garmin_change_s && Math.abs(r.garmin_change_s) >= 5 ? ` <span class="dim">(${r.garmin_change_s < 0 ? "−" : "+"}${fmtDuration(Math.abs(r.garmin_change_s))})</span>` : ""}</div>` : "";
+    if (!r.seconds) {
+      return `<div class="race none"><span class="label">${esc(r.race)}</span><span class="big">–</span>
+        <span class="pace">No recent hard effort long enough to predict this yet.</span>${garmin}</div>`;
+    }
+    return `<div class="race"><span class="label">${esc(r.race)}</span><span class="big">${fmtDuration(r.seconds)}</span>
+      <span class="pace">${fmtPace(r.meters / r.seconds)}</span>
+      ${change(r.change_s, ` than ${months} months ago`)}
+      ${garmin}<span class="basis">${basis}</span>${r.longest_run_m ? `<span class="caveat">Assumes you train for the distance: your longest run in the last 8 weeks was ${esc(fmtDist(r.longest_run_m, Units.get(), 1))}.</span>` : ""}</div>`;
+  }).join("");
+}
+
 // ---------- suggested next workouts (in Coach notes) ----------
 const NEXT_COUNTS = [3, 5, 7];
 const nextCount = () => { try { return Number(localStorage.getItem("nextCount")) || 3; } catch { return 3; } };
@@ -885,15 +914,15 @@ function render() {
   $("welcome").hidden = !empty || PHONE;
   renderToday();
   renderConsistency();
-  renderTiles(); renderNextUp(); renderNotes($("notes"), state.insights); renderWeekPlan(); renderExplain(); renderCompare();
+  renderTiles(); renderNextUp(); renderRaces(); renderNotes($("notes"), state.insights); renderWeekPlan(); renderExplain(); renderCompare();
   renderCharts(); renderSettings(); renderTable();
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions] = await Promise.all(
+  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions, races] = await Promise.all(
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u))
-      .concat(getJSON("/api/suggestions").catch(() => null)));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions });
+      .concat(getJSON("/api/suggestions").catch(() => null), getJSON("/api/race-predictions").catch(() => null)));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions, races });
   populateTypes(); render(); ready();
   // Phone: confirm a data import that just happened
   try {
