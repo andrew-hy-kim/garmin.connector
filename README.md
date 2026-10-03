@@ -23,7 +23,8 @@ a lighter week every fourth week, progressing workouts with HR and pace targets,
 sessions until you've been consistent for about four weeks after a break. Each week shows
 planned vs. done (every past day is ticked with what you ran, or marked "Not done"), finished
 weeks fold away, the Summary leads with today's session and this week's plan (with a
-progress ring on the This week tile), and you can **Ask Claude** to review it.
+progress ring on the This week tile), and you can **Ask Claude** to review it. **Add to
+Calendar** downloads the remaining sessions as calendar events, and the plan prints cleanly.
 
 **Summary page** (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the time range for every chart)
 - **Fitness, fatigue & form** explained in plain language: what the numbers mean, your
@@ -51,7 +52,7 @@ progress ring on the This week tile), and you can **Ask Claude** to review it.
 - HR, pace + grade-adjusted pace, cadence and elevation on one synced timeline (by time or
   distance), with HR zone bands and interval reps shaded
 - **Drag across any stretch** (or click a lap, split or best effort) for its pace, GAP,
-  HR, cadence and elevation
+  HR, cadence and elevation, compared with the run as a whole
 - Time in HR zones, route map colored by zone, laps with a work-rep summary for interval
   sessions, mile/km splits with GAP, best efforts within the run; laps and splits show a speed
   bar colored by heart-rate zone
