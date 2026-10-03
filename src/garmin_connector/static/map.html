@@ -21,6 +21,13 @@
   </header>
   <div class="page-head"><div class="eyebrow" id="today"></div><h1>Map</h1></div>
 
+  <section class="card welcome" id="map-empty" hidden>
+    <h2>No routes yet</h2>
+    <p>Every run with GPS lands here as a heatmap, brighter where you run most, with filters for date, distance and workout type.
+      Treadmill and indoor runs have no route, so they don't show.</p>
+    <p class="hint" id="map-empty-hint">Sync with Garmin and your outdoor runs appear here.</p>
+  </section>
+
   <section class="card needs-data map-card">
     <div class="map-filters" id="map-filters">
       <div class="seg" id="m-mode" role="group" aria-label="Map style"><button data-mode="heat" aria-pressed="true">Heatmap</button><button data-mode="routes" aria-pressed="false">Routes</button></div>

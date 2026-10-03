@@ -233,7 +233,8 @@ async function load() {
   const today = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   $("today").textContent = today;
   if (!M.tracks.length) {
-    $("m-hint").textContent = "Runs with GPS show up here after they sync.";
+    $("map-empty").hidden = false;
+    if (PHONE) $("map-empty-hint").textContent = "Sync on your Mac and the map fills in the next time the app updates.";
     ready();
     return;
   }
