@@ -46,9 +46,10 @@ Calendar** downloads the remaining sessions as calendar events, and the plan pri
 - **Personal records** at 400 m, 1 km, mile, 5K, 10K, half and marathon, taken from the fastest
   stretch of any outdoor run, all-time and within the selected range. Click one to open the
   run with that stretch selected
-- **Race predictor** for 5K, 10K, half and marathon: your fastest 5 km+ stretch of the last 90
-  days scaled to each distance (Riegel's formula; 10 km+ for the marathon), the change over three
-  months, and Garmin's own prediction alongside (saved at each sync). Long races get a note when
+- **Race predictor** at the same distances as the records: your fastest stretch of the last 90
+  days scaled to each distance (Riegel's formula; at least as long as the race, at least 5 km for
+  10 km and the half, 10 km for the marathon), the change over three months, and Garmin's own
+  prediction alongside for 5K to marathon (saved at each sync). Long races get a note when
   your recent long runs are short of the distance
 - **Activity list** grouped by week, with search (names or workout types; press `/`),
   workout-type and date filters, sortable columns and paging. The This week / month / year

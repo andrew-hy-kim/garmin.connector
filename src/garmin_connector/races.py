@@ -1,12 +1,13 @@
-"""Race predictor: likely finish times for 5K, 10K, half and full marathon.
+"""Race predictor: likely finish times at the same distances as your personal records.
 
 Two views side by side:
 
 - Ours, from your own running: the fastest stretch you've run recently (best
   efforts over standard distances, found in every outdoor run), scaled to each
-  race distance with Riegel's formula, ``T2 = T1 × (D2 / D1) ^ 1.06``. Only
-  efforts of 5 km or more count (10 km or more for the marathon), so a fast
-  interval rep doesn't predict a race, and long races get a note when your
+  race distance with Riegel's formula, ``T2 = T1 × (D2 / D1) ^ 1.06``. An
+  effort has to be at least as long as the race, and for 5 km and up at least
+  5 km (10 km for the marathon), so a fast interval rep doesn't predict a long
+  race; long races get a note when your
   recent long runs are short of what the distance needs.
 - Garmin's, as your watch shows it (saved at each sync), when available.
 
@@ -19,17 +20,23 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Any
 
-from . import insights
+from . import analysis, insights
 
-RACES = [("5K", 5000.0), ("10K", 10000.0), ("Half marathon", 21097.5), ("Marathon", 42195.0)]
-GARMIN_KEYS = {"5K": "time_5k", "10K": "time_10k", "Half marathon": "time_half", "Marathon": "time_marathon"}
+# The personal-record distances, with the same names
+RACES = list(analysis.BEST_EFFORT_DISTANCES.items())
+# Garmin only predicts these
+GARMIN_KEYS = {"5 km": "time_5k", "10 km": "time_10k", "Half marathon": "time_half", "Marathon": "time_marathon"}
 WINDOW_DAYS = 90          # recent efforts only: fitness from last year doesn't predict next month
 TREND_DAYS = 91           # "vs 3 months ago"
 RIEGEL = 1.06
-# Shortest effort that predicts a race: 5 km (a fast 1 km or mile is often a rep inside an
-# interval session, and says little about holding a pace for a whole race), and for the
-# marathon at least 10 km.
+# Shortest effort that predicts a race: as long as the race itself, and for 5 km and up at
+# least 5 km (a fast 1 km or mile is often a rep inside an interval session, and says little
+# about holding a pace for a whole 10K), and for the marathon at least 10 km.
 MIN_EFFORT_M, MIN_SHARE = 5000.0, 1 / 4.5
+
+
+def shortest_effort(race_m: float) -> float:
+    return min(race_m, max(MIN_EFFORT_M, race_m * MIN_SHARE))
 # A long race also needs the endurance for it: longest recent run as a share of the distance.
 LONG_RUN_NEEDED = {"Half marathon": 0.70, "Marathon": 0.55}
 
@@ -54,7 +61,7 @@ def _predict(runs: list[dict[str, Any]], as_of: date) -> dict[str, dict[str, Any
     for race, meters in RACES:
         best = None
         for e in efforts:
-            if e["meters"] < max(MIN_EFFORT_M, meters * MIN_SHARE) - 1:
+            if e["meters"] < shortest_effort(meters) - 1:
                 continue
             t = riegel(e["seconds"], e["meters"], meters)
             if best is None or t < best[0]:
@@ -86,8 +93,8 @@ def predictions(conn: sqlite3.Connection, today: date | None = None) -> dict[str
     out = []
     for race, meters in RACES:
         p, before = now.get(race), then.get(race)
-        g = garmin_now and garmin_now.get(GARMIN_KEYS[race])
-        g_before = garmin_then and garmin_then.get(GARMIN_KEYS[race])
+        g = race in GARMIN_KEYS and garmin_now and garmin_now.get(GARMIN_KEYS[race])
+        g_before = race in GARMIN_KEYS and garmin_then and garmin_then.get(GARMIN_KEYS[race])
         # set when your recent long runs are short of what this race needs (the page explains it)
         short_long_run = bool(p and race in LONG_RUN_NEEDED and longest < meters * LONG_RUN_NEEDED[race])
         out.append({

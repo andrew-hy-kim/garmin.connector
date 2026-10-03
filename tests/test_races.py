@@ -35,7 +35,7 @@ def conn(tmp_path):
 def test_predictions_from_recent_efforts(conn):
     out = races.predictions(conn)
     by = {r["race"]: r for r in out["races"]}
-    five, ten, half, full = by["5K"], by["10K"], by["Half marathon"], by["Marathon"]
+    five, ten, half, full = by["5 km"], by["10 km"], by["Half marathon"], by["Marathon"]
     # 5K straight from the 5 km best effort at 3.5 m/s
     assert abs(five["seconds"] - 5000 / 3.5) <= 2
     assert five["basis"]["label"] == "5 km" and five["basis"]["race"] is False
@@ -45,6 +45,13 @@ def test_predictions_from_recent_efforts(conn):
     assert full["seconds"] is None
     # the half is predicted, with a note that recent long runs are short of it
     assert 8300 <= half["longest_run_m"] <= 8500
+    # same distances as the records; short ones come from efforts at least that long
+    assert [r["race"] for r in out["races"]] == ["400 m", "1 km", "1 mile", "5 km", "10 km", "Half marathon", "Marathon"]
+    mile = by["1 mile"]
+    # a 5 km at a steady 3.5 m/s means a faster mile than that pace (Riegel scales down too)
+    assert mile["seconds"] == round(races.riegel(five["basis"]["seconds"], 5000, 1609.344)) < 1609.344 / 3.5
+    assert by["400 m"]["seconds"] < by["1 km"]["seconds"] < mile["seconds"] < five["seconds"]
+    assert mile["garmin_seconds"] is None  # Garmin doesn't predict the mile
     # faster than three months ago (3.2 m/s then)
     assert five["change_s"] < 0
     # the 4.5 m/s run from over a year ago is ignored
@@ -66,7 +73,7 @@ def test_garmin_predictions_saved_at_sync(conn):
     assert sync.fetch_race_predictions(Client(), conn, today) == 2
     by = {r["race"]: r for r in races.predictions(conn)["races"]}
     assert by["Marathon"]["garmin_seconds"] == 14100 and by["Marathon"]["garmin_change_s"] == -700
-    assert by["5K"]["garmin_seconds"] == 1440
+    assert by["5 km"]["garmin_seconds"] == 1440
 
     class Broken:
         def get_race_predictions(self, *a):
@@ -79,3 +86,9 @@ def test_no_runs_no_predictions(tmp_path):
     c = db.connect(tmp_path / "empty.db")
     out = races.predictions(c)
     assert all(r["seconds"] is None and r["garmin_seconds"] is None for r in out["races"])
+
+
+def test_shortest_effort_for_each_race():
+    assert races.shortest_effort(400) == 400 and races.shortest_effort(1609.344) == 1609.344
+    assert races.shortest_effort(10000) == 5000 and races.shortest_effort(21097.5) == 5000
+    assert races.shortest_effort(42195) > 9000  # the 10 km effort

@@ -59,7 +59,7 @@ def test_snapshot_matches_the_dashboard(conn):
     assert ov["training_load"][-1]["state"]["key"]
     assert ov["ai_reviews"]["overview::mi"]["text"] == "Nice."
     assert ov["suggestions"]["source"] == "plan" and ov["suggestions"]["workouts"]  # next workouts for coach notes
-    assert [r["race"] for r in ov["race_predictions"]["races"]] == ["5K", "10K", "Half marathon", "Marathon"]
+    assert [r["race"] for r in ov["race_predictions"]["races"]] == ["400 m", "1 km", "1 mile", "5 km", "10 km", "Half marathon", "Marathon"]
 
     assert set(snap["details"]) == {str(a["activity_id"]) for a in ov["activities"]}
     run = snap["details"]["900"]
