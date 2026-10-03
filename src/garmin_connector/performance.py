@@ -279,6 +279,8 @@ def summary(conn: sqlite3.Connection, today: date | None = None) -> dict[str, An
             for r in out["races"]:
                 old = race_seconds(vo2_then * shape_factor(shape_then, r["meters"] / 1000), r["meters"])
                 r["change_s"] = round(r["seconds"] - old) if r["seconds"] and old else None
+        # where one pace zone ends and the next begins (between Daniels' ranges), for time in pace zones
+        out["pace_bounds_mps"] = [speed_at_vo2(f * vo2) / 60 for f in (0.745, 0.835, 0.915, 1.025)]
         vmax = speed_at_vo2(vo2)
         out["paces"] = [{"key": k, "label": label, "about": about,
                          "slow_mps": speed_at_vo2(lo * vo2) / 60, "fast_mps": speed_at_vo2(hi * vo2) / 60}

@@ -531,6 +531,38 @@ function renderZones() {
   $("zones-hint").innerHTML = `${esc(zoneBasis(D.settings))}. <a href="${pageUrl("progress", { hash: "hr-settings" })}">Change zones</a>`;
 }
 
+// Time at each of your training paces (from VO2max shape), on grade-adjusted pace so hills
+// don't count as speed work and downhills don't count as easy
+function renderPaceZones() {
+  const card = $("pace-zones-card");
+  const b = D.pace_bounds_mps;
+  card.hidden = !(b && D.streams && usesPace() && isRun(D.activity.activity_type));
+  if (card.hidden) return;
+  const names = ["Easy", "Marathon", "Threshold", "Interval", "Repetition"];
+  const secs = [0, 0, 0, 0, 0];
+  const s = D.streams;
+  for (let i = 1; i < S.n; i++) {
+    const v = s.gap[i] ?? s.speed[i];
+    if (v == null || s.speed[i] == null || s.speed[i] < MOVING_MPS) continue;
+    let k = 0;
+    while (k < 4 && v >= b[k]) k++;
+    secs[k] += S.dt[i];
+  }
+  const zones = names.map((name, i) => ({ name, low: i ? b[i - 1] : 0, high: b[i] ?? Infinity }));
+  const total = secs.reduce((a, c) => a + c, 0) || 1;
+  const maxShare = Math.max(...secs) / total || 1;
+  const color = [2, 3, 4, 5, 5];
+  const paceText = (z) => (z.low ? (z.high === Infinity ? `under ${fmtPace(z.low)}` : `${fmtPace(z.low, undefined, false)}–${fmtPace(z.high)}`) : `over ${fmtPace(z.high)}`);
+  $("pace-zones").innerHTML = zones.map((z, i) => {
+    const share = secs[i] / total;
+    return `<div class="zone-row">
+      <div><span class="swatch" style="--c:var(--z${color[i]})"></span>${z.name}<div class="range">${paceText(z)}</div></div>
+      <div class="bar" role="img" aria-label="${Math.round(share * 100)}%"><div style="width:${(share / maxShare) * 100}%;background:var(--z${color[i]})"></div></div>
+      <div class="val">${fmtDuration(secs[i])} · <b>${Math.round(share * 100)}%</b></div></div>`;
+  }).join("");
+  $("pace-zones-hint").textContent = `Your training paces from your current VO2max shape (${D.vo2max_shape.toFixed(1)}), on grade-adjusted pace.`;
+}
+
 function renderLaps() {
   const laps = D.laps;
   if (laps.length < 2) { $("laps-card").hidden = true; return; }
@@ -709,7 +741,8 @@ function updateMapSelection() {
 
 function renderAll() {
   if (D.streams) { derive(); }
-  renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderZones(); renderLaps(); renderSplits(); renderEfforts();
+  renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderZones(); if (S) renderPaceZones(); else $("pace-zones-card").hidden = true;
+  renderLaps(); renderSplits(); renderEfforts();
   renderNotes($("notes"), (D.insights || []).filter((n) => !n.title.startsWith("Tagged:")), "Nothing stands out in this workout.");
   setupAiBox($("ai"), "activity", activityId);
   $("charts-card").style.display = D.streams ? "" : "none";

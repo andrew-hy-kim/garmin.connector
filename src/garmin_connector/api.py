@@ -70,6 +70,8 @@ def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bo
     perf = perf or performance.summary(conn)
     result["effective_vo2max"] = perf["per_activity"].get(str(activity_id))
     result["vo2max_shape"] = perf["vo2max"]
+    result["paces"] = perf.get("paces") or []
+    result["pace_bounds_mps"] = perf.get("pace_bounds_mps")
     result["gear"] = gear.for_activity(conn, activity_id)
     return result
 

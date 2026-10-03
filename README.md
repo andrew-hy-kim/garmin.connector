@@ -102,7 +102,8 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   distance), with HR zone bands and interval reps shaded
 - **Drag across any stretch** (or click a lap, split or best effort) for its pace, GAP,
   HR, cadence and elevation, compared with the run as a whole
-- Time in HR zones, route map colored by zone, laps with a work-rep summary for interval
+- Time in HR zones and **time in pace zones** (easy to repetition, from your training paces, on
+  grade-adjusted pace), a full-width route map colored by zone, laps with a work-rep summary for interval
   sessions, mile/km splits with GAP, best efforts within the run; laps and splits show a speed
   bar colored by heart-rate zone
 - **Older / Newer** buttons (or the ← → keys) to page through your runs

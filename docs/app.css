@@ -258,6 +258,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 .selection .vs { font-weight: 500; color: var(--text-secondary); font-size: 13px; }
 .selection button { min-height: 30px; padding: 3px 12px; }
 #map { height: 340px; border-radius: 10px; background: var(--surface-2); }
+.route-card #map { height: min(52vh, 460px); }
 /* map controls in the app's style; dark map tiles in dark mode */
 #map .leaflet-bar { border: 0; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, .15); }
 #map .leaflet-bar a { background: var(--surface-1); color: var(--text-primary); border-bottom-color: var(--grid); }
