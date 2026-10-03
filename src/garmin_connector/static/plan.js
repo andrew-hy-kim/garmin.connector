@@ -41,6 +41,37 @@ $("plan-form").addEventListener("submit", async (e) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (err) { setStatus(err.message, true); }
 });
+// ---------- calendar export ----------
+// The remaining sessions as all-day events in an .ics file (Calendar on Mac and iPhone opens it).
+function planIcs(plan) {
+  const esc = (t) => String(t || "").replace(/\\/g, "\\\\").replace(/([,;])/g, "\\$1").replace(/\n/g, "\\n");
+  const fold = (line) => line.length <= 74 ? line : line.match(/.{1,73}/g).join("\r\n ");
+  const ymd = (iso) => iso.replace(/-/g, "");
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  const today = todayIso();
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//garmin.connector//Running plan//EN", "CALSCALE:GREGORIAN",
+    `X-WR-CALNAME:${esc(plan.goal_label)}`];
+  plan.weeks.forEach((w) => w.days.forEach((d, k) => {
+    const iso = addDays(w.start, k);
+    if (d.type === "rest" || iso < today) return;
+    const tgt = [d.hr ? `HR ${d.hr}` : "", d.speed ? paceText(d.speed, d.type) : ""].filter(Boolean).join(" · ");
+    lines.push("BEGIN:VEVENT", `UID:${plan.start}-${iso}@garmin-connector`, `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${ymd(iso)}`, `DTEND;VALUE=DATE:${ymd(addDays(iso, 1))}`,
+      fold(`SUMMARY:${esc(`${d.title}${d.minutes ? ` · ${d.minutes} min` : ""}`)}`),
+      fold(`DESCRIPTION:${esc([d.details, tgt, `Week ${w.week}: ${w.focus}`].filter(Boolean).join("\n"))}`),
+      "TRANSP:TRANSPARENT", "END:VEVENT");
+  }));
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n") + "\r\n";
+}
+$("ics").onclick = () => {
+  const blob = new Blob([planIcs(S.plan)], { type: "text/calendar" });
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "training-plan.ics" });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  setStatus("Calendar file ready: open it to add the sessions to Calendar.");
+};
+
 $("cancel").onclick = () => renderSetup(false);
 $("change").onclick = () => renderSetup(true);
 $("remove").onclick = async () => {
