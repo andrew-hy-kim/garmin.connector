@@ -79,7 +79,7 @@ body {
 /* Apple's rounded face for big numbers (falls back to the system font elsewhere) */
 .tile .value, .stats .value, .big { font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
 a { color: var(--link); text-decoration: none; }
-a:hover { text-decoration: underline; }
+@media (hover: hover) { a:hover { text-decoration: underline; } }
 :focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; border-radius: 6px; }
 main { max-width: 1180px; margin: 0 auto; padding: 0 20px 64px; }
 h1 { font-size: 34px; line-height: 1.15; margin: 0; letter-spacing: -0.025em; font-weight: 700; }
@@ -98,17 +98,16 @@ select:disabled { cursor: default; opacity: .55; }
 input:disabled { opacity: .75; }
 input[type="number"] { width: 100%; }
 button { cursor: pointer; color: var(--link); font-weight: 550; transition: background-color .15s, opacity .15s; }
-button:hover:not(:disabled) { background: var(--fill-strong); }
+@media (hover: hover) { button:hover:not(:disabled) { background: var(--fill-strong); } }
 button:active:not(:disabled) { opacity: .7; }
 button.primary { background: var(--accent); color: #fff; }
 button.destructive { color: var(--danger); }
 h3.sub-h { font-size: 15px; font-weight: 650; margin: 18px 0 4px; letter-spacing: -0.01em; }
-button.primary:hover:not(:disabled) { background: var(--accent-ink); }
+@media (hover: hover) { button.primary:hover:not(:disabled) { background: var(--accent-ink); } }
 button:disabled { opacity: .45; cursor: default; }
 .seg { display: inline-flex; background: var(--fill); border-radius: 9px; padding: 2px; gap: 0; }
 .seg button { border: 0; border-radius: 7px; padding: 4px 12px; min-height: 28px; background: transparent; color: var(--text-primary); font-size: 13px; font-weight: 500; }
-.seg button:hover:not(:disabled) { background: transparent; }
-@media (hover: hover) { .seg button:hover:not(:disabled) { opacity: .7; } }
+@media (hover: hover) { .seg button:hover:not(:disabled) { background: transparent; opacity: .7; } }
 /* stronger than the hover rule, so the button you just tapped shades at once (iOS keeps it "hovered") */
 .seg button[aria-pressed="true"]:not(:disabled) { background: var(--thumb); font-weight: 600; opacity: 1; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04); }
 
@@ -125,11 +124,11 @@ html, body { overflow-x: clip; }
   .topbar { position: sticky; top: 0; z-index: 1000; -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px); }
 }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; font-size: 17px; color: var(--text-primary); letter-spacing: -0.02em; }
-.brand:hover { text-decoration: none; }
+@media (hover: hover) { .brand:hover { text-decoration: none; } }
 .brand svg { width: 24px; height: 24px; border-radius: 6px; flex: none; }
 .tabs { display: flex; gap: 2px; }
 .tabs a { color: var(--text-muted); font-size: 14px; font-weight: 500; padding: 5px 10px; border-radius: 8px; }
-.tabs a:hover { color: var(--text-primary); text-decoration: none; }
+@media (hover: hover) { .tabs a:hover { color: var(--text-primary); text-decoration: none; } }
 .tabs a[aria-current="page"] { color: var(--text-primary); font-weight: 600; background: var(--fill); }
 .tabs .ti { display: none; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
@@ -156,7 +155,7 @@ html, body { overflow-x: clip; }
 .head-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .pn { margin-left: auto; display: inline-flex; gap: 6px; }
 .pn a, .pn .off { font-size: 13px; font-weight: 550; padding: 4px 12px; border-radius: 999px; background: var(--surface-1); color: var(--link); box-shadow: var(--shadow); }
-.pn a:hover { text-decoration: none; background: var(--fill-strong); }
+@media (hover: hover) { .pn a:hover { text-decoration: none; background: var(--fill-strong); } }
 .pn .off { color: var(--text-muted); background: transparent; box-shadow: none; }
 .splits-table th, .splits-table td { padding-left: 8px; padding-right: 8px; }
 .splits-table .pbar { margin-right: 8px; }
@@ -180,7 +179,7 @@ tr.muted .pbar { opacity: .4; }
 .tile .sub .up { color: var(--good); font-weight: 600; }
 .tile.state .value { color: var(--c); }
 .tile.link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
-.tile.link:hover { box-shadow: 0 2px 10px rgba(0, 0, 0, .08); }
+@media (hover: hover) { .tile.link:hover { box-shadow: 0 2px 10px rgba(0, 0, 0, .08); } }
 .tile.link:active { transform: scale(.98); }
 .tile.with-ring { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .tile.with-ring > div { min-width: 0; }
@@ -210,7 +209,7 @@ td.name { white-space: normal; min-width: 160px; }
 td.dim, span.dim { color: var(--text-muted); }
 tr.muted td { color: var(--text-muted); }
 tr.clickable { cursor: pointer; }
-tr.clickable:hover td { background: var(--surface-2); }
+@media (hover: hover) { tr.clickable:hover td { background: var(--surface-2); } }
 tr.clickable:active td { background: var(--fill); }
 tr.clickable:focus-visible { outline-offset: -2px; }
 .empty { color: var(--text-secondary); text-align: center; padding: 32px 16px; }
@@ -261,7 +260,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 /* map controls in the app's style; dark map tiles in dark mode */
 #map .leaflet-bar { border: 0; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, .15); }
 #map .leaflet-bar a { background: var(--surface-1); color: var(--text-primary); border-bottom-color: var(--grid); }
-#map .leaflet-bar a:hover { background: var(--surface-2); }
+@media (hover: hover) { #map .leaflet-bar a:hover { background: var(--surface-2); } }
 #map .leaflet-control-attribution { background: color-mix(in srgb, var(--surface-1) 80%, transparent); color: var(--text-muted); border-radius: 6px 0 0 0; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); } }
 :root[data-theme="dark"] #map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
@@ -297,7 +296,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 .ai-box details summary { cursor: pointer; color: var(--text-muted); font-size: 13px; list-style: none; width: fit-content; }
 .ai-box details summary::-webkit-details-marker { display: none; }
 .ai-box details summary::before { content: "✦ "; color: var(--link); }
-.ai-box details summary:hover { color: var(--text-secondary); }
+@media (hover: hover) { .ai-box details summary:hover { color: var(--text-secondary); } }
 .ai-box details p { margin: 8px 0 0; }
 .tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 550; padding: 2px 10px; border-radius: 999px; color: var(--text-secondary); white-space: nowrap; background: var(--fill); }
 .tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--z1)); flex: none; }
@@ -338,7 +337,7 @@ details.more.based .kv { margin-top: 10px; }
 .hint .plan-goal { color: var(--text-primary); font-weight: 600; }
 .filters .summary { width: 100%; color: var(--text-secondary); font-size: 13px; font-variant-numeric: tabular-nums; }
 th.sortable { cursor: pointer; user-select: none; }
-th.sortable:hover { color: var(--text-primary); }
+@media (hover: hover) { th.sortable:hover { color: var(--text-primary); } }
 th[aria-sort="ascending"], th[aria-sort="descending"] { color: var(--text-primary); }
 th.sortable[aria-sort="ascending"]::after { content: " ▲"; font-size: 9px; }
 th.sortable[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
@@ -379,7 +378,7 @@ button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14p
 /* training plan */
 .goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; margin: 10px 0 14px; }
 .goal { border-radius: 14px; padding: 14px 16px; cursor: pointer; background: var(--surface-2); position: relative; transition: box-shadow .15s; }
-.goal:hover { box-shadow: inset 0 0 0 1px var(--border); }
+@media (hover: hover) { .goal:hover { box-shadow: inset 0 0 0 1px var(--border); } }
 .goal input { position: absolute; opacity: 0; pointer-events: none; }
 .goal b { display: block; margin-bottom: 4px; }
 .goal span { color: var(--text-secondary); font-size: 13px; }
@@ -453,7 +452,7 @@ summary.week-head::-webkit-details-marker { display: none; }
 .cal i.run { background: var(--fill); }
 .cal i.run b { width: var(--s); height: var(--s); border-radius: 50%; background: var(--c); }
 .cal i.link { cursor: pointer; }
-.cal i.link:hover b { outline: 2px solid var(--text-primary); outline-offset: 1px; }
+@media (hover: hover) { .cal i.link:hover b { outline: 2px solid var(--text-primary); outline-offset: 1px; } }
 @media (max-width: 600px) { .cal { gap: 3px; } .cal .col { gap: 3px; } }
 
 /* week headings in the activity list */

@@ -93,6 +93,12 @@ def comeback(runs: list[dict[str, Any]], as_of: str) -> dict[str, Any] | None:
     return None
 
 
+def _day(iso: str) -> str:
+    """'2026-09-14' -> 'Sep 14'."""
+    d = date.fromisoformat(iso)
+    return f"{d:%b} {d.day}"
+
+
 def _weeks(days: int) -> str:
     weeks = round(days / 7)
     return f"{weeks} week{'s' if weeks != 1 else ''}" if days >= 14 else f"{days} days"
@@ -127,7 +133,9 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
                            "problem speaks up."))
     elif back:
         mins, prev = back["week_minutes"], back["prev_week_minutes"]
-        detail = f"Run {back['runs_back']} since returning on {back['back_on']}. {round(mins)} min of running in the last 7 days"
+        n = back["runs_back"]
+        detail = (f"{n} run{'s' if n != 1 else ''} since returning on {_day(back['back_on'])}. "
+                  f"{round(mins)} min of running in the last 7 days")
         if prev >= 10 and mins > prev * 1.3:
             notes.append(_note("warn", "Comeback: building quickly",
                                f"{detail}, up {mins / prev - 1:.0%} on the week before. After a long break, "
@@ -235,7 +243,7 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
     loads = [r["trimp"] for r in history if r["trimp"]]
     if m.get("trimp") and len(loads) >= 6 and m["trimp"] > max(loads):
         notes.append(_note("info", "Hardest session in 6 weeks",
-                           f"Training load {round(m['trimp'])}, above anything since {since}. Plan an easy "
+                           f"Training load {round(m['trimp'])}, above anything since {_day(since)}. Plan an easy "
                            f"day or two after it."))
 
     # Personal bests within this run
@@ -286,7 +294,8 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
         if back:
             notes.append(_note(
                 "info", f"Rebuilding after {_weeks(back['break_days'])} off",
-                f"Back since {back['back_on']} ({back['runs_back']} runs, {round(back['week_minutes'])} min of "
+                f"Back since {_day(back['back_on'])} ({back['runs_back']} run{'s' if back['runs_back'] != 1 else ''}, "
+                f"{round(back['week_minutes'])} min of "
                 f"running in the last 7 days). Fitness numbers dropped during the break, which is expected. "
                 f"Build running time by roughly 10–20% a week and keep it all easy for now."))
             if state["key"] == "fresh":

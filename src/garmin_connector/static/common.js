@@ -97,7 +97,16 @@ function setStatus(msg, isError = false) {
 }
 
 // Pages start hidden ("loading") and fade in once their data is drawn, so empty cards never flash.
-function ready() { document.body.classList.remove("loading"); }
+// The browser jumps to a #section link before the page has its data, and the cards above it
+// then grow, so the jump would land in the wrong place. Jump again once the page is drawn.
+let hashDone = false;
+function ready() {
+  document.body.classList.remove("loading");
+  if (hashDone) return;
+  hashDone = true;
+  const target = /^#[a-z][\w-]*$/i.test(location.hash) && document.getElementById(location.hash.slice(1));
+  if (target) requestAnimationFrame(() => requestAnimationFrame(() => target.scrollIntoView({ block: "start" })));
+}
 setTimeout(ready, 4000); // never stay hidden if something goes wrong
 
 // Printing: open every folded section so nothing is left out, then restore
@@ -199,6 +208,12 @@ function markdown(src) {
   return out.join("");
 }
 
+// Reviews are stamped in UTC ("2026-10-03 14:22:11"); show them in your own time
+function reviewDate(utc) {
+  const d = new Date(String(utc).replace(" ", "T") + "Z");
+  return isNaN(d) ? `on ${utc}` : `on ${d.toLocaleDateString(undefined, { dateStyle: "medium" })} at ${d.toLocaleTimeString(undefined, { timeStyle: "short" })}`;
+}
+
 // "Ask Claude" box: shows a saved review, or a button to request one.
 async function setupAiBox(el, scope, activityId) {
   const params = () => new URLSearchParams({ scope, units: Units.get(), ...(activityId ? { activity_id: activityId } : {}) });
@@ -207,7 +222,7 @@ async function setupAiBox(el, scope, activityId) {
       // Reviews are written on the Mac; the phone shows the saved one, if any.
       const r = data.review;
       el.innerHTML = r
-        ? `<div class="md">${markdown(r.text)}</div><div class="meta">Written by Claude on ${esc(r.created_at)} UTC. AI can make mistakes; it only sees the numbers here.</div>`
+        ? `<div class="md">${markdown(r.text)}</div><div class="meta">Written by Claude ${esc(reviewDate(r.created_at))}. AI can make mistakes; it only sees the numbers here.</div>`
         : "";
       return;
     }
@@ -217,7 +232,7 @@ async function setupAiBox(el, scope, activityId) {
       return;
     }
     const r = data.review;
-    el.innerHTML = (r ? `<div class="md">${markdown(r.text)}</div><div class="meta">Written by Claude on ${esc(r.created_at)} UTC. AI can make mistakes; it only sees the numbers here.</div>` : "") +
+    el.innerHTML = (r ? `<div class="md">${markdown(r.text)}</div><div class="meta">Written by Claude ${esc(reviewDate(r.created_at))}. AI can make mistakes; it only sees the numbers here.</div>` : "") +
       `<button class="ai-btn" style="margin-top:10px">${r ? "Get a fresh review" : "Ask Claude for a coach's review"}</button>`;
     el.querySelector(".ai-btn").onclick = async (e) => {
       e.target.disabled = true; e.target.textContent = "Claude is reviewing… (about 20–60 seconds)";
@@ -226,6 +241,7 @@ async function setupAiBox(el, scope, activityId) {
           body: JSON.stringify({ scope, activity_id: activityId, units: Units.get() }) }));
       } catch (err) {
         e.target.disabled = false; e.target.textContent = "Try again";
+        el.querySelector(":scope > .warn")?.remove(); // one message, not a stack of them
         el.insertAdjacentHTML("afterbegin", `<div class="warn">${esc(err.message)}</div>`);
       }
     };

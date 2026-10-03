@@ -201,3 +201,34 @@ def test_garmin_profile_errors_dont_stop_sync(conn):
     assert result["activities"] == 1
     from garmin_connector import processing
     assert processing.effective_settings(conn)["sources"]["max_hr"] == "estimated"
+
+
+def test_a_failed_profile_request_keeps_the_saved_zones(conn):
+    from garmin_connector import processing
+
+    sync.sync(FakeGarminWithProfile([make_activity(1, days_ago(3))]), conn, download_fit=False)
+    db.set_text_setting(conn, "zone_system", "garmin")
+    before = processing.effective_settings(conn)
+
+    class Flaky(FakeGarminWithProfile):
+        def connectapi(self, path, **kwargs):
+            raise RuntimeError("Garmin hiccup")
+
+    sync.sync(Flaky([make_activity(1, days_ago(3))]), conn, download_fit=False)
+    after = processing.effective_settings(conn)
+    assert after["zone_floors"] == before["zone_floors"] == [120, 135, 149, 164, 178]
+    assert (after["max_hr"], after["resting_hr"]) == (192, 48)
+
+
+def test_settings_reject_impossible_heart_rates(tmp_path):
+    path = tmp_path / "s.db"
+    db.connect(path).close()
+    client = create_app(path).test_client()
+    bad = [{"max_hr": "abc"}, {"max_hr": 400}, {"resting_hr": 5}, {"max_hr": 180, "lthr": 185}]
+    for body in bad:
+        res = client.post("/api/settings", json=body)
+        assert res.status_code == 400 and res.get_json()["error"], body
+    ok = client.post("/api/settings", json={"max_hr": 190, "lthr": 172, "resting_hr": None})
+    assert ok.status_code == 200 and ok.get_json()["lthr"] == 172
+    # clearing a value is always allowed
+    assert client.post("/api/settings", json={"max_hr": None, "lthr": None}).status_code == 200

@@ -153,10 +153,39 @@
     return !!overview;
   })();
 
+  const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const nextDay = (iso, n = 1) => { const d = new Date(iso + "T12:00"); d.setDate(d.getDate() + n); return isoDay(d); };
+
+  // The file stops at the day it was exported. Carry fitness and fatigue on to today with no
+  // training (the file has every workout up to then), the same way the Mac would show them.
+  function loadToToday(series) {
+    if (!series || !series.length) return series;
+    const today = isoDay(new Date());
+    let last = series[series.length - 1];
+    while (last.date < today) {
+      const fitness = last.fitness - last.fitness / 42, fatigue = last.fatigue - last.fatigue / 7;
+      last = { date: nextDay(last.date), load: 0, fitness: Math.round(fitness * 10) / 10,
+        fatigue: Math.round(fatigue * 10) / 10, form: Math.round((last.fitness - last.fatigue) * 10) / 10 };
+      series.push(last);
+    }
+    return series;
+  }
+
+  // Which plan week is "this week" depends on today, not on the day the file was made.
+  function planToToday(data) {
+    if (!data || !data.plan || !data.progress) return data;
+    const today = isoDay(new Date());
+    data.plan.weeks.forEach((w, i) => {
+      const p = data.progress[i];
+      if (p) p.status = today < w.start ? "upcoming" : today < nextDay(w.start, 7) ? "current" : "past";
+    });
+    return data;
+  }
+
   const routes = {
     "/api/activities": () => overview.activities,
     "/api/vo2max": () => overview.vo2max,
-    "/api/training-load": () => overview.training_load,
+    "/api/training-load": () => loadToToday(structuredClone(overview.training_load)),
     "/api/records": () => overview.records,
     "/api/settings": () => {
       const s = structuredClone(overview.settings);
@@ -171,7 +200,7 @@
       const d = new Date(), today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       return { ...sg, workouts: sg.workouts.filter((w) => w.date >= today) };
     },
-    "/api/plan": () => overview.plan,
+    "/api/plan": () => planToToday(structuredClone(overview.plan)),
   };
 
   async function get(url, options) {

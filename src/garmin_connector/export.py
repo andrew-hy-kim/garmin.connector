@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import api, config, db, insights, suggest
+from . import api, config, db, insights, processing, suggest
 
 log = logging.getLogger(__name__)
 
@@ -82,7 +82,8 @@ def downsample(streams: dict[str, list], step: int = STEP_S) -> dict[str, list]:
     return out
 
 
-CACHE_KEY = f"v{FORMAT_VERSION}-{STEP_S}s"
+# Changes with the export format and with the analysis (it cleans the heart rate shown on the phone)
+CACHE_KEY = f"v{FORMAT_VERSION}-{STEP_S}s-a{processing.ANALYSIS_VERSION}"
 
 
 def phone_streams(conn: sqlite3.Connection, activity_id: int) -> tuple[dict[str, list], bool]:

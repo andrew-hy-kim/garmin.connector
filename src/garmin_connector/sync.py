@@ -83,7 +83,10 @@ def fetch_hr_profile(client: Garmin, conn: sqlite3.Connection) -> dict:
     Best effort: anything Garmin doesn't return is left to the app's estimates,
     and a failure here never stops the sync.
     """
-    profile = {}
+    # Start from what was saved last time, so a request that fails today (Garmin hiccup,
+    # expired session) keeps the old values instead of silently switching your zones.
+    previous = db.get_garmin_profile(conn)
+    profile = dict(previous)
     try:
         zones = client.connectapi("/biometric-service/heartRateZones") or []
         entry = next((z for z in zones if z.get("sport") == "RUNNING"), None) \
@@ -95,6 +98,9 @@ def fetch_hr_profile(client: Garmin, conn: sqlite3.Connection) -> dict:
         if all(floors) and floors == sorted(floors):
             profile["zone_floors"] = floors
             profile["zone_method"] = entry.get("trainingMethod")
+        else:
+            profile.pop("zone_floors", None)
+            profile.pop("zone_method", None)
     except Exception as err:
         log.warning("Couldn't fetch heart-rate zones from Garmin: %s", err)
     try:
@@ -110,7 +116,7 @@ def fetch_hr_profile(client: Garmin, conn: sqlite3.Connection) -> dict:
             log.debug("No lactate threshold from Garmin: %s", err)
 
     profile = {k: v for k, v in profile.items() if v}
-    if profile:
+    if profile != previous:
         db.set_garmin_profile(conn, profile)
         log.info("Heart-rate settings from Garmin: %s", ", ".join(
             f"{label} {profile[key]}" for key, label in

@@ -370,7 +370,7 @@ function renderVolume() {
   opts.scales.y.ticks.callback = (v) => `${v} ${u}`;
   opts.onClick = (e, els) => { if (els.length) showPeriod(b, els[0].index); };
   opts.onHover = clickCursor;
-  opts.plugins.tooltip.callbacks.footer = () => `Click to list these ${state.type === "run" ? "runs" : "activities"}`;
+  opts.plugins.tooltip.callbacks.footer = () => `${matchMedia("(hover: hover)").matches ? "Click" : "Tap"} to list these ${state.type === "run" ? "runs" : "activities"}`;
   drawChart("weekly", "weekly", {
     type: "bar",
     // the current week or month is still in progress: drawn lighter
@@ -681,6 +681,8 @@ function renderTable() {
   // Clear only shows when a filter is on
   const filtering = t.search || t.workout !== "all" || t.when !== "any" || t.sort !== "start_time_local" || t.dir !== -1;
   $("f-clear").hidden = !filtering;
+  const sortValue = `${t.sort}:${t.dir}`;
+  $("f-sort").value = [...$("f-sort").options].some((o) => o.value === sortValue) ? sortValue : "";
   $("f-summary").textContent = all.length
     ? `${fmtNum(all.length)} ${all.length === 1 ? "activity" : "activities"} · ${fmtNum(dist(meters), 1)} ${Units.get()} · ${fmtTotal(secs)}`
     : "No activities match these filters.";
@@ -852,16 +854,16 @@ function renderNextUp() {
     el.innerHTML = sg && sg.basis ? `<h3 class="sub-h" style="margin-top:4px">Your next workouts</h3><p class="hint">${esc(sg.basis)}</p>` : "";
     return;
   }
-  const n = nextCount();
+  const n = Math.min(nextCount(), sg.workouts.length);
   const today = isoDay(new Date());
   const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return isoDay(d); })();
   const when = (w) => (w.date === today ? "Today" : w.date === tomorrow ? "Tomorrow"
     : new Date(w.date + "T12:00").toLocaleDateString(undefined, { weekday: "short" }));
   const target = (w) => [w.hr ? `HR ${w.hr}` : "", w.speed ? `about ${fmtPace(w.speed)}` : ""].filter(Boolean).join(" · ");
   el.innerHTML = `<div class="toolbar" style="margin:4px 0 2px">
-      <h3 class="sub-h" style="margin:0">Your next ${n} workouts</h3><span class="spacer"></span>
+      <h3 class="sub-h" style="margin:0">Your next ${n === 1 ? "workout" : `${n} workouts`}</h3><span class="spacer"></span>
       <div class="seg" role="group" aria-label="How many workouts to suggest">${NEXT_COUNTS.map((c) =>
-        `<button data-n="${c}" aria-pressed="${c === n}">${c}</button>`).join("")}</div></div>
+        `<button data-n="${c}" aria-pressed="${c === nextCount()}">${c}</button>`).join("")}</div></div>
     <p class="hint" style="margin-bottom:8px">${esc(sg.basis)}</p>
     <div class="nx-list">${sg.workouts.slice(0, n).map((w) => `<div class="nx" style="--c:${typeColor(w.type)}">
       <div class="when"><b>${when(w)}</b><span>${new Date(w.date + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span></div>

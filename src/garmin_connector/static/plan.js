@@ -6,8 +6,10 @@ let runsByDay = new Map(); // "2026-09-29" -> runs that day, to tick off planned
 const TYPE_LABEL = { easy: "Easy", long: "Long", vo2: "VO2 max", threshold: "Threshold", tempo: "Tempo", hills: "Hills", rest: "Rest" };
 const HARD = new Set(["vo2", "threshold", "tempo", "hills"]);
 const shortDate = (iso) => new Date(iso + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
-const addDays = (iso, n) => { const d = new Date(iso + "T12:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const localIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayIso = () => localIso(new Date());
+// local calendar date (toISOString would give the UTC date, a day off in timezones far from UTC)
+const addDays = (iso, n) => { const d = new Date(iso + "T12:00"); d.setDate(d.getDate() + n); return localIso(d); };
 
 function paceText(mps, type) {
   if (!mps) return "";
@@ -76,8 +78,10 @@ $("cancel").onclick = () => renderSetup(false);
 $("change").onclick = () => renderSetup(true);
 $("remove").onclick = async () => {
   if (!confirm("Remove this training plan?")) return;
-  S = await getJSON("/api/plan", { method: "DELETE" });
-  render();
+  try {
+    S = await busy($("remove"), "Removing…", () => getJSON("/api/plan", { method: "DELETE" }));
+    render();
+  } catch (err) { setStatus(err.message, true); }
 };
 
 // ---------- plan ----------

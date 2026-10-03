@@ -13,6 +13,8 @@ from flask import Flask, abort, jsonify, request, send_from_directory
 from . import ai, api, auth, config, db, export, insights, planner, processing, suggest, sync
 
 log = logging.getLogger(__name__)
+# Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
+HR_LIMITS = [("max_hr", "Max HR", 120, 230), ("resting_hr", "Resting HR", 30, 100), ("lthr", "Threshold HR", 100, 220)]
 STATIC = Path(__file__).parent / "static"
 
 
@@ -151,13 +153,29 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     @app.post("/api/settings")
     def save_settings():
         body = request.get_json(force=True) or {}
+        values = {}
+        for key, label, lo, hi in HR_LIMITS:
+            if key in body:
+                value = body[key]
+                try:
+                    values[key] = float(value) if value not in (None, "", 0) else None
+                except (TypeError, ValueError):
+                    return jsonify({"error": f"{label} must be a number."}), 400
+                if values[key] is not None and not lo <= values[key] <= hi:
+                    return jsonify({"error": f"{label} should be between {lo} and {hi} bpm."}), 400
         with conn() as c:
+            current = processing.effective_settings(c)
+            # what the numbers will be after saving (a cleared value falls back to Garmin's or the estimate)
+            max_hr = values.get("max_hr", current["max_hr"] if current["sources"]["max_hr"] == "you" else None)
+            for key in ("resting_hr", "lthr"):
+                value = values.get(key, current[key] if current["sources"][key] == "you" else None)
+                if value and max_hr and value >= max_hr:
+                    label = "Resting HR" if key == "resting_hr" else "Threshold HR"
+                    return jsonify({"error": f"{label} has to be below your max HR ({round(max_hr)})."}), 400
             if body.get("zone_system") in ("threshold", "garmin"):
                 db.set_text_setting(c, "zone_system", body["zone_system"])
-            for key in ("max_hr", "resting_hr", "lthr"):
-                if key in body:
-                    value = body[key]
-                    db.set_setting(c, key, float(value) if value not in (None, "", 0) else None)
+            for key, value in values.items():
+                db.set_setting(c, key, value)
             processing.refresh(c)
             result = api.settings_with_zones(c)
         export_in_background()
