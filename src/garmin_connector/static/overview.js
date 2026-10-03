@@ -521,6 +521,79 @@ function renderEfficiency() {
   });
 }
 
+// ---------- running form (cadence and running dynamics on easy runs) ----------
+const FORM = [
+  { key: "cadence_spm", label: "Cadence", unit: "spm", digits: 0, better: 1,
+    hint: "Steps per minute on easy runs. A slightly higher cadence usually means shorter, lighter steps and less load on each landing." },
+  { key: "stride_cm", label: "Stride", unit: "", digits: 2, better: 1, stride: true,
+    hint: "Average stride length on easy runs. Longer strides at the same effort come with fitness and strength; it also grows with pace." },
+  { key: "ground_contact_ms", label: "Contact", unit: "ms", digits: 0, better: -1,
+    hint: "Ground contact time on easy runs: how long each foot stays on the ground. Shorter usually means a more elastic, efficient stride." },
+  { key: "vertical_ratio_pct", label: "Vert. ratio", unit: "%", digits: 1, better: -1,
+    hint: "Vertical ratio on easy runs: bounce divided by stride length. Lower means less energy spent going up and down for each meter forward." },
+];
+let formBy = "cadence_spm";
+try { formBy = localStorage.getItem("formBy") || formBy; } catch {}
+function renderForm() {
+  const card = $("form-card");
+  if (!card) return;
+  const easy = new Set(["easy", "recovery", "long", "easy_strides"]);
+  const runs = state.activities.filter((a) => isRun(a.activity_type) && easy.has(a.workout_type));
+  const have = FORM.filter((f) => runs.filter((a) => a[f.key]).length >= 5);
+  card.hidden = !have.length;
+  if (!have.length) return;
+  if (!have.some((f) => f.key === formBy)) formBy = have[0].key;
+  const f = FORM.find((x) => x.key === formBy);
+  $("form-by").hidden = have.length < 2;
+  $("form-by").innerHTML = have.map((x) => `<button data-k="${x.key}" aria-pressed="${x.key === formBy}">${x.label}</button>`).join("");
+  $("form-by").onclick = (e) => {
+    const k = e.target.closest("button")?.dataset.k;
+    if (!k) return;
+    formBy = k; try { localStorage.setItem("formBy", k); } catch {}
+    renderForm();
+  };
+  $("form-hint").textContent = f.hint;
+  const imperial = Units.get() === "mi";
+  const unit = f.stride ? (imperial ? "ft" : "m") : f.unit;
+  const conv = (v) => (f.stride ? (imperial ? v / 30.48 : v / 100) : v);
+  const all = runs.filter((a) => a[f.key]).map((a) => ({ x: localDate(a.start_time_local).getTime(), y: conv(a[f.key]), a })).sort((p, q) => p.x - q.x);
+  const start = rangeStart().getTime();
+  const pts = all.filter((p) => p.x >= start);
+  const trend = pts.map((p) => {
+    const win = all.filter((q) => q.x <= p.x && q.x > p.x - 30 * 864e5);
+    return { x: p.x, y: win.reduce((s, q) => s + q.y, 0) / win.length };
+  });
+  const fmt = (v) => fmtNum(v, f.digits);
+  if (trend.length > 1) {
+    const change = trend.at(-1).y - trend[0].y;
+    const flat = Math.abs(change) < Math.max(Math.abs(trend[0].y) * 0.01, 10 ** -f.digits);
+    const since = state.range === "All" ? "since you started" : `over ${state.range}`;
+    $("form-head").innerHTML = `<span class="big">${fmt(trend.at(-1).y)}<small>${unit}</small></span>
+      <span class="chg ${!flat && Math.sign(change) === f.better ? "up" : ""}">${flat ? "Steady" : `${change > 0 ? "▲" : "▼"} ${fmt(Math.abs(change))} ${unit}`} ${since}</span>
+      <span class="dim">30-day average</span>`;
+  } else $("form-head").innerHTML = "";
+  const opts = chartBase();
+  opts.interaction = { mode: "nearest", intersect: false };
+  timeAxis(opts);
+  opts.scales.y.ticks.callback = (v) => `${fmtNum(v, f.digits)} ${unit}`;
+  const dotsAt = (e, chart) => chart.getElementsAtEventForMode(e.native, "nearest", { intersect: true }, false).filter((el) => el.datasetIndex === 0);
+  opts.onClick = (e, _, chart) => { const hit = dotsAt(e, chart)[0]; if (hit) location.href = pageUrl("activity", { id: pts[hit.index].a.activity_id }); };
+  opts.onHover = (e, _, chart) => clickCursor(e, dotsAt(e, chart));
+  opts.plugins.tooltip = { callbacks: {
+    title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
+    label: (i) => i.datasetIndex === 0 ? `${i.raw.a.name}: ${fmt(i.parsed.y)} ${unit} at ${fmtPace(i.raw.a.avg_speed_mps)}`
+      : `30-day average: ${fmt(i.parsed.y)} ${unit}`,
+  } };
+  drawChart("runform", "runform", {
+    type: "scatter",
+    data: { datasets: [
+      { data: pts, backgroundColor: cssVar("--cadence") + "66", pointRadius: 3, pointHoverRadius: 5 },
+      { type: "line", data: trend, borderColor: cssVar("--cadence"), borderWidth: 2, pointRadius: 0, tension: 0.3 },
+    ] },
+    options: opts,
+  });
+}
+
 // Big current value plus its change over the selected range
 function headline(value, change, fmt, what) {
   const since = state.range === "All" ? "since you started" : `over ${state.range}`;
@@ -859,7 +932,7 @@ function populateTypes() {
 // Everything that depends on the time range
 function renderCharts() {
   renderMilestones();
-  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus(); renderRecovery(); renderGear();
+  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus(); renderRecovery(); renderGear();
 }
 
 // Did you run on day k of the plan week starting `start`?

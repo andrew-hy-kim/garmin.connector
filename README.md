@@ -74,6 +74,9 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   easy runs) and **long runs** (your longest each week against the long-run threshold and your
   marathon target). Each chart leads with its headline number, and a click on a week opens its
   runs.
+- **Running form:** cadence, stride length, ground contact time and vertical ratio on easy runs
+  (whichever your watch records), each run plus a 30-day average, so you see your form change
+  over months
 - **Statistics** by year, month or week: runs, distance, time, pace, heart rate, climb, longest
   run and VO2max. Click a row to list its runs. Above it, a year-to-date chart of this year's
   distance against last year and your best year: ahead or behind by this date, and what
