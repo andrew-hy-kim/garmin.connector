@@ -557,11 +557,11 @@ function renderSplits() {
   for (let k = 1; k < bounds.length; k++) {
     const i0 = bounds[k - 1], i1 = bounds[k], s = parts[k - 1];
     const zone = zoneIndex(s.hr);
-    const bar = s.speed ? `<span class="pbar" style="width:${Math.round((s.speed / fastest) * 40)}px;--c:${zone >= 0 ? `var(--z${zone + 1})` : "var(--elev)"}"></span>` : "";
+    const bar = s.speed ? `<span class="pbar" style="width:${Math.round((s.speed / fastest) * 28)}px;--c:${zone >= 0 ? `var(--z${zone + 1})` : "var(--elev)"}"></span>` : "";
     const partial = s.meters < unit * 0.95;
     const elev = (S.altitude[i1] ?? 0) - (S.altitude[i0] ?? 0);
     rows.push(`<tr class="clickable" tabindex="0" data-i0="${i0}" data-i1="${i1}">
-      <td>${k}${partial ? ` <span class="hint">(${dist(s.meters).toFixed(2)})</span>` : ""}${k - 1 === best ? ` <span class="badge best">Fastest</span>` : ""}</td>
+      <td>${k}${partial ? ` <span class="hint">(${dist(s.meters).toFixed(2)})</span>` : ""}${k - 1 === best ? ` <span class="best" title="Fastest split" aria-label="Fastest split">★</span>` : ""}</td>
       <td class="num">${bar}<b>${fmtPaceOrSpeed(s.speed, D.activity.activity_type)}</b></td>
       <td class="num">${run && s.gap ? fmtPace(s.gap) : ""}</td>
       <td class="num">${s.hr ? Math.round(s.hr) : ""}</td>
