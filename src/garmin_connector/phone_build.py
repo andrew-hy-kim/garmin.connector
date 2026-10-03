@@ -31,8 +31,8 @@ HEAD_EXTRA = """<link rel="manifest" href="manifest.webmanifest">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Running">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 """
 
 MANIFEST = {
@@ -42,7 +42,7 @@ MANIFEST = {
     "start_url": "./index.html",
     "scope": "./",
     "display": "standalone",
-    "background_color": "#f4f3f0",
+    "background_color": "#f2f2f7",
     "theme_color": "#2a78d6",
     "icons": [
         {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
