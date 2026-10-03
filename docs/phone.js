@@ -73,9 +73,10 @@
     // remember what changed, to confirm it after the reload
     const before = overview ? new Set(overview.activities.map((a) => a.activity_id)) : null;
     const added = before ? snap.overview.activities.filter((a) => !before.has(a.activity_id)).length : null;
-    try { sessionStorage.setItem("phoneImported", JSON.stringify({ added, total: snap.overview.activities.length })); } catch {}
     const db = await openDb();
     await saveSnapshot(db, snap, file.size);
+    // only once the data is safely stored: a note to confirm the import after the reload
+    try { sessionStorage.setItem("phoneImported", JSON.stringify({ added, total: snap.overview.activities.length })); } catch {}
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   }
 

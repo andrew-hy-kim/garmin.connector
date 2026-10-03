@@ -701,7 +701,7 @@ $("xaxis").addEventListener("click", (e) => {
   derive(); drawAll();
 });
 
-unitsToggle($("units"), () => { renderAll(); });
+unitsToggle($("units"), () => { renderAll(); if (allActivities) renderComparison(allActivities); });
 let resizeTimer;
 window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawAll, 100); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawAll(); if (D?.streams) renderMap(); });
@@ -728,8 +728,9 @@ function renderComparison(all) {
     (<a href="${pageUrl("activity", { id: prev.activity_id })}">${esc(fmtDate(prev.start_time_local, { month: "short", day: "numeric" }))}</a>): ${pace}${hr}`;
 }
 
+let allActivities = null; // the activity list, for the comparison line and older/newer
 async function renderPrevNext() {
-  const all = await getJSON("/api/activities");
+  const all = allActivities = await getJSON("/api/activities");
   renderComparison(all);
   const list = all.filter((a) => a.has_streams);
   const i = list.findIndex((a) => a.activity_id === activityId);

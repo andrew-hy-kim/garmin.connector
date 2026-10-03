@@ -695,7 +695,8 @@ function renderTable() {
     w.n += 1; w.m += a.distance_m || 0; weekTotals.set(k, w);
   }
   const thisWeek = isoDay(startOfWeek(new Date()));
-  const lastWeek = isoDay(new Date(startOfWeek(new Date()).getTime() - 7 * 864e5));
+  const lw = startOfWeek(new Date()); lw.setDate(lw.getDate() - 7); // calendar days, safe across clock changes
+  const lastWeek = isoDay(lw);
   const weekName = (k) => {
     if (k === thisWeek) return "This week";
     if (k === lastWeek) return "Last week";
@@ -841,12 +842,12 @@ function renderWeekPlan() {
 }
 
 function render() {
-  renderToday();
-  renderConsistency();
-  // Nothing synced yet: a welcome card instead of empty charts
+  // Nothing synced yet: a welcome card instead of empty charts (set first, so cards have their width)
   const empty = !state.activities.length;
   document.body.classList.toggle("no-data", empty);
   $("welcome").hidden = !empty || PHONE;
+  renderToday();
+  renderConsistency();
   renderTiles(); renderNotes($("notes"), state.insights); renderWeekPlan(); renderExplain(); renderCompare();
   renderCharts(); renderSettings(); renderTable();
 }
