@@ -76,7 +76,7 @@ function renderPlan() {
     const prog = S.progress[i];
     const current = prog.status === "current";
     const done = prog.status === "upcoming" ? "" : `<span class="done">${prog.status === "current" ? "So far" : "Done"}:
-      <b>${prog.done_minutes}</b> of ${prog.planned_minutes} min · ${prog.done_runs}/${prog.planned_runs} runs${prog.planned_quality ? ` · ${prog.done_quality}/${prog.planned_quality} workouts` : ""}</span>
+      <b>${prog.done_minutes}</b> of ${prog.planned_minutes} min · ${prog.done_runs}/${prog.planned_runs} runs${prog.planned_quality ? ` · ${workoutsText(prog.done_quality, prog.planned_quality)}` : ""}</span>
       <div class="progress" role="img" aria-label="${Math.round(Math.min(1, prog.done_minutes / (prog.planned_minutes || 1)) * 100)}% of planned minutes done"><div style="width:${Math.min(100, (prog.done_minutes / (prog.planned_minutes || 1)) * 100)}%"></div></div>`;
     const days = w.days.map((d, k) => {
       const iso = addDays(w.start, k);
@@ -95,6 +95,12 @@ function renderPlan() {
       ${days}</details>`;
   }).join("");
   setupAiBox($("ai"), "plan");
+}
+
+// "1/2 workouts", or "1 workout + 1 extra" when you did more hard sessions than planned
+function workoutsText(done, planned) {
+  const w = (n) => `${n} workout${n === 1 ? "" : "s"}`;
+  return done > planned ? `${w(planned)} + ${done - planned} extra` : `${done}/${planned} workouts`;
 }
 
 // What actually happened on a plan day: the run(s) you did, or "Not done" for a missed run
