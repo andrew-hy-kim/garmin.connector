@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from fitgen import intervals, steady_run, write_fit
+from fitgen import intervals, run_walk, steady_run, write_fit
 from garmin_connector import analysis, db, fit, processing
 
 
@@ -205,3 +205,16 @@ def test_classify_intervals_from_laps_and_from_pace():
     tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 185, lap_dicts)
     assert tag["type"] == "intervals_threshold"
 
+
+
+def test_run_walk_at_an_easy_heart_rate_is_an_easy_run():
+    # 8 × 2 min running between walks, heart rate well inside the easy zone: structure, not effort
+    samples, laps = run_walk(reps=8, run_s=120, walk_s=60, run_mps=2.6, run_hr=140, walk_hr=118)
+    s = _streams(samples)
+    tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 172, [])
+    assert tag["type"] == "easy" and not tag["quality"] and "heart rate stayed easy" in tag["reason"]
+    # the same structure with the running stretches pushed into tempo is still a fartlek
+    samples, laps = run_walk(reps=8, run_s=120, walk_s=60, run_mps=3.6, run_hr=160, walk_hr=130)
+    s = _streams(samples)
+    tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 172, [])
+    assert tag["type"] == "fartlek" and tag["quality"]

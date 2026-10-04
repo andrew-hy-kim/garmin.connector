@@ -444,6 +444,12 @@ def classify_workout(activity_type: str | None, t, speed, hr, distance, lthr: fl
         peak_rel = peaks[len(peaks) // 2] / lthr if peaks else 0
         avg_rel = avgs[len(avgs) // 2] / lthr if avgs else 0
         desc = f"{len(reps)} × {_fmt_s(typical)} reps"
+        # Faster stretches that never take heart rate out of the easy zone (run/walk, relaxed
+        # pickups) aren't a workout: the effort is what counts, not the structure.
+        if peaks and peak_rel < LTHR_BANDS[0][2] and bands and bands[0] >= 0.9 * sum(bands):
+            kind = "long" if moving_s >= 75 * 60 else "easy"
+            return tag(kind, f"{len(reps)} faster stretches of about {_fmt_s(typical)} (run/walk or pickups), "
+                             f"but heart rate stayed easy, peaking at {peak_rel:.0%} of threshold HR.")
         if typical < 90:
             if work_s < 300 and bands and bands[0] >= 0.7 * sum(bands):
                 return tag("easy_strides", f"Easy running with {len(reps)} short pickups ({_fmt_s(typical)}).")
