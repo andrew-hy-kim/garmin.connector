@@ -259,6 +259,12 @@ def summary(conn: sqlite3.Connection, today: date | None = None) -> dict[str, An
             history.append({"date": today.isoformat(), "vo2max": round(vo2, 1),
                             "marathon_shape": marathon_shape(runs, today, vo2, first_day)["percent"]})
     out["history"] = history
+    # Nothing to estimate from in the last 30 days (a break, or only run/walks): keep the latest
+    # estimate, dated, so paces and predictions stay available
+    out["vo2max_as_of"] = None
+    if not vo2 and history:
+        vo2 = history[-1]["vo2max"]
+        out["vo2max_as_of"] = history[-1]["date"]
     out["vo2max"] = round(vo2, 1) if vo2 else None
 
     if vo2:
@@ -288,7 +294,7 @@ def summary(conn: sqlite3.Connection, today: date | None = None) -> dict[str, An
                         for k, label, lo, hi, about in PACE_ZONES]
         out["vvo2max_mps"] = vmax / 60
         month_ago = [h for h in history if h["date"] <= (today - timedelta(days=28)).isoformat()]
-        out["vo2max_change_4w"] = round(vo2 - month_ago[-1]["vo2max"], 1) if month_ago else None
+        out["vo2max_change_4w"] = round(vo2 - month_ago[-1]["vo2max"], 1) if month_ago and not out["vo2max_as_of"] else None
     else:
         out["marathon_shape"] = None
         out["races"] = []

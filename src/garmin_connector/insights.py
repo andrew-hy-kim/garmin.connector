@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import threading
 from contextlib import contextmanager
 from datetime import date, timedelta
 from statistics import median
@@ -45,25 +46,27 @@ def _mins(seconds: float) -> str:
     return f"{round(seconds / 60)} min"
 
 
-_runs_cache: list[dict[str, Any]] | None = None
+# Per thread: the export builds its file in a background thread while the dashboard keeps
+# serving requests, which must not see the export's cache.
+_cache = threading.local()
 
 
 @contextmanager
 def cached_runs(conn: sqlite3.Connection):
     """Load the run history once and reuse it, for building notes on many workouts in a row (the export)."""
-    global _runs_cache
-    _runs_cache = None
-    _runs_cache = _runs(conn)
+    _cache.runs = None
+    _cache.runs = _runs(conn)
     try:
         yield
     finally:
-        _runs_cache = None
+        _cache.runs = None
 
 
 def _runs(conn: sqlite3.Connection, since: str | None = None) -> list[dict[str, Any]]:
     """Runs with their metrics, oldest first."""
-    if _runs_cache is not None:
-        return [r for r in _runs_cache if since is None or r["start_time_local"] >= since]
+    cached = getattr(_cache, "runs", None)
+    if cached is not None:
+        return [r for r in cached if since is None or r["start_time_local"] >= since]
     rows = conn.execute(
         "SELECT a.activity_id, a.start_time_local, a.distance_m, a.duration_s, a.activity_type, m.trimp, m.data "
         "FROM activities a JOIN activity_metrics m USING (activity_id) "
@@ -157,7 +160,8 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
         n = back["runs_back"]
         detail = (f"{n} run{'s' if n != 1 else ''} since returning on {_day(back['back_on'])}. "
                   f"{round(mins)} min of running in the last 7 days")
-        if prev >= 10 and mins > prev * 1.3:
+        # a real jump, not running 4 days one week and 3 the next
+        if prev >= 10 and mins > prev * 1.3 and mins - prev >= 30:
             notes.append(_note("warn", "Comeback: building quickly",
                                f"{detail}, up {mins / prev - 1:.0%} on the week before. After a long break, "
                                f"tendons and bones adapt more slowly than your heart and lungs. Keep increases "

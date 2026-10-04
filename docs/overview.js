@@ -998,7 +998,7 @@ function renderRaces() {
   table.classList.toggle("no-garmin", !rp.races.some((r) => r.garmin_seconds));
   table.classList.toggle("no-effort", !rp.races.some((r) => r.seconds));
   $("races-hint").textContent = rp.vo2max
-    ? `From your VO2max shape (${rp.vo2max.toFixed(1)}) and marathon shape (${rp.marathon_shape}%): long races are held back when your endurance is short of what they need. ${act()} a row to see your fastest recent stretch at that distance.`
+    ? `From your VO2max shape (${rp.vo2max.toFixed(1)}${state.perf?.vo2max_as_of ? `, as of ${fmtDate(state.perf.vo2max_as_of, { month: "short", day: "numeric" })}` : ""}) and marathon shape (${rp.marathon_shape}%): long races are held back when your endurance is short of what they need. ${act()} a row to see your fastest recent stretch at that distance.`
     : `From your fastest stretches in the last ${rp.window_days} days, scaled to each distance. ${act()} a row to see the stretch it's based on.`;
   // negative = faster, which is good
   const change = (s) => (s == null ? `<span class="dim">–</span>` : Math.abs(s) < 5 ? `<span class="dim">same</span>`
@@ -1221,7 +1221,13 @@ function renderReadiness() {
   if (!today) { el.hidden = true; return; }
   el.hidden = false;
   const st = formState(today);
-  const [word, advice] = READY[st.key];
+  let [word, advice] = READY[st.key];
+  // after a break, low fatigue reads as "fresh"; that's the break talking, not readiness to race
+  const rebuilding = (state.insights || []).some((n) => n.title.startsWith("Rebuilding after"));
+  if (rebuilding && (st.key === "fresh" || st.key === "neutral")) {
+    word = "Rebuilding";
+    advice = "Your training load is low after the break, so the numbers look fresh. Keep building gradually with easy running.";
+  }
   const x = loadExtras(state.load);
   const t = todaysSession();
   const sign = (v) => `${v > 0 ? "+" : ""}${v.toFixed(0)}`;
@@ -1291,7 +1297,7 @@ async function renderLatest() {
         <div class="notes compact" id="latest-notes"></div>
       </div>
     </div>`;
-  if (!a.has_streams) return;
+  if (!a.has_streams) { $("latest-route").hidden = true; return; }
   // the route and the run's coach notes come with its details
   const id = a.activity_id;
   latestShown = id;
@@ -1299,7 +1305,7 @@ async function renderLatest() {
     const d = await getJSON(`/api/activities/${id}`);
     if (latestShown !== id) return;
     if (d.streams?.lat) $("latest-route").innerHTML = routeSvg(d.streams.lat, d.streams.lon, color);
-    const notes = (d.insights || []).filter((n) => !n.title.startsWith("Tagged:")).slice(0, 2);
+    const notes = (d.insights || []).filter((n) => !/^(Tagged|Run\/walk):/.test(n.title)).slice(0, 2);
     if (notes.length) renderNotes($("latest-notes"), notes);
   } catch {}
   $("latest-route").hidden = !$("latest-route").innerHTML;
@@ -1389,7 +1395,7 @@ function renderPerf() {
       <div class="perf-item">
         <span class="label">VO2max shape</span>
         <span class="big">${p.vo2max.toFixed(1)}</span>
-        <span class="sub">${chg == null ? "" : Math.abs(chg) < 0.2 ? "Steady over 4 weeks" : `<span class="${chg > 0 ? "up" : ""}">${chg > 0 ? "▲" : "▼"} ${Math.abs(chg).toFixed(1)}</span> over 4 weeks`}${watch ? ` · watch says ${watch.value.toFixed(0)}` : ""}</span>
+        <span class="sub">${p.vo2max_as_of ? `As of ${esc(fmtDate(p.vo2max_as_of, { month: "short", day: "numeric" }))}: no continuous runs since to update it` : chg == null ? "" : Math.abs(chg) < 0.2 ? "Steady over 4 weeks" : `<span class="${chg > 0 ? "up" : ""}">${chg > 0 ? "▲" : "▼"} ${Math.abs(chg).toFixed(1)}</span> over 4 weeks`}${watch ? ` · watch says ${watch.value.toFixed(0)}` : ""}</span>
       </div>
       <div class="perf-item">
         <span class="label">Marathon shape</span>
@@ -1446,7 +1452,7 @@ function renderPaces() {
   const p = state.perf;
   $("paces-card").hidden = !p?.paces?.length;
   if (!p?.paces?.length) return;
-  $("paces-hint").textContent = `From your VO2max shape of ${p.vo2max.toFixed(1)}, using Jack Daniels' training intensities. As your fitness changes, so do these.`;
+  $("paces-hint").textContent = `From your VO2max shape of ${p.vo2max.toFixed(1)}${p.vo2max_as_of ? ` (as of ${fmtDate(p.vo2max_as_of, { month: "short", day: "numeric" })})` : ""}, using Jack Daniels' training intensities. As your fitness changes, so do these.`;
   const zone = { easy: 2, marathon: 3, threshold: 4, interval: 5, repetition: 5 };
   el.innerHTML = p.paces.map((z) => `<div class="pace-row" style="--c:var(--z${zone[z.key]})">
       <b>${z.label}</b><span class="pace-range">${fmtPace(z.slow_mps, undefined, false)}–${fmtPace(z.fast_mps)}</span><span class="dim">${esc(z.about)}</span></div>`).join("");

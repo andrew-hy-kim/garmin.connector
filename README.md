@@ -7,7 +7,11 @@ built for running.
 **Workout tags:** every run is tagged by what it actually was, using heart rate relative to
 your threshold (the COROS approach) plus the watch's workout laps and pace surges: Recovery,
 Easy, Easy + strides, Long, Progression, Tempo, Threshold, Threshold intervals, VO2 max
-intervals, Speed session, Fartlek, Race. Each tag comes with the reason.
+intervals, Speed session, Fartlek, Race. Each tag comes with the reason. Effort decides,
+not structure: surges that never lift heart rate out of the easy zone (run/walk, relaxed
+pickups) are an easy run. Runs with more than 15% walking are left out of effective VO2max,
+aerobic efficiency and HR drift, since walk breaks would read as lost fitness; after a break,
+the coach eases off workout suggestions and mileage warnings while you rebuild.
 
 **Your next workouts:** at the top of the coach notes, your next 3, 5 or 7 sessions, each with
 a date, length, how to run it, HR/pace target and why it was picked. With a training plan

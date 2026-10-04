@@ -43,11 +43,17 @@ def _pace(perf: dict[str, Any], key: str) -> dict[str, Any] | None:
     return next((x for x in perf.get("paces") or [] if x["key"] == key), None)
 
 
-def endurance(perf: dict[str, Any]) -> dict[str, Any] | None:
+def endurance(perf: dict[str, Any], back: dict[str, Any] | None = None) -> dict[str, Any] | None:
     shape = perf.get("marathon_shape")
     if not shape:
         return None
     pct = shape["percent"]
+    if back and back["days_back"] < 28:
+        # endurance always reads low after a break; rebuilding weekly time comes first
+        return _area("endurance", "Endurance", "ok", f"Marathon shape {pct}%",
+                     "Weekly distance and long runs dropped during the break, so this reads low for now.",
+                     "Rebuild your weekly running time first; long runs come back once you're running steadily again.",
+                     priority=5)
     level = "strength" if pct >= 90 else "ok" if pct >= 60 else "focus"
     detail = (f"Weekly distance over the last 6 months: {d(shape['weekly_km'] * 1000)} of the "
               f"{d(shape['weekly_target_km'] * 1000)} your fitness could carry. "
@@ -194,7 +200,7 @@ def areas(conn: sqlite3.Connection, perf: dict[str, Any], today: date | None = N
     last8 = [r for r in runs if r["date"] > (today - timedelta(days=56)).isoformat()]
     back = insights.comeback(insights._runs(conn, (today - timedelta(days=insights.COMEBACK_DAYS + 120)).isoformat()),
                              today.isoformat())
-    out = [a for a in (consistency(runs, today, back), endurance(perf), balance(last8, perf), quality(runs, perf, today, back),
+    out = [a for a in (consistency(runs, today, back), endurance(perf, back), balance(last8, perf), quality(runs, perf, today, back),
                        efficiency(runs, today)) if a]
     out.sort(key=lambda a: (LEVEL_RANK[a["level"]], a["priority"]))
     return out

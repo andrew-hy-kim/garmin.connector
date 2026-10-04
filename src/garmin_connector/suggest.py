@@ -96,7 +96,11 @@ def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None
     lthr, paces = ctx["lthr"], ctx["paces"]
     easy_hr = round(0.89 * lthr)
 
-    # --- your usual week, from the last 8 weeks
+    # --- your usual week, from the last 8 weeks (or, back from a break, the runs since)
+    back = ctx["comeback"]
+    rebuilding = bool(back and back["days_back"] < 28)
+    if rebuilding:
+        runs = [r for r in runs if r["date"] >= back["back_on"]] or runs
     by_week: dict[str, list[dict[str, Any]]] = {}
     for r in runs:
         d = date.fromisoformat(r["date"])
@@ -105,6 +109,8 @@ def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None
     this_monday = today - timedelta(days=today.weekday())
     recent_weeks = [(this_monday - timedelta(days=7 * i)).isoformat() for i in range(1, 5)]
     per_week = round(sum(len({r["date"] for r in by_week.get(w, [])}) for w in recent_weeks) / 4)
+    if rebuilding:  # the break would count as weeks without running
+        per_week = round(back["runs_back"] / max(1, (back["days_back"] + 1) / 7))
     runs_per_week = max(2, min(6, per_week))
     day_freq = Counter(DAYS[date.fromisoformat(r["date"]).weekday()] for r in {r["date"]: r for r in runs}.values())
     # long run: the weekday your longest run of the week usually falls on
@@ -122,14 +128,14 @@ def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None
     easy_min = planner._r5(median([r["duration_s"] / 60 for r in easy_runs])) if easy_runs else 40
     longest = [max((r["duration_s"] or 0) for r in by_week[w]) / 60 for w in by_week]
     long_min = planner._r5(max(easy_min * 1.25, median(longest))) if longest else planner._r5(easy_min * 1.5)
+    if rebuilding:  # build gradually: the long run only a little past your longest since coming back
+        long_min = max(easy_min + 5, planner._r5(max(longest) * 1.1)) if longest else easy_min + 5
 
     # --- hard sessions: how many you do, which kinds, and when the last one was
     quality = [r for r in runs if (r["metrics"].get("workout") or {}).get("quality")]
     kinds_done = [KIND_OF.get(r["workout"]) for r in quality if KIND_OF.get(r["workout"])]
     q_per_week = len(quality) / max(1, len(by_week))
-    back = ctx["comeback"]
     form = (ctx["form"] or {}).get("key")
-    rebuilding = bool(back and back["days_back"] < 28)
     if rebuilding or runs_per_week < 3:
         q_budget = 0
     elif q_per_week >= 1.5 and runs_per_week >= 5:
@@ -155,7 +161,9 @@ def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None
     basis = [f"Built from your last 8 weeks: about {runs_per_week} runs a week, easy runs around {easy_min} min "
              f"and a {long_min}-min long run on {_day_name(long_day)}s."]
     if rebuilding:
-        basis.append(f"You're {back['days_back']} days back from a break, so it's all easy running for now.")
+        basis = [f"Built from your runs since coming back on {insights._day(back['back_on'])}: about {runs_per_week} a "
+                 f"week of around {easy_min} min, with the longest a little past your longest since then. "
+                 f"It's all easy running for now; build by roughly 10% a week."]
     elif form == "overreaching":
         basis.append("You're carrying a lot of fatigue, so the next few days stay easy.")
     elif not quality:
