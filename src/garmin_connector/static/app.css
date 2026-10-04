@@ -745,16 +745,6 @@ summary.week-head::-webkit-details-marker { display: none; }
   #stats-card .toolbar { flex-wrap: wrap; gap: 8px; }
 }
 
-/* ---------- recovery ---------- */
-.rd-warn { color: var(--warn-c) !important; font-weight: 600; font-size: 14px; }
-.rd-recovery span { background: transparent; box-shadow: inset 0 0 0 1px var(--border); }
-.up-bad { color: var(--warn-c); font-style: normal; font-weight: 700; }
-.recovery-kv { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 12px; }
-.recovery-kv b { font-size: 20px; display: block; font-variant-numeric: tabular-nums; }
-.recovery-kv small { color: var(--text-muted); font-size: 12px; }
-.band-key::before { background: color-mix(in srgb, var(--pace) 20%, transparent) !important; }
-@media (max-width: 600px) { .recovery-kv { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-
 /* ---------- shoes ---------- */
 .gear-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(90px, 1fr) minmax(0, 1.2fr); gap: 16px; align-items: center;
   padding: 11px 0; border-bottom: 1px solid var(--grid); }

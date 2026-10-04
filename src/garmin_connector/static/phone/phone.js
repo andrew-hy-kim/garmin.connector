@@ -204,7 +204,6 @@
     "/api/plan": () => planToToday(structuredClone(overview.plan)),
     "/api/race-predictions": () => overview.race_predictions || null,
     "/api/performance": () => overview.performance || null,
-    "/api/health": () => overview.health || null,
     "/api/gear": () => overview.gear || [],
     "/api/focus": () => overview.focus || [],
   };

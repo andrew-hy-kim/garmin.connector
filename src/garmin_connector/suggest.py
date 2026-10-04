@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from statistics import median
 from typing import Any
 
-from . import health, insights, planner
+from . import insights, planner
 
 DAYS = planner.DAYS
 HISTORY_DAYS = 56          # what "usually" means: the last 8 weeks
@@ -129,9 +129,6 @@ def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None
     q_per_week = len(quality) / max(1, len(by_week))
     back = ctx["comeback"]
     form = (ctx["form"] or {}).get("key")
-    # resting HR or HRV off your normal: the next two days stay easy, whatever the load says
-    recovery = health.summary(conn, today)
-    strained = bool(recovery and recovery["flags"])
     rebuilding = bool(back and back["days_back"] < 28)
     if rebuilding or runs_per_week < 3:
         q_budget = 0
@@ -161,8 +158,6 @@ def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None
         basis.append(f"You're {back['days_back']} days back from a break, so it's all easy running for now.")
     elif form == "overreaching":
         basis.append("You're carrying a lot of fatigue, so the next few days stay easy.")
-    elif strained:
-        basis.append("Your resting heart rate or HRV is off your normal, so the next two days stay easy.")
     elif not quality:
         basis.append("No hard sessions lately, so one a week is worked back in.")
     elif q_per_week >= 1.5 and q_budget == 1:
@@ -184,7 +179,7 @@ def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None
         monday = (d - timedelta(days=d.weekday())).isoformat()
         day_before_long = DAYS[(d.weekday() + 1) % 7] == long_day
         gap_ok = last_hard is None or (d - last_hard).days >= 2
-        tired = (form == "overreaching" and (d - today).days < 3) or (strained and (d - today).days < 2)
+        tired = (form == "overreaching" and (d - today).days < 3)
         if name == long_day:
             item = {"type": "long", "title": "Long run", "minutes": long_min,
                     "details": "Easy and conversational the whole way. It's fine if HR drifts up in the last 15 minutes.",

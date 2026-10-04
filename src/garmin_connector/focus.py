@@ -2,8 +2,8 @@
 
 Coach notes react to the last week or two. This looks further back and asks where
 the biggest gains are: endurance (weekly volume and long runs, as in marathon
-shape), consistency, the balance of easy and hard running, quality sessions,
-aerobic efficiency and recovery. Each area gets a verdict (a strength, fine, or
+shape), consistency, the balance of easy and hard running, quality sessions
+and aerobic efficiency. Each area gets a verdict (a strength, fine, or
 the thing to work on) and one concrete next step, with paces and distances taken
 from your own fitness.
 
@@ -19,7 +19,7 @@ from datetime import date, timedelta
 from statistics import mean, median, pstdev
 from typing import Any
 
-from . import health, insights
+from . import insights
 
 WEEKS = 12
 LEVEL_RANK = {"focus": 0, "ok": 1, "strength": 2}
@@ -168,28 +168,6 @@ def efficiency(runs: list[dict[str, Any]], today: date) -> dict[str, Any] | None
     return _area("efficiency", "Aerobic efficiency", level, headline, detail, action, priority=4)
 
 
-def recovery(conn: sqlite3.Connection, today: date) -> dict[str, Any] | None:
-    rec = health.summary(conn, today)
-    if not rec:
-        return None
-    sleep = rec.get("sleep_week_avg_s")
-    if rec["flags"]:
-        level, headline = "focus", "Off your normal"
-        detail = ". ".join(rec["flags"]) + "."
-        action = "Ease off for a day or two and prioritize sleep until resting heart rate and HRV settle."
-        priority = 0
-    elif sleep and sleep < 7 * 3600:
-        level, headline = "ok", f"{sleep / 3600:.1f} h sleep a night"
-        detail = "Resting heart rate and HRV are in your normal range, but sleep is on the short side this week."
-        action = "Most runners adapt best to training on 7 to 9 hours a night."
-        priority = 3
-    else:
-        level, headline = "strength", "In your normal range"
-        detail = "Resting heart rate, HRV and sleep all look like your usual."
-        action, priority = None, 5
-    return _area("recovery", "Recovery", level, headline, detail, action, priority)
-
-
 def areas(conn: sqlite3.Connection, perf: dict[str, Any], today: date | None = None) -> list[dict[str, Any]]:
     """Each area with a verdict; the ones to work on first, most important first."""
     today = today or date.today()
@@ -198,6 +176,6 @@ def areas(conn: sqlite3.Connection, perf: dict[str, Any], today: date | None = N
         return []
     last8 = [r for r in runs if r["date"] > (today - timedelta(days=56)).isoformat()]
     out = [a for a in (consistency(runs, today), endurance(perf), balance(last8, perf), quality(runs, perf, today),
-                       efficiency(runs, today), recovery(conn, today)) if a]
+                       efficiency(runs, today)) if a]
     out.sort(key=lambda a: (LEVEL_RANK[a["level"]], a["priority"]))
     return out

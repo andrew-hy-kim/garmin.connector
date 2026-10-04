@@ -31,7 +31,7 @@
   <div class="page-head"><div class="eyebrow" id="today"></div><h1>Progress</h1></div>
 
   <nav class="jump" aria-label="On this page">
-    <a href="#perf">Fitness</a><a href="#focus-card" data-needs="focus-card">Improve</a><a href="#races-card">Races</a><a href="#load-card">Load</a><a href="#recovery-card" data-needs="recovery-card">Recovery</a>
+    <a href="#perf">Fitness</a><a href="#focus-card" data-needs="focus-card">Improve</a><a href="#races-card">Races</a><a href="#load-card">Load</a>
     <a href="#training">Training</a><a href="#stats-card">Statistics</a><a href="#records-grid">Records</a><a href="#gear-card" data-needs="gear-card">Shoes</a><a href="#hr-settings">Settings</a>
   </nav>
 
@@ -66,14 +66,6 @@
       <div class="legend" style="margin-top:12px" id="form-legend"></div>
       <div class="chart-box short"><canvas id="form" role="img" aria-label="Bar chart of form, colored by state"></canvas></div>
     </div>
-  </section>
-
-  <section class="card needs-data" id="recovery-card" hidden>
-    <h2>Recovery</h2>
-    <p class="hint">Resting heart rate and HRV from your watch. A resting heart rate creeping up or HRV dropping below your normal range for a few days is often the first sign of fatigue, illness or stress.</p>
-    <div class="kv recovery-kv" id="recovery-kv"></div>
-    <div class="legend"><span style="--c:var(--hr)">Resting HR</span><span style="--c:var(--pace)">HRV</span><span class="band-key">HRV normal range</span><span style="--c:var(--elev)">Sleep</span></div>
-    <div class="chart-box"><canvas id="recovery" role="img" aria-label="Resting heart rate, HRV and sleep over time"></canvas></div>
   </section>
 
   <section class="grid needs-data" id="training">

@@ -932,7 +932,7 @@ function populateTypes() {
 // Everything that depends on the time range
 function renderCharts() {
   renderMilestones();
-  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus(); renderRecovery(); renderGear();
+  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus(); renderGear();
 }
 
 // Did you run on day k of the plan week starting `start`?
@@ -1241,29 +1241,11 @@ function renderReadiness() {
         <b>${esc(d.title)}${d.minutes ? ` · ${d.minutes} min` : ""}</b>${sessionDetails(d) ? `<span>${esc(sessionDetails(d))}</span>` : ""}
         ${sessionTarget(d) ? `<span class="dim">${esc(sessionTarget(d))}</span>` : ""}</div>`;
   }
-  // recovery from the watch, when it records it
-  const h = state.health;
-  const recovery = [];
-  if (h) {
-    if (h.resting_hr) {
-      const d = h.resting_hr_normal ? Math.round(h.resting_hr - h.resting_hr_normal) : 0;
-      recovery.push(`Resting HR <b>${Math.round(h.resting_hr)}</b>${d >= 3 ? ` <em class="up-bad">+${d}</em>` : ""}`);
-    }
-    if (h.hrv) {
-      const low = h.hrv_low && h.hrv < h.hrv_low;
-      recovery.push(`HRV <b>${Math.round(h.hrv)}</b> ms${low ? ` <em class="up-bad">low</em>` : ""}`);
-    }
-    if (h.sleep_s) recovery.push(`Sleep <b>${fmtTotal(h.sleep_s)}</b>${h.sleep_score ? ` · ${Math.round(h.sleep_score)}` : ""}`);
-    if (h.readiness) recovery.push(`Garmin readiness <b>${Math.round(h.readiness)}</b>`);
-  }
-  // recovery signals off your normal outrank what the training load says
-  const strained = h && h.flags && h.flags.length;
-  el.innerHTML = `<div class="rd-main" style="--c:var(${strained ? "--warn-c" : textColor(st)})">
+  el.innerHTML = `<div class="rd-main" style="--c:var(${textColor(st)})">
       <span class="eyebrow">Readiness</span>
-      <div class="rd-word"><b>${strained ? "Recovering" : word}</b><span class="rd-form" title="Form: fitness minus fatigue">Form ${sign(today.form)}</span></div>
-      <p>${strained ? `${esc(h.flags.join(". "))}. Your training load says ${word.toLowerCase()}, but your body may still be recovering: keep today easy.` : advice}</p>
+      <div class="rd-word"><b>${word}</b><span class="rd-form" title="Form: fitness minus fatigue">Form ${sign(today.form)}</span></div>
+      <p>${advice}</p>
       <div class="rd-facts">${facts.map((f) => `<span>${f}</span>`).join("")}</div>
-      ${recovery.length ? `<div class="rd-facts rd-recovery">${recovery.map((f) => `<span>${f}</span>`).join("")}</div>` : ""}
     </div>${session}`;
 }
 
@@ -1342,8 +1324,8 @@ function renderFocus() {
   const list = state.focus || [];
   const top = $("focus-top");
   if (top) {
-    // Today: the longer-term thing to work on (recovery already leads the page when it's off)
-    const a = list.find((x) => x.level === "focus" && x.key !== "recovery");
+    // Today: the longer-term thing to work on
+    const a = list.find((x) => x.level === "focus");
     top.hidden = !a;
     if (a) {
       top.href = pageUrl("progress", { hash: "focus-card" });
@@ -1384,53 +1366,6 @@ function renderGear() {
   const active = list.filter((g) => !g.retired), retired = list.filter((g) => g.retired);
   $("gear").innerHTML = active.map(row).join("") +
     (retired.length ? `<details class="more"><summary>${retired.length} retired</summary>${retired.map(row).join("")}</details>` : "");
-}
-
-// ---------- Progress: recovery (resting HR, HRV, sleep) ----------
-function renderRecovery() {
-  const card = $("recovery-card");
-  if (!card) return;
-  const h = state.health;
-  card.hidden = !h || !h.history?.length;
-  if (card.hidden) return;
-  const hist = h.history.filter((d) => inRange(d.date));
-  const avg = (k, n) => { const v = h.history.slice(-n).map((d) => d[k]).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
-  const rhr7 = avg("resting_hr", 7), hrv7 = avg("hrv", 7), sleep7 = avg("sleep_s", 7);
-  $("recovery-kv").innerHTML = [
-    ["Resting HR", rhr7 ? `${Math.round(rhr7)} bpm` : "–", h.resting_hr_normal ? `7-day average; your normal is ${Math.round(h.resting_hr_normal)}` : "7-day average"],
-    ["HRV", hrv7 ? `${Math.round(hrv7)} ms` : "–", h.hrv_low ? `7-day average; normal range ${Math.round(h.hrv_low)}–${Math.round(h.hrv_high)}` : "7-day average"],
-    ["Sleep", sleep7 ? fmtTotal(sleep7) : "–", "a night, over the last week"],
-    ["Readiness", h.readiness ? `${Math.round(h.readiness)}` : "–", "Garmin's training readiness today"],
-  ].map(([k, v, sub]) => `<div><span>${k}</span><b>${v}</b><small>${esc(sub)}</small></div>`).join("");
-  const opts = chartBase();
-  opts.interaction = { mode: "index", intersect: false };
-  timeAxis(opts);
-  opts.scales.y.title = { display: false };
-  opts.scales.y.ticks.callback = (v) => `${v}`;
-  opts.scales.y2 = { position: "right", grid: { display: false }, border: { display: false }, ticks: { color: cssVar("--text-muted"), callback: (v) => `${v} ms` } };
-  opts.scales.y3 = { display: false, min: 0, max: 30 * 3600 };
-  opts.plugins.tooltip = { callbacks: {
-    title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
-    label: (i) => (i.dataset.label === "Sleep" ? `Sleep: ${fmtTotal(i.parsed.y)}` : /range|night/.test(i.dataset.label) ? null
-      : `${i.dataset.label} (7-day avg): ${Math.round(i.parsed.y)}${i.dataset.label === "HRV" ? " ms" : " bpm"}`),
-  } };
-  const pt = (k) => hist.filter((d) => d[k]).map((d) => ({ x: new Date(d.date + "T12:00").getTime(), y: d[k] }));
-  // a 7-day average shows the trend through the night-to-night noise
-  const smooth = (k) => { const p = pt(k); return p.map((q, i) => { const w = p.slice(Math.max(0, i - 6), i + 1); return { x: q.x, y: w.reduce((t, r) => t + r.y, 0) / w.length }; }); };
-  const band = cssVar("--pace");
-  drawChart("recovery", "recovery", {
-    type: "line",
-    data: { datasets: [
-      { label: "HRV range low", yAxisID: "y2", data: pt("hrv_low"), borderWidth: 0, pointRadius: 0, fill: false },
-      { label: "HRV range high", yAxisID: "y2", data: pt("hrv_high"), borderWidth: 0, pointRadius: 0, backgroundColor: band + "1c", fill: "-1" },
-      { label: "Resting HR", data: smooth("resting_hr"), borderColor: cssVar("--hr"), borderWidth: 2.2, pointRadius: 0, tension: 0.3 },
-      { label: "HRV", yAxisID: "y2", data: smooth("hrv"), borderColor: band, borderWidth: 2.2, pointRadius: 0, tension: 0.3 },
-      { type: "scatter", label: "Resting HR (night)", data: pt("resting_hr"), backgroundColor: cssVar("--hr") + "40", pointRadius: 1.5 },
-      { type: "scatter", label: "HRV (night)", yAxisID: "y2", data: pt("hrv"), backgroundColor: band + "40", pointRadius: 1.5 },
-      { type: "bar", label: "Sleep", yAxisID: "y3", data: pt("sleep_s"), backgroundColor: cssVar("--elev") + "55", barPercentage: 1, categoryPercentage: 1, order: 9 },
-    ] },
-    options: opts,
-  });
 }
 
 // ---------- Progress: VO2max shape, marathon shape, training paces ----------
@@ -1555,10 +1490,10 @@ function render() {
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions, races, perf, health, gear, focus] = await Promise.all(
+  const [acts, vo2, loadSeries, records, settings, notes, plan, suggestions, races, perf, gear, focus] = await Promise.all(
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights", "/api/plan"].map((u) => getJSON(u))
-      .concat(["/api/suggestions", "/api/race-predictions", "/api/performance", "/api/health", "/api/gear", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions, races, perf, health, gear, focus });
+      .concat(["/api/suggestions", "/api/race-predictions", "/api/performance", "/api/gear", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, plan, suggestions, races, perf, gear, focus });
   populateTypes(); render(); ready();
   // Phone: confirm a data import that just happened
   try {

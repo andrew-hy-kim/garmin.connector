@@ -47,7 +47,7 @@ WATCH_FIELDS = {
     "stride_cm": "avgStrideLength", "vertical_oscillation_cm": "avgVerticalOscillation",
     "vertical_ratio_pct": "avgVerticalRatio", "ground_contact_ms": "avgGroundContactTime",
     "max_speed_mps": "maxSpeed", "elevation_loss_m": "elevationLoss", "steps": "steps",
-    "body_battery_change": "differenceBodyBattery", "sweat_loss_ml": "waterEstimated",
+    "sweat_loss_ml": "waterEstimated",
     "garmin_load": "activityTrainingLoad", "te_label": "trainingEffectLabel",
 }
 
@@ -58,7 +58,7 @@ def watch_extras(raw_json: str | None) -> dict[str, Any]:
     except ValueError:
         return {}
     out = {k: raw.get(v) for k, v in WATCH_FIELDS.items()}
-    return {k: v for k, v in out.items() if v not in (None, "", 0) or k == "body_battery_change" and v is not None}
+    return {k: v for k, v in out.items() if v not in (None, "", 0)}
 
 
 def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bool = True,

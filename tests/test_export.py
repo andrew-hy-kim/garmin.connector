@@ -159,9 +159,9 @@ def test_time_in_zones_for_both_systems(conn):
 
 def test_watch_extras():
     from garmin_connector import api
-    raw = '{"calories": 718, "avgStrideLength": 114.3, "avgGroundContactTime": 0, "differenceBodyBattery": 0, ' \
+    raw = '{"calories": 718, "avgStrideLength": 114.3, "avgGroundContactTime": 0, "differenceBodyBattery": -12, ' \
           '"trainingEffectLabel": "TEMPO", "avgPower": null}'
     w = api.watch_extras(raw)
-    # zero means not measured, except a Body Battery that didn't change
-    assert w == {"calories": 718, "stride_cm": 114.3, "body_battery_change": 0, "te_label": "TEMPO"}
+    # zero means not measured; Body Battery needs all-day wear, so it's left out
+    assert w == {"calories": 718, "stride_cm": 114.3, "te_label": "TEMPO"}
     assert api.watch_extras(None) == {} and api.watch_extras("not json") == {}

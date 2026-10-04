@@ -155,7 +155,6 @@ function watchStats(w, run) {
   if (w.ground_contact_ms) out.push(["Ground contact", withUnit(`${Math.round(w.ground_contact_ms)} ms`), "Time each foot spends on the ground"]);
   if (w.vertical_oscillation_cm) out.push(["Vertical oscillation", withUnit(imperial ? `${(w.vertical_oscillation_cm / 2.54).toFixed(1)} in` : `${w.vertical_oscillation_cm.toFixed(1)} cm`),
     w.vertical_ratio_pct ? `Vertical ratio ${w.vertical_ratio_pct.toFixed(1)}%` : "Bounce with each step"]);
-  if (w.body_battery_change != null) out.push(["Body Battery", `${w.body_battery_change > 0 ? "+" : ""}${Math.round(w.body_battery_change)}`, "Change during the run"]);
   if (w.sweat_loss_ml) out.push(["Sweat loss", withUnit(imperial ? `${Math.round(w.sweat_loss_ml / 29.574)} oz` : `${fmtNum(w.sweat_loss_ml)} ml`), "Estimated by Garmin"]);
   return out;
 }

@@ -39,10 +39,8 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
 **Today**: how you're doing and what to do now
 - **Readiness:** fresh / balanced / building / tired from your form, with fitness and fatigue,
   how many easy days until you're fresh, and the most training load you can do today and stay
-  balanced, next to today's session (from your plan, or the next suggested workout). With
-  recovery data from your watch it also shows last night's resting heart rate, HRV and sleep
-  and Garmin's training readiness. When resting HR or HRV has been off your normal for a few
-  days, it says **Recovering** and the suggested workouts stay easy for two days.
+  balanced, next to today's session (from your plan, or the next suggested workout). It's all
+  worked out from your workouts, so it doesn't need the watch worn day and night.
 - **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
   its coach notes
 - This week / month / year (each opens its runs), this week's plan, coach notes with your next
@@ -57,11 +55,8 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
     distance over 6 months counts two thirds, long runs over 13 km in the last 10 weeks one
     third, against targets that grow with your VO2max.
 - **Where to improve:** your last three months area by area (consistency, endurance, easy vs.
-  hard, workouts, aerobic efficiency, recovery), each marked *work on*, *fine* or *strength*,
+  hard, workouts, aerobic efficiency), each marked *work on*, *fine* or *strength*,
   with what to work on first and a concrete next step using your own paces and distances
-- **Recovery:** resting heart rate and HRV (as 7-day averages, with your normal HRV range) and
-  sleep, from your watch. Several days of a raised resting HR, low HRV or short sleep also show
-  up as coach notes.
 - **Fitness, fatigue & form** in plain language, plus **monotony** and **training strain**
   (Foster) for the last 7 days, what resting would do, and your fitness now vs. earlier and
   at its peak
@@ -112,7 +107,7 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   rate and efficiency, how this one ranks against runs of the same kind, and your route record
 - Training load and Garmin's training effect (with what it means: maintaining, improving…),
   HR drift, efficiency and effective VO2max; under **More from your watch**, calories, power,
-  best pace, stride length, ground contact, vertical oscillation and ratio, Body Battery and
+  best pace, stride length, ground contact, vertical oscillation and ratio, and
   sweat loss, whichever your watch records
 - HR, pace + grade-adjusted pace, cadence and elevation on one synced timeline (by time or
   distance), with HR zone bands and interval reps shaded

@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from statistics import median
 from typing import Any
 
-from . import analysis, gear, health, performance, processing
+from . import analysis, gear, performance, processing
 
 EASY_TYPES = {"easy", "recovery", "long", "easy_strides"}
 BREAK_DAYS = 21       # this long without running counts as a break (injury, illness, off-season)
@@ -410,15 +410,6 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
         notes.append(_note("warn", f"Monotony {extras['monotony']:.1f}: every day looks the same",
                            "Your training load was very similar day after day this week. Varying it, with real easy "
                            "or rest days between the hard ones, lowers the risk of illness and overtraining."))
-
-    # Recovery: resting heart rate, HRV and sleep off your normal for a few days
-    rec = health.summary(conn, today)
-    flags = (rec or {}).get("flags", [])
-    if flags:
-        also = f"Also: {'; '.join(flags[1:])}. " if len(flags) > 1 else ""
-        notes.append(_note("warn", flags[0],
-                           also + "Several days off your normal often comes before illness or burnout, and also follows "
-                           "poor sleep, stress or a hard block. Make the next day or two easy, sleep more, and see if it settles."))
 
     # Shoes you're still running in, close to their limit
     for g in gear.summary(conn, today):

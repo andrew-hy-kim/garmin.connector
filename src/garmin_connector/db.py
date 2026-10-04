@@ -12,7 +12,7 @@ import zlib
 from pathlib import Path
 from typing import Any, Iterable
 
-from . import gear, health
+from . import gear
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS activities (
@@ -123,6 +123,9 @@ CREATE TABLE IF NOT EXISTS settings (
     key    TEXT PRIMARY KEY,
     value  TEXT
 );
+
+-- Daily resting HR / HRV / sleep, fetched by an earlier version; no longer used.
+DROP TABLE IF EXISTS daily_health;
 """
 
 # (column, key in Garmin's activity JSON)
@@ -149,7 +152,7 @@ _ACTIVITY_FIELDS = [
 def connect(path: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA + health.SCHEMA + gear.SCHEMA)
+    conn.executescript(SCHEMA + gear.SCHEMA)
     return conn
 
 

@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from fitgen import steady_run, write_fit
-from garmin_connector import db, health, sync
+from garmin_connector import db, sync
 from garmin_connector.web import create_app
 
 
@@ -65,7 +65,6 @@ def conn(tmp_path):
 @pytest.fixture(autouse=True)
 def no_pause(monkeypatch):
     monkeypatch.setattr(sync, "REQUEST_PAUSE_S", 0)
-    monkeypatch.setattr(health, "REQUEST_PAUSE_S", 0)
 
 
 def days_ago(n: int) -> str:
