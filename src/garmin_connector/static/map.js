@@ -50,46 +50,141 @@ const RAMP = (() => {
   return lut;
 })();
 
-function drawHeat() {
-  const map = M.map, canvas = M.heat;
-  if (!canvas || M.mode !== "heat") return;
-  const size = map.getSize(), dpr = window.devicePixelRatio || 1;
-  canvas.width = size.x * dpr; canvas.height = size.y * dpr;
-  canvas.style.width = `${size.x}px`; canvas.style.height = `${size.y}px`;
-  const ctx = canvas.getContext("2d");
+// Web Mercator in world units (0..1): projected once per track, so a redraw is plain arithmetic
+function mercator(track) {
+  const xy = new Float64Array(track.length * 2);
+  let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+  track.forEach(([la, lo], i) => {
+    const x = (lo + 180) / 360;
+    const s = Math.sin(Math.max(-85, Math.min(85, la)) * Math.PI / 180);
+    const y = 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+    xy[2 * i] = x; xy[2 * i + 1] = y;
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  });
+  return { xy, box: [x0, y0, x1, y1] };
+}
+
+// The heat canvas lives in a map pane, so panning moves it for free. When a pan or zoom ends it's
+// redrawn on a second canvas a slice at a time (a few milliseconds per frame, so the map never
+// stalls), then swapped in; during the zoom animation the current image is scaled along.
+const HEAT_PAD = 0.35; // drawn this far beyond each edge, so a pan doesn't show blank margins
+const SLICE_MS = 8;
+const BAND = 96; // rows recolored per step
+const HeatLayer = L.Layer.extend({
+  onAdd(map) {
+    this._c = L.DomUtil.create("canvas", "heat-canvas leaflet-zoom-animated");
+    this._off = document.createElement("canvas");
+    map.getPane("overlayPane").appendChild(this._c);
+    map.on("moveend resize", this.redraw, this);
+    map.on("zoomanim", this._animate, this);
+    this.redraw();
+  },
+  onRemove(map) {
+    this._job = null;
+    this._c.remove();
+    map.off("moveend resize", this.redraw, this);
+    map.off("zoomanim", this._animate, this);
+  },
+  _animate(e) {
+    if (!this._bounds) return;
+    const scale = this._map.getZoomScale(e.zoom);
+    const offset = this._map._latLngBoundsToNewLayerBounds(this._bounds, e.zoom, e.center).min;
+    L.DomUtil.setTransform(this._c, offset, scale);
+  },
+  redraw() {
+    const map = this._map;
+    if (!map) return;
+    const size = map.getSize();
+    const padX = Math.round(size.x * HEAT_PAD), padY = Math.round(size.y * HEAT_PAD);
+    const w = size.x + 2 * padX, h = size.y + 2 * padY;
+    const topLeft = map.containerPointToLayerPoint([-padX, -padY]);
+    const bounds = L.latLngBounds(map.layerPointToLatLng(topLeft), map.layerPointToLatLng(topLeft.add([w, h])));
+    const job = this._job = heatJob(this._off, map, w, h, topLeft);
+    const step = () => {
+      if (this._job !== job) return; // superseded by a newer pan or zoom
+      if (!job.next(performance.now() + SLICE_MS)) { requestAnimationFrame(step); return; }
+      // done: show it where it was drawn
+      const c = this._c;
+      if (c.width !== this._off.width || c.height !== this._off.height) {
+        c.width = this._off.width; c.height = this._off.height;
+      }
+      c.style.width = `${w}px`; c.style.height = `${h}px`;
+      const ctx = c.getContext("2d");
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.drawImage(this._off, 0, 0);
+      this._bounds = bounds;
+      L.DomUtil.setPosition(c, topLeft);
+      this._job = null;
+    };
+    step();
+  },
+});
+
+// 32-bit pixel colors by how opaque the strokes made a pixel (little-endian RGBA)
+const RAMP32 = (() => {
+  const out = new Uint32Array(256);
+  for (let a = 1; a < 256; a++) {
+    const j = a * 4;
+    out[a] = (Math.max(RAMP[j + 3], 90) << 24 | RAMP[j + 2] << 16 | RAMP[j + 1] << 8 | RAMP[j]) >>> 0;
+  }
+  return out;
+})();
+
+// Draws the heat into `canvas` in pieces: next(deadline) works until the deadline and returns true when done.
+function heatJob(canvas, map, w, h, topLeft) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, size.x, size.y);
-  const view = map.getBounds().pad(0.1);
-  const zoom = map.getZoom();
+  const zoom = map.getZoom(), scale = 256 * 2 ** zoom;
+  const origin = map.getPixelOrigin().add(topLeft); // world pixel at the canvas's top left
+  const ox = origin.x, oy = origin.y;
   ctx.lineWidth = zoom >= 16 ? 3.5 : zoom >= 14 ? 2.5 : zoom >= 12 ? 1.8 : 1.3;
   ctx.lineJoin = ctx.lineCap = "round";
   // each run adds a little opacity; the more runs share a street, the hotter it gets
   const n = M.shown.length;
   ctx.strokeStyle = `rgba(0,0,0,${n > 400 ? 0.12 : n > 100 ? 0.18 : 0.28})`;
-  ctx.filter = "blur(0.8px)"; // soft edges, so a line's rim doesn't read as a quieter street
-  for (const t of M.shown) {
-    if (!view.intersects(L.latLngBounds([t.bb[0], t.bb[1]], [t.bb[2], t.bb[3]]))) continue;
-    ctx.beginPath();
-    t.track.forEach(([la, lo], i) => {
-      const p = map.latLngToContainerPoint([la, lo]);
-      if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y);
-    });
-    ctx.stroke();
-  }
-  ctx.filter = "none";
-  // color by how opaque each pixel became
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height), px = img.data;
-  for (let i = 0; i < px.length; i += 4) {
-    const a = px[i + 3];
-    if (!a) continue;
-    const j = a * 4;
-    px[i] = RAMP[j]; px[i + 1] = RAMP[j + 1]; px[i + 2] = RAMP[j + 2]; px[i + 3] = Math.max(RAMP[j + 3], 90);
-  }
-  ctx.putImageData(img, 0, 0);
+  const list = M.shown.filter((t) => {
+    const [x0, y0, x1, y1] = t.m.box;
+    return !(x1 * scale < ox || x0 * scale > ox + w || y1 * scale < oy || y0 * scale > oy + h);
+  });
+  const rows = canvas.height, cols = canvas.width;
+  let k = 0, row = 0;
+  return {
+    next(deadline) {
+      while (k < list.length) {
+        const xy = list[k++].m.xy;
+        ctx.beginPath();
+        let lx = xy[0] * scale - ox, ly = xy[1] * scale - oy;
+        ctx.moveTo(lx, ly);
+        for (let i = 2; i < xy.length; i += 2) {
+          const x = xy[i] * scale - ox, y = xy[i + 1] * scale - oy;
+          // skip points within a pixel of the last one: invisible, and most of the work when zoomed out
+          if (i < xy.length - 2 && Math.abs(x - lx) < 1 && Math.abs(y - ly) < 1) continue;
+          ctx.lineTo(x, y); lx = x; ly = y;
+        }
+        ctx.stroke();
+        ctx.getImageData(0, 0, 1, 1); // the browser draws lazily; this makes it draw now, inside this slice
+        if (performance.now() > deadline) return false;
+      }
+      // color by how opaque each pixel became, a band of rows at a time
+      while (row < rows) {
+        const band = Math.min(BAND, rows - row);
+        const img = ctx.getImageData(0, row, cols, band), px32 = new Uint32Array(img.data.buffer);
+        for (let i = 0; i < px32.length; i++) {
+          const a = px32[i] >>> 24;
+          if (a) px32[i] = RAMP32[a];
+        }
+        ctx.putImageData(img, 0, row);
+        row += band;
+        if (row < rows && performance.now() > deadline) return false;
+      }
+      return true;
+    },
+  };
 }
 
-let heatFrame = 0;
-const redrawSoon = () => { cancelAnimationFrame(heatFrame); heatFrame = requestAnimationFrame(drawHeat); };
+const redrawSoon = () => M.heat?.redraw();
 
 // ---------- routes layer: every run as its own line, colored by workout type ----------
 function drawRoutes() {
@@ -100,7 +195,7 @@ function drawRoutes() {
   for (const t of M.shown) {
     const a = M.acts.get(t.id);
     const z = TYPE_ZONE[a.workout_type] || 1;
-    L.polyline(t.track, { renderer, color: cssVar(`--z${z}`), weight: 2.5, opacity: 0.7 })
+    L.polyline(t.track, { renderer, color: cssVar(`--z${z}`), weight: 2.5, opacity: 0.7, smoothFactor: 1.5 })
       .bindPopup(() => popupFor([a]))
       .addTo(group);
   }
@@ -122,16 +217,16 @@ function segDist(p, a, b) {
 }
 
 function runsNear(latlng) {
-  const map = M.map, p = map.latLngToContainerPoint(latlng);
-  const near = L.latLngBounds(map.containerPointToLatLng([p.x - 12, p.y + 12]), map.containerPointToLatLng([p.x + 12, p.y - 12]));
+  const map = M.map, scale = 256 * 2 ** map.getZoom();
+  const c = map.project(latlng, map.getZoom()), p = { x: c.x, y: c.y };
   const hits = [];
   for (const t of M.shown) {
-    if (!near.intersects(L.latLngBounds([t.bb[0], t.bb[1]], [t.bb[2], t.bb[3]]))) continue;
-    let prev = null;
-    for (const pt of t.track) {
-      const q = map.latLngToContainerPoint(pt);
-      if (prev && segDist(p, prev, q) <= 10) { hits.push(M.acts.get(t.id)); break; }
-      prev = q;
+    const [x0, y0, x1, y1] = t.m.box;
+    if (x1 * scale < p.x - 12 || x0 * scale > p.x + 12 || y1 * scale < p.y - 12 || y0 * scale > p.y + 12) continue;
+    const xy = t.m.xy;
+    for (let i = 2; i < xy.length; i += 2) {
+      const a = { x: xy[i - 2] * scale, y: xy[i - 1] * scale }, b = { x: xy[i] * scale, y: xy[i + 1] * scale };
+      if (segDist(p, a, b) <= 10) { hits.push(M.acts.get(t.id)); break; }
     }
   }
   return hits.sort((a, b) => (a.start_time_local < b.start_time_local ? 1 : -1));
@@ -192,14 +287,16 @@ function update() {
 
 function setupMap() {
   const map = M.map = L.map("heatmap", { zoomControl: true, preferCanvas: true, worldCopyJump: true });
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
+  // a dark basemap for the heatmap (no CSS filter on the tiles, which made panning stutter), the
+  // regular map for routes
+  const attribution = "&copy; OpenStreetMap contributors";
+  M.tiles = {
+    heat: L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      { maxZoom: 19, subdomains: "abcd", attribution: `${attribution} &copy; CARTO` }),
+    routes: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution }),
+  };
   map.setView([20, 0], 2);
-  const canvas = M.heat = document.createElement("canvas");
-  canvas.className = "heat-canvas";
-  map.getContainer().appendChild(canvas);
-  map.on("move resize", redrawSoon);
-  map.on("zoomstart", () => { canvas.style.opacity = 0; });
-  map.on("zoomend", () => { drawHeat(); canvas.style.opacity = 1; });
+  M.heat = new HeatLayer();
   map.on("click", (e) => {
     if (M.mode !== "heat") return;
     const hits = runsNear(e.latlng);
@@ -212,7 +309,10 @@ function setMode(mode) {
   M.map.closePopup();
   $("m-mode").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
   $("heatmap").classList.toggle("heat-mode", mode === "heat");
-  M.heat.style.display = mode === "heat" ? "" : "none";
+  for (const [k, layer] of Object.entries(M.tiles)) {
+    if (k === mode) layer.addTo(M.map); else layer.remove();
+  }
+  if (mode === "heat") M.heat.addTo(M.map); else M.heat.remove();
   try { localStorage.setItem("mapMode", mode); } catch {}
   update();
 }
@@ -223,9 +323,10 @@ async function load() {
   M.tracks = tracks.map((t) => {
     let s = 90, w = 180, n = -90, e = -180;
     for (const [la, lo] of t.track) { s = Math.min(s, la); n = Math.max(n, la); w = Math.min(w, lo); e = Math.max(e, lo); }
-    return { ...t, bb: [s, w, n, e] };
+    return { ...t, bb: [s, w, n, e], m: mercator(t.track) };
   });
-  const types = [...new Set(acts.filter((a) => M.tracks.some((t) => t.id === a.activity_id)).map((a) => a.activity_type).filter((t) => t && !isRun(t)))].sort();
+  const withTrack = new Set(M.tracks.map((t) => t.id));
+  const types = [...new Set(acts.filter((a) => withTrack.has(a.activity_id)).map((a) => a.activity_type).filter((t) => t && !isRun(t)))].sort();
   $("m-type").innerHTML = `<option value="run">Runs</option><option value="all">All activities</option>` +
     types.map((t) => `<option value="${esc(t)}">${esc(prettyType(t))}</option>`).join("");
   $("m-workout").innerHTML = WORKOUTS.map(([k, label]) => `<option value="${k}">${label}</option>`).join("");

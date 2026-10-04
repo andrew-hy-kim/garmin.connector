@@ -704,9 +704,9 @@ summary.week-head::-webkit-details-marker { display: none; }
 .map-filters .spacer { flex: 1; }
 .heatmap-wrap { position: relative; }
 #heatmap { height: min(72vh, 680px); border-radius: 12px; overflow: hidden; background: var(--surface-2); }
-.heat-canvas { position: absolute; inset: 0; z-index: 450; pointer-events: none; transition: opacity .15s; }
+.heat-canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
 /* the heatmap glows on a dark map, in light mode too */
-#heatmap.heat-mode .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.75) contrast(.9) saturate(.3); }
+
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #heatmap .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.75) contrast(.9) saturate(.4); } }
 .map-key { position: absolute; z-index: 500; right: 10px; bottom: 26px; display: flex; align-items: center; gap: 6px; font-size: 11px;
   color: #fff; background: rgba(0, 0, 0, .55); padding: 4px 8px; border-radius: 8px; }
