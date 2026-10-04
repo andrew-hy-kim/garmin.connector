@@ -166,7 +166,8 @@ def _runs(conn: sqlite3.Connection, max_hr: float) -> list[dict[str, Any]]:
         m = json.loads(r["data"]) if r["data"] else {}
         seconds = r["moving_duration_s"] or r["duration_s"] or 0
         meters = r["distance_m"] or 0
-        hr_ok = r["avg_hr"] and not (m.get("cadence_lock") or 0) > 0.2 and 0.5 <= r["avg_hr"] / max_hr <= 1.02
+        hr_ok = r["avg_hr"] and not (m.get("cadence_lock") or 0) > 0.2 and 0.5 <= r["avg_hr"] / max_hr <= 1.02 \
+            and not (m.get("walk_share") or 0) > analysis.WALK_SHARE_MAX  # run/walk: walking breaks would read as low fitness
         vo2 = vo2max_from_hr(meters, seconds, r["avg_hr"], max_hr) if hr_ok and seconds >= 600 and meters >= 1500 else 0.0
         out.append({
             "activity_id": r["activity_id"], "day": date.fromisoformat(r["start_time_local"][:10]),

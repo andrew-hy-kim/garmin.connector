@@ -137,6 +137,12 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
 
     if workout:
         notes.append(_note("info", f"Tagged: {workout['label']}", workout["reason"]))
+    run_walk = (m.get("walk_share") or 0) > analysis.WALK_SHARE_MAX
+    if run_walk:
+        notes.append(_note("info", f"Run/walk: {m['walk_share']:.0%} walking",
+                           "Effective VO2max, aerobic efficiency and HR drift are left out for run/walk sessions, "
+                           "since walking breaks would read as lost fitness. Distance, time and training load "
+                           "count as usual."))
 
     # Coming back from a break
     day = row["start_time_local"][:10]
@@ -222,7 +228,7 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
     # Pacing and form on steady runs
     pacing = m.get("pacing") or {}
     halves = pacing.get("speed_halves") or []
-    if kind in ("easy", "long", "tempo", "threshold") and len(halves) == 2 and all(halves):
+    if kind in ("easy", "long", "tempo", "threshold") and not run_walk and len(halves) == 2 and all(halves):
         change = halves[1] / halves[0] - 1
         if change >= 0.02:
             notes.append(_note("good", "Negative split", f"Second half was {change:.0%} faster than the first."))
@@ -301,11 +307,11 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
     load = processing.training_load_series(conn)
     today = date.today()
 
+    back = comeback(_runs(conn, (today - timedelta(days=COMEBACK_DAYS + 120)).isoformat()), today.isoformat())
     if len(load) >= 8:
         now, week_ago = load[-1], load[-8]
         state = form_state(now["fitness"], now["form"])
         level = {"overreaching": "warn", "fresh": "info"}.get(state["key"], "good")
-        back = comeback(_runs(conn, (today - timedelta(days=COMEBACK_DAYS + 120)).isoformat()), today.isoformat())
         if back:
             notes.append(_note(
                 "info", f"Rebuilding after {_weeks(back['break_days'])} off",
@@ -335,7 +341,7 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
 
     last7 = [r for r in runs if r["date"] > (today - timedelta(days=7)).isoformat()]
     prev21 = [r for r in runs if (today - timedelta(days=28)).isoformat() < r["date"] <= (today - timedelta(days=7)).isoformat()]
-    if prev21 and km(prev21) > 0:
+    if prev21 and km(prev21) > 0 and not back:  # after a break the comeback note covers the build
         base = km(prev21) / 3
         change = km(last7) / base - 1 if base else 0
         if change > 0.20:
@@ -366,7 +372,7 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
     quality14 = [r for r in runs if r["date"] > (today - timedelta(days=14)).isoformat()
                  and (r["metrics"].get("workout") or {}).get("quality")]
     quality7 = [r for r in quality14 if r["date"] > (today - timedelta(days=7)).isoformat()]
-    if runs and not quality14:
+    if runs and not quality14 and not (back and back["days_back"] < 28):  # not while rebuilding after a break
         notes.append(_note("info", "No workouts in two weeks",
                            "All easy running lately. If you're building toward a goal, one tempo or "
                            "interval session a week adds a lot."))

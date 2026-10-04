@@ -261,6 +261,19 @@ def aerobic_decoupling(
     return round((first - second) / first * 100, 1)
 
 
+WALK_SPEED_MPS = 1.8    # about 15 min/mi (9:15 /km); slower than this is walking
+WALK_SHARE_MAX = 0.15   # runs with more walking than this are run/walk sessions
+
+
+def walk_share(speed: Sequence[float | None]) -> float | None:
+    """Share of moving time spent walking (10-second average, so GPS jitter doesn't count)."""
+    smooth = rolling_mean(speed, 10)
+    moving = [s for s in smooth if s is not None and s > MOVING_SPEED_MPS]
+    if len(moving) < 300:
+        return None
+    return round(sum(1 for s in moving if s < WALK_SPEED_MPS) / len(moving), 3)
+
+
 def efficiency_factor(speed: Sequence[float | None], hr: Sequence[float | None]) -> float | None:
     """Meters per minute per heartbeat while moving. Rises as aerobic fitness improves."""
     pairs = [(s, h) for s, h in zip(speed, hr) if s is not None and h and s > MOVING_SPEED_MPS]
@@ -542,6 +555,7 @@ def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[
         "workout": None,
         "reps": [],
         "pacing": {},
+        "walk_share": None,
     }
     if run:
         cadence = streams["cadence"]
@@ -549,10 +563,14 @@ def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[
         workout = classify_workout(activity_type, t, streams["speed"], hr, streams["distance"], lthr, laps,
                                    is_race, gap)
         metrics["workout"] = workout
+        # Run/walk: pace-against-heart-rate measures (efficiency, drift, effective VO2max) assume
+        # continuous running, and walking breaks would read as a collapse in fitness
+        metrics["walk_share"] = walk_share(streams["speed"])
+        run_walk = (metrics["walk_share"] or 0) > WALK_SHARE_MAX
         steady = workout and workout["type"] in ("easy", "long", "recovery", "tempo", "progression", "threshold")
-        if steady and not structured:
+        if steady and not structured and not run_walk:
             metrics["decoupling_pct"] = aerobic_decoupling(t, streams["speed"], hr)
-        metrics["efficiency"] = efficiency_factor(streams["speed"], hr)
+        metrics["efficiency"] = None if run_walk else efficiency_factor(streams["speed"], hr)
         metrics["pacing"] = pacing_stats(t, streams["speed"], hr, cadence)
         metrics["reps"] = [
             {"seconds": r.seconds, "meters": r.meters, "avg_hr": r.avg_hr, "peak_hr": r.peak_hr,

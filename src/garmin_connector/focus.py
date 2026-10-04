@@ -69,7 +69,17 @@ def endurance(perf: dict[str, Any]) -> dict[str, Any] | None:
                  priority=2 if pct < 40 else 4)
 
 
-def consistency(runs: list[dict[str, Any]], today: date) -> dict[str, Any] | None:
+def consistency(runs: list[dict[str, Any]], today: date, back: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    if back:
+        # coming back from a break: how regularly you've run since, not the weeks off
+        weeks_back = max(1, -(-(back["days_back"] + 1) // 7))
+        per_week = back["runs_back"] / weeks_back
+        level = "strength" if per_week >= 3 else "ok" if per_week >= 2 else "focus"
+        detail = (f"Back running since {insights._day(back['back_on'])} after {insights._weeks(back['break_days'])} off: "
+                  f"{back['runs_back']} run{'s' if back['runs_back'] != 1 else ''}, about {per_week:.1f} a week.")
+        action = None if level == "strength" else (
+            "Three short, easy runs a week rebuilds faster than one or two longer ones.")
+        return _area("consistency", "Consistency", level, f"{per_week:.1f} runs a week", detail, action, priority=1)
     start = today - timedelta(days=WEEKS * 7)
     weeks = [[r for r in runs if start + timedelta(days=7 * i) < date.fromisoformat(r["date"])
               <= start + timedelta(days=7 * (i + 1))] for i in range(WEEKS)]
@@ -117,12 +127,19 @@ def balance(runs: list[dict[str, Any]], perf: dict[str, Any]) -> dict[str, Any] 
                  priority=2 if easy < 0.65 else 3)
 
 
-def quality(runs: list[dict[str, Any]], perf: dict[str, Any], today: date) -> dict[str, Any] | None:
+def quality(runs: list[dict[str, Any]], perf: dict[str, Any], today: date,
+            back: dict[str, Any] | None = None) -> dict[str, Any] | None:
     since = (today - timedelta(days=42)).isoformat()
     recent = [r for r in runs if r["date"] > since]
     if len(recent) < 4:
         return None
     hard = [r for r in recent if (r["metrics"].get("workout") or {}).get("quality")]
+    if back and back["days_back"] < 28:
+        # the first weeks back are for easy running; workouts come later
+        return _area("quality", "Workouts", "ok", "Rebuilding first",
+                     "You're a few weeks back from a break, so easy running is the right call for now.",
+                     "Add one workout a week once you've had about four weeks of steady, comfortable running.",
+                     priority=5)
     per_week = len(hard) / 6
     t, i = _pace(perf, "threshold"), _pace(perf, "interval")
     if not hard:
@@ -175,7 +192,9 @@ def areas(conn: sqlite3.Connection, perf: dict[str, Any], today: date | None = N
     if len(runs) < 6:
         return []
     last8 = [r for r in runs if r["date"] > (today - timedelta(days=56)).isoformat()]
-    out = [a for a in (consistency(runs, today), endurance(perf), balance(last8, perf), quality(runs, perf, today),
+    back = insights.comeback(insights._runs(conn, (today - timedelta(days=insights.COMEBACK_DAYS + 120)).isoformat()),
+                             today.isoformat())
+    out = [a for a in (consistency(runs, today, back), endurance(perf), balance(last8, perf), quality(runs, perf, today, back),
                        efficiency(runs, today)) if a]
     out.sort(key=lambda a: (LEVEL_RANK[a["level"]], a["priority"]))
     return out

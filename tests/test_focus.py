@@ -51,3 +51,23 @@ def test_too_little_data(tmp_path):
 
 def test_plain_text():
     assert insights.plain("{{d:804672}} and {{d:5000}} at {{p:4.000}}") == "805 km and 5.0 km at 4:10 /km"
+
+
+def test_comeback_after_a_break(tmp_path):
+    c = db.connect(tmp_path / "b.db")
+    db.set_setting(c, "max_hr", 190)
+    db.set_setting(c, "lthr", 172)
+    db.set_setting(c, "resting_hr", 50)
+    today = date.today()
+    # running every other day until 8 weeks ago, then six weeks off, then easy runs every other day
+    days = [today - timedelta(days=d) for d in range(57, 120, 2)] + [today - timedelta(days=d) for d in range(1, 14, 2)]
+    for n, d in enumerate(days):
+        _add(c, tmp_path, 100 + n, d.isoformat(), *steady_run(minutes=35, pace_mps=3.0, start_hr=135, drift_bpm=4))
+    processing.refresh(c)
+    by = {a["key"]: a for a in focus.areas(c, perf.summary(c))}
+    # no push for workouts while rebuilding, and consistency counts the weeks since coming back
+    assert by["quality"]["level"] == "ok" and by["quality"]["headline"] == "Rebuilding first"
+    assert by["consistency"]["level"] == "strength" and "Back running since" in by["consistency"]["detail"]
+    notes = [n["title"] for n in insights.overview_insights(c)]
+    assert "No workouts in two weeks" not in notes and not any(t.startswith("Mileage up") for t in notes)
+    c.close()

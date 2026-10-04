@@ -218,3 +218,10 @@ def test_run_walk_at_an_easy_heart_rate_is_an_easy_run():
     s = _streams(samples)
     tag = analysis.classify_workout("running", s["t"], s["speed"], s["hr"], s["distance"], 172, [])
     assert tag["type"] == "fartlek" and tag["quality"]
+
+
+def test_walk_share_marks_run_walk():
+    samples, _ = run_walk(reps=8, run_s=120, walk_s=60, run_mps=2.6, run_hr=140, walk_hr=118)
+    assert analysis.walk_share(_streams(samples)["speed"]) > analysis.WALK_SHARE_MAX
+    samples, _ = steady_run(minutes=40, pace_mps=2.4)  # a slow, continuous jog is still running
+    assert analysis.walk_share(_streams(samples)["speed"]) == 0
