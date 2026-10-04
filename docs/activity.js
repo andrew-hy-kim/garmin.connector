@@ -845,7 +845,7 @@ const ordinal = (n) => {
 async function findSameRoute(all) {
   const a = D.activity;
   if (!isRun(a.activity_type) || !a.distance_m) return;
-  const tracks = await getJSON("/api/heatmap").catch(() => []);
+  const tracks = (await getJSON("/api/heatmap").catch(() => null)) || [];
   const byId = new Map(tracks.map((t) => [t.id, t.track]));
   const mine = byId.get(activityId);
   if (!mine) return;

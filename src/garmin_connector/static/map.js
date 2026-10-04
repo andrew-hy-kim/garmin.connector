@@ -310,7 +310,9 @@ function setMode(mode) {
 }
 
 async function load() {
-  const [acts, tracks] = await Promise.all([getJSON("/api/activities"), getJSON("/api/heatmap")]);
+  const [acts, got] = await Promise.all([getJSON("/api/activities"), getJSON("/api/heatmap")]);
+  const oldFile = got == null; // phone: data imported before the map existed
+  const tracks = got || [];
   for (const a of acts) M.acts.set(a.activity_id, a);
   M.tracks = tracks.map((t) => {
     let s = 90, w = 180, n = -90, e = -180;
@@ -327,7 +329,10 @@ async function load() {
   $("today").textContent = today;
   if (!M.tracks.length) {
     $("map-empty").hidden = false;
-    if (PHONE) $("map-empty-hint").textContent = "Sync on your Mac and the map fills in the next time the app updates.";
+    if (oldFile) {
+      $("map-empty").querySelector("h2").textContent = "Update your data for the map";
+      $("map-empty-hint").textContent = "The data file on this phone is from before the map existed. Tap Update at the top and pick the latest file from your Mac to bring in your routes.";
+    } else if (PHONE) $("map-empty-hint").textContent = "Sync on your Mac, then tap Update at the top and pick the latest file to bring in new routes.";
     ready();
     return;
   }
