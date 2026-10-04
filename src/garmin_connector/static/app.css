@@ -824,3 +824,6 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
   background: var(--surface-1); color: var(--text-primary); }
 .auto-form .hint { margin: 6px 0 0; }
 .auto-form .err { color: var(--danger); }
+
+/* taps on the tab bar: no double-tap-zoom wait, no grey flash */
+.tabs a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }

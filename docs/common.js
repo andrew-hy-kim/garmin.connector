@@ -25,7 +25,12 @@ function pageUrl(page, params = {}) {
 // Highlight this page's tab (a workout belongs to Activities)
 {
   const page = document.body.dataset.page || (/plan/.test(location.pathname) ? "plan" : /activit/.test(location.pathname) ? "activities" : "today");
-  document.querySelector(`.tabs a[data-page="${page}"]`)?.setAttribute("aria-current", "page");
+  const mark = (a) => document.querySelectorAll(".tabs a").forEach((x) => (x === a ? x.setAttribute("aria-current", "page") : x.removeAttribute("aria-current")));
+  mark(document.querySelector(`.tabs a[data-page="${page}"]`));
+  // the tapped tab lights up the moment it's touched, before the next page has loaded
+  document.querySelector(".tabs")?.addEventListener("pointerdown", (e) => { const a = e.target.closest("a"); if (a) mark(a); });
+  // coming back (swipe or Back) can restore this page as it was left: put the highlight back
+  addEventListener("pageshow", (e) => { if (e.persisted) mark(document.querySelector(`.tabs a[data-page="${page}"]`)); });
 }
 
 const $ = (id) => document.getElementById(id);

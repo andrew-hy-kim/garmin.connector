@@ -67,22 +67,19 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== location.origin) return; // e.g. map tiles
-  // Network first, so updates arrive when online; the cache when offline. On a weak signal the
-  // network can hang for a long time, so after a few seconds the cached copy is used instead
-  // (the download carries on and refreshes the cache for next time).
-  const network = fetch(event.request).then((res) => {
+  // only the app's own files: anything else (your data, for one) always comes from the network
+  const name = url.pathname.slice(new URL(self.registration.scope).pathname.length) || "./";
+  if (!FILES.includes(name)) return;
+  // From the cache first, so switching tabs is instant whatever the signal. Every file of this
+  // version was cached at install, and a new version of the app comes with a new sw.js (the
+  // cache name changes), which the browser picks up and installs in the background.
+  event.respondWith(caches.match(name, { ignoreSearch: true }).then((hit) => hit || fetch(event.request).then((res) => {
     if (res.ok) {
       const copy = res.clone();
       caches.open(CACHE).then((cache) => cache.put(event.request, copy));
     }
     return res;
-  });
-  const cached = () => caches.match(event.request, { ignoreSearch: true });
-  const slow = new Promise((resolve) => setTimeout(resolve, 2000)).then(cached);
-  event.respondWith(new Promise((resolve, reject) => {
-    network.then(resolve, () => cached().then((hit) => (hit ? resolve(hit) : reject(new Error("offline")))));
-    slow.then((hit) => { if (hit) resolve(hit); });
-  }));
+  })));
 });
 """
 

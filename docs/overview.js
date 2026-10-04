@@ -17,6 +17,8 @@ const FORM_STATES = [
 ];
 // Orange is too light for text on white; its numbers use the darker warning orange
 const textColor = (st) => (st.key === "productive" ? "--warn-c" : st.color);
+// "+3", "-2" or "0" (rounded first, so a small negative never shows as "-0")
+const fmtSigned = (v) => { const r = Math.round(v) || 0; return `${r > 0 ? "+" : ""}${r}`; };
 const formState = (d) => FORM_STATES.find((s) => (d.fitness > 1 ? d.form / d.fitness : 0) >= s.min);
 const charts = {};
 
@@ -31,9 +33,27 @@ function startOfWeek(d) { // Monday
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+// Charts are drawn when they come near the screen, not all at once on load: Progress has a
+// dozen, and drawing the ones below the fold made the page slow to appear on a phone.
+const pendingCharts = {};
+const chartObserver = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    const job = e.isIntersecting && pendingCharts[e.target.id];
+    if (!job) continue;
+    delete pendingCharts[e.target.id];
+    chartObserver.unobserve(e.target);
+    job();
+  }
+}, { rootMargin: "600px 0px" }) : null;
+addEventListener("beforeprint", () => { for (const id of Object.keys(pendingCharts)) { const job = pendingCharts[id]; delete pendingCharts[id]; job(); } });
+
 function drawChart(key, canvasId, config) {
-  charts[key]?.destroy();
-  charts[key] = new Chart($(canvasId), config);
+  const canvas = $(canvasId);
+  const draw = () => { charts[key]?.destroy(); charts[key] = new Chart(canvas, config); };
+  if (!chartObserver || !canvas) return draw();
+  pendingCharts[canvasId] = draw; // a newer config replaces one not drawn yet
+  chartObserver.unobserve(canvas);
+  chartObserver.observe(canvas);
 }
 
 // ---------- time range ----------
@@ -122,7 +142,7 @@ function renderTiles() {
   const load = today && !$("readiness") ? [
     `<div class="tile"><div class="label">Fitness</div><div class="value">${today.fitness.toFixed(0)}</div><div class="sub">${delta("fitness", true)}</div></div>`,
     `<div class="tile"><div class="label">Fatigue</div><div class="value">${today.fatigue.toFixed(0)}</div><div class="sub">${delta("fatigue")}</div></div>`,
-    `<div class="tile state" style="--c:var(${textColor(st)})"><div class="label">Form</div><div class="value">${(today.form > 0 ? "+" : "") + today.form.toFixed(0)}</div><div class="sub">${st.label}</div></div>`,
+    `<div class="tile state" style="--c:var(${textColor(st)})"><div class="label">Form</div><div class="value">${fmtSigned(today.form)}</div><div class="sub">${st.label}</div></div>`,
   ] : [];
   $("tiles").innerHTML = [...volume, ...load].join("");
   $("tiles").classList.toggle("six", volume.length + load.length === 6);
@@ -200,7 +220,7 @@ function renderLoad() {
   const formOpts = chartBase();
   formOpts.plugins.tooltip = { callbacks: {
     title: (i) => (long ? "Week of " : "") + new Date(bars[i[0].dataIndex].date + "T12:00").toLocaleDateString(undefined, { dateStyle: "medium" }),
-    label: (i) => `Form: ${i.parsed.y > 0 ? "+" : ""}${i.parsed.y.toFixed(0)}`,
+    label: (i) => `Form: ${fmtSigned(i.parsed.y)}`,
     afterLabel: (i) => (bars[i.dataIndex].warmup ? "Still building history, so form isn't meaningful yet" : formState(bars[i.dataIndex]).label),
   } };
   formOpts.scales.x.ticks.display = false;
@@ -233,7 +253,7 @@ function renderExplain() {
     if (d === 3 || d === 7) proj[d] = { form: f - a, fitness: f };
     if (freshDay == null && (f - a) / f >= 0.10) freshDay = d;
   }
-  const sign = (v) => `${v > 0 ? "+" : ""}${v.toFixed(0)}`;
+  const sign = fmtSigned;
   const scale = FORM_STATES.map((s) => `<div style="--c:var(${s.color})" class="${s === st ? "now" : ""}"><b>${s.label}</b>${
     s.key === "fresh" ? "above +10%" : s.key === "neutral" ? "−10% to +10%" : s.key === "productive" ? "−30% to −10%" : "below −30%"} of fitness</div>`).join("");
   $("explain").innerHTML = `
@@ -1230,7 +1250,7 @@ function renderReadiness() {
   }
   const x = loadExtras(state.load);
   const t = todaysSession();
-  const sign = (v) => `${v > 0 ? "+" : ""}${v.toFixed(0)}`;
+  const sign = fmtSigned;
   const facts = [
     `Fitness <b>${today.fitness.toFixed(0)}</b>`, `Fatigue <b>${today.fatigue.toFixed(0)}</b>`,
     x && x.restDays ? `<b>${x.restDays}</b> easy day${x.restDays > 1 ? "s" : ""} to fresh` : "",

@@ -464,7 +464,7 @@
 
   // Offline support: cache the app itself (not your data, which is in IndexedDB).
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
-    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch((err) => console.warn("Offline cache unavailable:", err)));
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch((err) => console.warn("Offline cache unavailable:", err)));
   }
 
   window.PhoneData = { get, ready, importFile, setZoneSystem, timeInZones, autoUpdate };
