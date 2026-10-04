@@ -72,24 +72,24 @@ const SLICE_MS = 8;
 const BAND = 96; // rows recolored per step
 const HeatLayer = L.Layer.extend({
   onAdd(map) {
-    this._c = L.DomUtil.create("canvas", "heat-canvas leaflet-zoom-animated");
-    this._off = document.createElement("canvas");
-    map.getPane("overlayPane").appendChild(this._c);
+    this._heatCanvas = L.DomUtil.create("canvas", "heat-canvas leaflet-zoom-animated");
+    this._heatBuffer = document.createElement("canvas");
+    map.getPane("overlayPane").appendChild(this._heatCanvas);
     map.on("moveend resize", this.redraw, this);
-    map.on("zoomanim", this._animate, this);
+    map.on("zoomanim", this._heatZoomAnim, this);
     this.redraw();
   },
   onRemove(map) {
-    this._job = null;
-    this._c.remove();
+    this._heatJob = null;
+    this._heatCanvas.remove();
     map.off("moveend resize", this.redraw, this);
-    map.off("zoomanim", this._animate, this);
+    map.off("zoomanim", this._heatZoomAnim, this);
   },
-  _animate(e) {
-    if (!this._bounds) return;
+  _heatZoomAnim(e) {
+    if (!this._heatBounds) return;
     const scale = this._map.getZoomScale(e.zoom);
-    const offset = this._map._latLngBoundsToNewLayerBounds(this._bounds, e.zoom, e.center).min;
-    L.DomUtil.setTransform(this._c, offset, scale);
+    const offset = this._map._latLngBoundsToNewLayerBounds(this._heatBounds, e.zoom, e.center).min;
+    L.DomUtil.setTransform(this._heatCanvas, offset, scale);
   },
   redraw() {
     const map = this._map;
@@ -99,22 +99,22 @@ const HeatLayer = L.Layer.extend({
     const w = size.x + 2 * padX, h = size.y + 2 * padY;
     const topLeft = map.containerPointToLayerPoint([-padX, -padY]);
     const bounds = L.latLngBounds(map.layerPointToLatLng(topLeft), map.layerPointToLatLng(topLeft.add([w, h])));
-    const job = this._job = heatJob(this._off, map, w, h, topLeft);
+    const job = this._heatJob = heatJob(this._heatBuffer, map, w, h, topLeft);
     const step = () => {
-      if (this._job !== job) return; // superseded by a newer pan or zoom
+      if (this._heatJob !== job) return; // superseded by a newer pan or zoom
       if (!job.next(performance.now() + SLICE_MS)) { requestAnimationFrame(step); return; }
       // done: show it where it was drawn
-      const c = this._c;
-      if (c.width !== this._off.width || c.height !== this._off.height) {
-        c.width = this._off.width; c.height = this._off.height;
+      const c = this._heatCanvas;
+      if (c.width !== this._heatBuffer.width || c.height !== this._heatBuffer.height) {
+        c.width = this._heatBuffer.width; c.height = this._heatBuffer.height;
       }
       c.style.width = `${w}px`; c.style.height = `${h}px`;
       const ctx = c.getContext("2d");
       ctx.clearRect(0, 0, c.width, c.height);
-      ctx.drawImage(this._off, 0, 0);
-      this._bounds = bounds;
+      ctx.drawImage(this._heatBuffer, 0, 0);
+      this._heatBounds = bounds;
       L.DomUtil.setPosition(c, topLeft);
-      this._job = null;
+      this._heatJob = null;
     };
     step();
   },
@@ -275,6 +275,7 @@ function update() {
     ? `The brighter a street, the more often you've run it. ${act()} anywhere on the map to see the runs that went through.`
     : `Each run is a line, colored by workout type. ${act()} one to open it.`;
   $("map-key").hidden = M.mode !== "heat";
+  $("route-key").hidden = M.mode !== "routes";
   const places = renderPlaces();
   if (!M.fitted && M.shown.length) {
     // start where you run most, not zoomed out to every trip you've ever taken
