@@ -428,6 +428,7 @@ function renderLongRuns() {
   }
   const u = Units.get();
   const threshold = dist(13000);
+  $("longruns-hint").textContent = `Your longest run each week. Runs over ${fmtNum(threshold, u === "mi" ? 1 : 0)} ${u} build the endurance long races need.`;
   const target = state.perf?.marathon_shape ? dist(state.perf.marathon_shape.long_target_km * 1000) : null;
   const recent = longest.slice(-10).filter((v) => v > threshold).length;
   $("longruns-head").innerHTML = `<span class="big">${fmtNum(Math.max(...longest.slice(-4), 0), 1)}<small>${u}</small></span><span class="dim">longest in the last 4 ${b.monthly ? "months" : "weeks"}${b.monthly ? "" : ` · ${recent} long run${recent === 1 ? "" : "s"} in 10 weeks`}</span>`;
