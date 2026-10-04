@@ -264,8 +264,6 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 #map .leaflet-bar a { background: var(--surface-1); color: var(--text-primary); border-bottom-color: var(--grid); }
 @media (hover: hover) { #map .leaflet-bar a:hover { background: var(--surface-2); } }
 #map .leaflet-control-attribution { background: color-mix(in srgb, var(--surface-1) 80%, transparent); color: var(--text-muted); border-radius: 6px 0 0 0; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); } }
-:root[data-theme="dark"] #map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
 .toolbar .spacer { flex: 1; }
 @media (max-width: 600px) {
@@ -707,7 +705,17 @@ summary.week-head::-webkit-details-marker { display: none; }
 .heat-canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
 /* the heatmap glows on a dark map, in light mode too */
 
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #heatmap .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.75) contrast(.9) saturate(.4); } }
+/* Maps keep their layers to themselves: Leaflet's own z-indexes (up to 1000) would otherwise sit
+   on top of the tab bar and header and swallow taps meant for them */
+.leaflet-container { isolation: isolate; }
+/* Dark mode dims the map by fading its tiles over a dark background: one cheap layer, where a
+   filter on every tile made panning and zooming stutter */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #heatmap, :root:not([data-theme="light"]) #map { background: #0d1117; }
+  :root:not([data-theme="light"]) #heatmap .leaflet-tile-pane, :root:not([data-theme="light"]) #map .leaflet-tile-pane { opacity: .5; }
+}
+:root[data-theme="dark"] #heatmap, :root[data-theme="dark"] #map { background: #0d1117; }
+:root[data-theme="dark"] #heatmap .leaflet-tile-pane, :root[data-theme="dark"] #map .leaflet-tile-pane { opacity: .5; }
 .map-key { position: absolute; z-index: 500; right: 10px; bottom: 26px; display: flex; align-items: center; gap: 6px; font-size: 11px;
   color: #fff; background: rgba(0, 0, 0, .55); padding: 4px 8px; border-radius: 8px; }
 .map-key i { width: 90px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, rgb(60,130,255), rgb(120,90,255), rgb(255,90,60), rgb(255,190,40), rgb(255,250,220)); }
@@ -812,7 +820,7 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
 .route-table tbody tr td:first-child { white-space: nowrap; }
 .link-btn { background: none; border: 0; color: var(--link); font: inherit; font-size: 14px; font-weight: 600; padding: 10px 0 0; cursor: pointer; }
 #heatmap.heat-mode { background: #0d1117; }
-#heatmap.heat-mode .leaflet-tile-pane { opacity: .32; }
+#heatmap.heat-mode .leaflet-tile-pane, :root #heatmap.heat-mode .leaflet-tile-pane { opacity: .32; }
 
 /* ---------- phone: automatic updates ---------- */
 .bar-actions { display: flex; gap: 6px; }
