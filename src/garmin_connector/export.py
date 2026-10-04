@@ -160,9 +160,13 @@ def write(conn: sqlite3.Connection, folder: Path | str | None = None) -> Path:
 
 
 def write_quietly(conn: sqlite3.Connection) -> Path | None:
-    """Export after a sync; a failure here never fails the sync itself."""
+    """Export after a sync (and send it to the phone, if automatic updates are on); a failure
+    here never fails the sync itself."""
     try:
-        return write(conn)
+        path = write(conn)
     except Exception as err:  # e.g. iCloud Drive folder not writable
         log.warning("Couldn't write the phone export: %s", err)
         return None
+    from . import publish  # here, so the export works even without the encryption library
+    publish.publish_quietly(conn, path)
+    return path

@@ -813,3 +813,14 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
 .link-btn { background: none; border: 0; color: var(--link); font: inherit; font-size: 14px; font-weight: 600; padding: 10px 0 0; cursor: pointer; }
 #heatmap.heat-mode { background: #0d1117; }
 #heatmap.heat-mode .leaflet-tile-pane { opacity: .32; }
+
+/* ---------- phone: automatic updates ---------- */
+.bar-actions { display: flex; gap: 6px; }
+.data-bar .auto-form { flex-basis: 100%; }
+.auto-form { text-align: left; margin: 0 0 20px; }
+.auto-form p { margin: 0 0 8px; }
+.auto-row { display: flex; gap: 8px; }
+.auto-row input { flex: 1; min-width: 0; font-size: 16px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface-1); color: var(--text-primary); }
+.auto-form .hint { margin: 6px 0 0; }
+.auto-form .err { color: var(--danger); }

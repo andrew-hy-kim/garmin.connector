@@ -2,7 +2,8 @@
 //
 // The Mac writes "garmin-dashboard.data" (gzip JSON) to iCloud Drive after each sync.
 // Importing it here stores everything in this app's IndexedDB on the phone, and the
-// dashboard pages read from that copy instead of the Mac's server. Nothing is uploaded.
+// dashboard pages read from that copy instead of the Mac's server. With automatic updates
+// set up on the Mac, an encrypted copy is also fetched from GitHub (see "automatic updates").
 
 (function () {
   const DB_NAME = "garmin-dashboard";
@@ -79,6 +80,111 @@
     // only once the data is safely stored: a note to confirm the import after the reload
     try { sessionStorage.setItem("phoneImported", JSON.stringify({ added, total: snap.overview.activities.length })); } catch {}
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  }
+
+  // ---------- automatic updates ----------
+  // When set up on the Mac (garmin-connector phone-updates on), each sync uploads an encrypted
+  // copy of the data file to the "phone-data" branch of the repository this app is served
+  // from. A small stamp file says when it changed; only then is the data downloaded. The
+  // passphrase is asked once; this phone keeps the key derived from it, not the passphrase.
+  const AUTO_KEY = "autoUpdate";
+  const autoCfg = () => { try { return JSON.parse(localStorage.getItem(AUTO_KEY) || "null"); } catch { return null; } };
+  const saveAutoCfg = (c) => { try { localStorage.setItem(AUTO_KEY, JSON.stringify(c)); } catch {} };
+  const hex = (u8) => Array.from(u8, (b) => b.toString(16).padStart(2, "0")).join("");
+  const toB64 = (u8) => btoa(String.fromCharCode(...u8));
+  const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+  function autoBase() {
+    try { const o = localStorage.getItem("autoUpdateBase"); if (o) return o; } catch {}
+    const m = location.hostname.match(/^([^.]+)\.github\.io$/i);
+    if (!m) return null;
+    const first = location.pathname.split("/").filter(Boolean)[0];
+    const repo = first && !first.endsWith(".html") ? first : `${m[1]}.github.io`;
+    return `https://raw.githubusercontent.com/${m[1]}/${repo}/phone-data/`;
+  }
+
+  async function fetchFresh(url, asText) {
+    const res = await fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Download failed (${res.status})`);
+    return asText ? res.text() : res.arrayBuffer();
+  }
+
+  function unpack(buf) {
+    const u = new Uint8Array(buf);
+    if (String.fromCharCode(...u.slice(0, 4)) !== "GDE1") throw new Error("The uploaded data isn't in the expected format.");
+    return { salt: u.slice(4, 20), rounds: new DataView(buf).getUint32(20), iv: u.slice(24, 36), sealed: u.slice(36) };
+  }
+
+  async function deriveKey(passphrase, salt, rounds) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveBits"]);
+    return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: rounds }, base, 256));
+  }
+
+  async function open(raw, box) {
+    const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+    return crypto.subtle.decrypt({ name: "AES-GCM", iv: box.iv }, key, box.sealed);
+  }
+
+  // Is there uploaded data to update from? (Not set up on the Mac: no stamp file.)
+  async function autoAvailable() {
+    const base = autoBase();
+    if (!base || !window.crypto || !crypto.subtle) return false;
+    try { await fetchFresh(base + "stamp.txt", true); return true; } catch { return false; }
+  }
+
+  // "updated", "same", "passphrase" (needed again: changed on the Mac), or null when not set up.
+  async function autoUpdate(passphrase) {
+    const base = autoBase(), cfg = autoCfg();
+    if (!base || !window.crypto || !crypto.subtle || (!cfg && !passphrase)) return null;
+    const stamp = (await fetchFresh(base + "stamp.txt", true)).trim();
+    if (cfg && !passphrase && stamp === cfg.stamp) return "same";
+    const box = unpack(await fetchFresh(base + "data.bin"));
+    let raw;
+    if (passphrase) raw = await deriveKey(passphrase, box.salt, box.rounds);
+    else if (cfg.salt === hex(box.salt)) raw = fromB64(cfg.key);
+    else return "passphrase";
+    let plain;
+    try { plain = await open(raw, box); } catch {
+      if (passphrase) throw new Error("That isn't the passphrase set on your Mac.");
+      return "passphrase";
+    }
+    const snap = await readFile(new Blob([plain]));
+    // a CDN can briefly serve an older copy with a newer stamp: then check again next time
+    const got = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", plain))).slice(0, 32);
+    saveAutoCfg({ key: toB64(raw), salt: hex(box.salt), stamp: got === stamp ? stamp : null });
+    if (!passphrase && info && snap.generated_at <= info.generated_at) return "same"; // nothing newer than what's here
+    const before = overview ? new Set(overview.activities.map((a) => a.activity_id)) : null;
+    await saveSnapshot(await openDb(), snap, plain.byteLength);
+    const added = before ? snap.overview.activities.filter((a) => !before.has(a.activity_id)).length : null;
+    try { sessionStorage.setItem("phoneImported", JSON.stringify({ added, total: snap.overview.activities.length })); } catch {}
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    return "updated";
+  }
+
+  function passphraseForm(intro, onDone) {
+    const form = document.createElement("form");
+    form.className = "auto-form";
+    form.innerHTML = `<p>${intro}</p>
+      <div class="auto-row"><input type="password" autocomplete="current-password" placeholder="Passphrase" aria-label="Passphrase" required>
+      <button class="primary" type="submit">Turn on</button></div><p class="hint auto-status" role="status" aria-live="polite"></p>`;
+    const status = form.querySelector(".auto-status");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector("button");
+      btn.disabled = true;
+      status.className = "hint auto-status";
+      status.textContent = "Downloading and unlocking your data…";
+      try {
+        await autoUpdate(form.querySelector("input").value);
+        status.textContent = "Done.";
+        onDone();
+      } catch (err) {
+        status.className = "hint auto-status err";
+        status.textContent = err.message;
+        btn.disabled = false;
+      }
+    });
+    return form;
   }
 
   // ---------- zone system chosen on this phone ----------
@@ -282,17 +388,40 @@
       }
     });
     card.querySelector("#phone-import").onclick = () => input.click();
+    autoAvailable().then((yes) => {
+      if (!yes) return;
+      card.querySelector(".steps").hidden = true;
+      card.querySelector("#phone-import").className = "link-btn";
+      card.querySelector("#phone-import").textContent = "Or import a file instead";
+      card.querySelector(".lead").after(passphraseForm(
+        "Your Mac sends your data here automatically. Enter the passphrase you chose on your Mac.", () => location.reload()));
+    });
   }
 
   function showDataBar(main) {
     const stale = (Date.now() - new Date(info.generated_at)) / 864e5 > STALE_DAYS;
+    const auto = !!autoCfg();
     const bar = document.createElement("div");
     bar.className = "data-bar" + (stale ? " stale" : "");
-    bar.innerHTML = `<span>Synced from your Mac ${esc(relative(info.generated_at))}${stale ? ". Sync on your Mac, then tap Update." : ""}</span>
-      <button type="button">Update</button><span class="phone-status" role="status" aria-live="polite"></span>`;
+    bar.innerHTML = `<span class="bar-text">Synced from your Mac ${esc(relative(info.generated_at))}${
+      stale ? (auto ? ". Sync on your Mac to update." : ". Sync on your Mac, then tap Update.") : auto ? " · updates automatically" : ""}</span>
+      <span class="bar-actions"><button type="button" class="auto-on" hidden>Auto-update</button><button type="button" class="manual">Update</button></span>
+      <span class="phone-status" role="status" aria-live="polite"></span>`;
     const header = main.querySelector("header");
     if (header) header.after(bar); else main.prepend(bar);
     const status = bar.querySelector(".phone-status");
+    if (auto) runAutoUpdate(bar, status);
+    else {
+      autoAvailable().then((yes) => {
+        const on = bar.querySelector(".auto-on");
+        on.hidden = !yes;
+        on.onclick = () => {
+          on.hidden = true;
+          bar.append(passphraseForm("Enter the passphrase you chose on your Mac, and this phone updates by itself from now on.",
+            () => location.reload()));
+        };
+      });
+    }
     const input = picker(async (file) => {
       try {
         await importFile(file, (msg) => { status.textContent = msg; });
@@ -302,7 +431,29 @@
         status.style.color = "var(--danger)";
       }
     });
-    bar.querySelector("button").onclick = () => input.click();
+    bar.querySelector(".manual").onclick = () => input.click();
+  }
+
+  // On every open: fetch newer data if the Mac uploaded some. Right after opening, just reload;
+  // if you're already reading, offer a button instead of yanking the page.
+  const opened = Date.now();
+  async function runAutoUpdate(bar, status) {
+    const manual = bar.querySelector(".manual");
+    manual.hidden = true;
+    let result;
+    try { result = await autoUpdate(); } catch { return; } // offline: the copy on the phone is fine
+    if (result === "updated") {
+      if (Date.now() - opened < 6000 && scrollY < 80) { location.reload(); return; }
+      status.innerHTML = "";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "New data · Reload";
+      btn.onclick = () => location.reload();
+      status.append(btn);
+    } else if (result === "passphrase") {
+      bar.append(passphraseForm("The passphrase was changed on your Mac. Enter the new one to keep updating automatically.",
+        () => location.reload()));
+    }
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
@@ -316,5 +467,5 @@
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch((err) => console.warn("Offline cache unavailable:", err)));
   }
 
-  window.PhoneData = { get, ready, importFile, setZoneSystem, timeInZones };
+  window.PhoneData = { get, ready, importFile, setZoneSystem, timeInZones, autoUpdate };
 })();

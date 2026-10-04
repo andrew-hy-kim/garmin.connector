@@ -213,8 +213,8 @@ background needs a connection.
 
 **How it works:** after every sync (including the daily automatic one), your Mac writes
 `garmin-dashboard.data` to **iCloud Drive → Garmin Dashboard**. The phone app imports that
-file and stores it on the phone. The app's code is served by GitHub Pages; your data never
-goes there.
+file and stores it on the phone. The app's code is served by GitHub Pages. Your data only
+goes there if you turn on automatic updates (below), and then only encrypted.
 
 ### One-time setup
 
@@ -234,7 +234,29 @@ goes there.
 ### Everyday
 
 After your Mac syncs, tap **Update** at the top of the phone app and pick the same file
-again. The bar shows how old the data on the phone is.
+again. The bar shows how old the data on the phone is. Or let it update by itself:
+
+### Automatic updates
+
+```bash
+garmin-connector phone-updates on
+```
+
+It walks you through two things: a GitHub token that can change only this repository
+(Contents: read and write), and a passphrase you pick. From then on, after every sync your
+Mac encrypts the phone app's data with that passphrase (AES-256) and uploads it to the
+`phone-data` branch of this repository, replacing the previous copy. On the phone, tap
+**Auto-update** at the top (or, on a new phone, it's offered right away) and enter the
+passphrase once. Each time you open the app it checks for new data and loads it.
+
+- The repository is public, so the encrypted file is too: the passphrase is what keeps it
+  private. Use a few unrelated words. The token and passphrase stay in your Mac's Keychain;
+  the phone keeps only the key derived from the passphrase.
+- Change the passphrase by running `phone-updates on` again; the phone asks for the new one.
+- `garmin-connector phone-updates status` shows whether it's on; `… now` uploads right
+  away; `… off` stops it and removes the token and passphrase (delete the `phone-data`
+  branch on GitHub to remove the uploaded file too).
+- Combined with the daily sync below, the phone stays current without touching the Mac.
 
 - No iCloud Drive? Run `garmin-connector export --to ~/Desktop` and AirDrop the file to
   your phone (save it to Files), then import it.

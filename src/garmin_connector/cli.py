@@ -29,6 +29,10 @@ def main(argv: list[str] | None = None) -> None:
     p_export = sub.add_parser("export", help="write the data file for the phone app (iCloud Drive by default)")
     p_export.add_argument("--to", help="folder to write to (default: iCloud Drive/Garmin Dashboard)")
 
+    p_phone = sub.add_parser("phone-updates", help="automatic updates for the phone app (encrypted, via GitHub)")
+    p_phone.add_argument("action", choices=["on", "off", "status", "now"], nargs="?", default="status",
+                         help="on: set up; off: stop and forget the token; now: upload right away")
+
     sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
     sub.add_parser("set-api-key", help="save an Anthropic API key for 'Ask Claude' reviews (macOS Keychain)")
     sub.add_parser("remove-api-key", help="forget the saved Anthropic API key")
@@ -108,6 +112,16 @@ def main(argv: list[str] | None = None) -> None:
             print(f"{label}: {round(value) if value else 'not set'}{note}")
         if current["zone_floors"]:
             print("Zones: from Garmin, lower bounds " + ", ".join(str(f) for f in current["zone_floors"]))
+    elif args.command == "phone-updates":
+        import requests
+
+        from . import publish
+        try:
+            phone_updates(args.action)
+        except publish.GitHubError as err:
+            raise SystemExit(str(err))
+        except requests.RequestException as err:
+            raise SystemExit(f"Couldn't reach GitHub: {err}")
     elif args.command == "dashboard":
         from .web import create_app
 
@@ -117,6 +131,58 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Dashboard running at {url} (Ctrl+C to stop)")
         # Bound to 127.0.0.1 so it's only reachable from this Mac.
         create_app().run(host="127.0.0.1", port=args.port)
+
+
+def phone_updates(action: str) -> None:
+    import getpass
+
+    from . import publish
+
+    with closing(db.connect(config.db_path())) as conn:
+        cfg = publish.settings(conn)
+        if action == "status":
+            if cfg:
+                print(f"Automatic phone updates are on: encrypted data goes to the '{publish.BRANCH}' branch of "
+                      f"{cfg['repo']} after each sync.\nPhone app: {publish.phone_url(cfg['repo'])}")
+            else:
+                print("Automatic phone updates are off. Turn them on with: garmin-connector phone-updates on")
+        elif action == "off":
+            publish.clear_settings(conn)
+            print("Automatic phone updates are off; the token and passphrase were removed from your Keychain.\n"
+                  "To also remove the uploaded (encrypted) data, delete the 'phone-data' branch on GitHub.")
+        elif action == "now":
+            if not cfg:
+                raise SystemExit("Automatic phone updates aren't set up. Run: garmin-connector phone-updates on")
+            publish.publish(conn, export.write(conn), force=True)
+            print("Uploaded. The phone app picks it up the next time you open it.")
+        else:  # on
+            print("The phone app runs on GitHub Pages, so your Mac uploads an encrypted copy of its data there\n"
+                  "after each sync, and the app downloads it when you open it. Without your passphrase the\n"
+                  "file is unreadable.\n")
+            repo = publish.repo_from_git() or input("GitHub repository of the phone app (owner/name): ").strip()
+            print(f"Repository: {repo}\n")
+            print("1. Make a GitHub token that can change only this repository:\n"
+                  "   https://github.com/settings/personal-access-tokens/new\n"
+                  f"   Repository access: Only select repositories → {repo}\n"
+                  "   Permissions → Repository permissions → Contents: Read and write\n"
+                  "   Generate it and copy it.")
+            token = getpass.getpass("   Paste the token (hidden): ").strip()
+            publish.check_access(repo, token)
+            print("\n2. Pick a passphrase. You'll type it once on your phone. Use a few unrelated words\n"
+                  "   (at least 12 characters): the encrypted file is public, so the passphrase is what protects it.")
+            while True:
+                passphrase = getpass.getpass("   Passphrase (hidden): ")
+                if len(passphrase) < 12:
+                    print("   At least 12 characters, please.")
+                elif getpass.getpass("   Again: ") != passphrase:
+                    print("   Those didn't match.")
+                else:
+                    break
+            publish.save_settings(conn, repo, token, passphrase)
+            print("\nUploading your data…")
+            publish.publish(conn, export.write(conn), force=True)
+            print(f"Done. On your phone, open {publish.phone_url(repo)} and tap 'Turn on automatic updates',\n"
+                  "then enter the passphrase. From then on it updates by itself after each sync.")
 
 
 if __name__ == "__main__":
