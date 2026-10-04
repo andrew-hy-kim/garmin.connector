@@ -203,9 +203,12 @@ def create_app(db_path: Path | str | None = None) -> Flask:
         with conn() as c:
             current = processing.effective_settings(c)
             # what the numbers will be after saving (a cleared value falls back to Garmin's or the estimate)
-            max_hr = values.get("max_hr", current["max_hr"] if current["sources"]["max_hr"] == "you" else None)
+            # the max HR in effect: the one entered now, else the current one (yours, Garmin's or the
+            # estimate), unless you just cleared yours and the fallback isn't known until saved
+            cleared_mine = "max_hr" in values and values["max_hr"] is None and current["sources"]["max_hr"] == "you"
+            max_hr = values.get("max_hr") or (None if cleared_mine else current["max_hr"])
             for key in ("resting_hr", "lthr"):
-                value = values.get(key, current[key] if current["sources"][key] == "you" else None)
+                value = values[key] if key in values else current[key]
                 if value and max_hr and value >= max_hr:
                     label = "Resting HR" if key == "resting_hr" else "Threshold HR"
                     return jsonify({"error": f"{label} has to be below your max HR ({round(max_hr)})."}), 400

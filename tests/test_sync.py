@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import closing
+
 import io
 import tempfile
 import zipfile
@@ -232,3 +234,26 @@ def test_settings_reject_impossible_heart_rates(tmp_path):
     assert ok.status_code == 200 and ok.get_json()["lthr"] == 172
     # clearing a value is always allowed
     assert client.post("/api/settings", json={"max_hr": None, "lthr": None}).status_code == 200
+    # a threshold above the max HR from Garmin (not typed in) is caught too
+    with closing(db.connect(path)) as c:
+        db.set_garmin_profile(c, {"max_hr": 188})
+    res = client.post("/api/settings", json={"lthr": 195})
+    assert res.status_code == 400 and "188" in res.get_json()["error"]
+
+
+def test_activities_deleted_in_garmin_are_removed(conn):
+    client = FakeGarmin([make_activity(1, days_ago(5)), make_activity(2, days_ago(1)), make_activity(3, days_ago(1))])
+    sync.sync(client, conn)
+    conn.execute("INSERT INTO ai_reviews (key, created_at, text) VALUES ('activity:3:mi', 'now', 'x')")
+    # run 3 was a duplicate, deleted in Garmin Connect; run 1 is older than the re-checked days
+    client.activities = [make_activity(1, days_ago(5)), make_activity(2, days_ago(1))]
+    sync.sync(client, conn)
+    ids = [r[0] for r in conn.execute("SELECT activity_id FROM activities ORDER BY activity_id")]
+    assert ids == [1, 2]
+    for table in ("streams", "activity_metrics", "laps"):
+        assert conn.execute(f"SELECT count(*) FROM {table} WHERE activity_id = 3").fetchone()[0] == 0
+    assert conn.execute("SELECT count(*) FROM ai_reviews").fetchone()[0] == 0
+    # an empty reply (a Garmin hiccup) never deletes anything
+    client.activities = []
+    sync.sync(client, conn)
+    assert conn.execute("SELECT count(*) FROM activities").fetchone()[0] == 2

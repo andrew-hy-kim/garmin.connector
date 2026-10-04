@@ -233,6 +233,18 @@ def upsert_race_predictions(conn: sqlite3.Connection, rows: list[dict[str, Any]]
     return len(rows)
 
 
+def delete_activities(conn: sqlite3.Connection, ids: Iterable[int]) -> int:
+    """Remove activities and everything derived from them (the .fit files on disk are left alone)."""
+    ids = list(ids)
+    for table in ("streams", "laps", "activity_metrics", "export_streams", "heatmap_tracks", "gear_activity",
+                  "activities"):
+        conn.executemany(f"DELETE FROM {table} WHERE activity_id = ?", [(i,) for i in ids])
+    conn.executemany("DELETE FROM ai_reviews WHERE key = ? OR key = ?",
+                     [(f"activity:{i}:mi", f"activity:{i}:km") for i in ids])
+    conn.commit()
+    return len(ids)
+
+
 def latest_activity_date(conn: sqlite3.Connection) -> str | None:
     row = conn.execute("SELECT max(substr(start_time_local, 1, 10)) FROM activities").fetchone()
     return row[0]

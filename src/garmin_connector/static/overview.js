@@ -1000,9 +1000,9 @@ function renderRaces() {
   $("races-hint").textContent = rp.vo2max
     ? `From your VO2max shape (${rp.vo2max.toFixed(1)}${state.perf?.vo2max_as_of ? `, as of ${fmtDate(state.perf.vo2max_as_of, { month: "short", day: "numeric" })}` : ""}) and marathon shape (${rp.marathon_shape}%): long races are held back when your endurance is short of what they need. ${act()} a row to see your fastest recent stretch at that distance.`
     : `From your fastest stretches in the last ${rp.window_days} days, scaled to each distance. ${act()} a row to see the stretch it's based on.`;
-  // negative = faster, which is good
+  // negative = faster, which is good: shown as time taken off (−) or added (+)
   const change = (s) => (s == null ? `<span class="dim">–</span>` : Math.abs(s) < 5 ? `<span class="dim">same</span>`
-    : `<span class="chg ${s < 0 ? "up" : ""}">${s < 0 ? "▼" : "▲"} ${fmtDuration(Math.abs(s))}</span>`);
+    : `<span class="chg ${s < 0 ? "up" : ""}" title="${s < 0 ? "Faster" : "Slower"} than ${months} months ago">${s < 0 ? "−" : "+"}${fmtDuration(Math.abs(s))}</span>`);
   const dash = `<span class="dim">–</span>`;
   $("races").innerHTML = rp.races.map((r) => {
     const main = r.fitness_seconds || r.seconds;
@@ -1425,6 +1425,12 @@ function renderPerf() {
   opts.interaction = { mode: "nearest", intersect: false };
   timeAxis(opts);
   opts.scales.y.grace = "8%";
+  // at least 6 points of VO2max on the axis, so a drop of one or two doesn't look like a cliff
+  const vals = h.map((d) => d.vo2max).concat(state.vo2.filter((r) => r.sport === "running" && inRange(r.date)).map((r) => r.value));
+  if (vals.length) {
+    const lo = Math.min(...vals), hi = Math.max(...vals), mid = (lo + hi) / 2;
+    if (hi - lo < 6) { opts.scales.y.suggestedMin = Math.floor(mid - 3); opts.scales.y.suggestedMax = Math.ceil(mid + 3); }
+  }
   opts.scales.y2 = { position: "right", grid: { display: false }, border: { display: false }, min: 0,
     ticks: { color: cssVar("--text-muted"), callback: (v) => `${v}%` } };
   opts.plugins.tooltip = { callbacks: {

@@ -48,6 +48,16 @@ def sync(
     activities = client.get_activities_by_date(since.isoformat(), today.isoformat())
     n_activities = db.upsert_activities(conn, activities)
     log.info("Found %d activities", n_activities)
+    # Activities deleted in Garmin Connect since the last sync: gone here too. Only within the
+    # re-checked days, and only when Garmin did list that stretch (an empty reply could be a hiccup).
+    if activities and since != EARLIEST:
+        listed = {a.get("activityId") for a in activities}
+        gone = [r[0] for r in conn.execute(
+            "SELECT activity_id FROM activities WHERE substr(start_time_local, 1, 10) >= ?", (since.isoformat(),))
+            if r[0] not in listed]
+        if gone:
+            db.delete_activities(conn, gone)
+            log.info("Removed %d activit%s deleted in Garmin Connect", len(gone), "y" if len(gone) == 1 else "ies")
 
     # Recent days are re-checked in case a new run updated VO2 max.
     recheck_from = (today - timedelta(days=OVERLAP_DAYS)).isoformat()
