@@ -24,6 +24,7 @@ def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> 
         "json_extract(m.data, '$.workout.type') AS workout_type, "
         "json_extract(m.data, '$.workout.label') AS workout_label, "
         "json_extract(m.data, '$.intensity_seconds') AS intensity_seconds, "
+        "json_extract(m.data, '$.hr_by_speed') AS hr_by_speed, "
         "json_extract(a.raw_json, '$.averageRunningCadenceInStepsPerMinute') AS cadence_spm, "
         "json_extract(a.raw_json, '$.avgStrideLength') AS stride_cm, "
         "json_extract(a.raw_json, '$.avgGroundContactTime') AS ground_contact_ms, "
@@ -36,6 +37,7 @@ def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> 
     for r in rows:
         row = dict(r)
         row["intensity_seconds"] = json.loads(row["intensity_seconds"]) if row["intensity_seconds"] else None
+        row["hr_by_speed"] = json.loads(row["hr_by_speed"]) if row["hr_by_speed"] else None
         row["vo2max_eff"] = per_run.get(str(row["activity_id"]))
         out.append(row)
     return out

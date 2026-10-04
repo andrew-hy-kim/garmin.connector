@@ -835,3 +835,13 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
 
 /* taps on the tab bar: no double-tap-zoom wait, no grey flash */
 .tabs a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* heart rate at a fixed pace: the pace picker in the card's title row */
+.hrpace-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+.hrpace-pick select { min-height: 30px; padding-top: 3px; padding-bottom: 3px; font-size: 14px; }
+/* side by side, or full width when the other one has nothing to show */
+.grid > #hrpace-card:has(+ #form-card[hidden]), .grid > #hrpace-card[hidden] + #form-card { grid-column: 1 / -1; }
+/* Progress: the trend chips, green when that signal is getting better */
+.rd-facts span.good b { color: var(--good); }
+.rd-facts span.bad b { color: var(--warn-c); }
+.rd-session .go { color: var(--link); font-weight: 600; text-decoration: none; margin-top: 4px; }

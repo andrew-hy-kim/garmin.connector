@@ -27,6 +27,8 @@
     <a href="#training">Training</a><a href="#stats-card">Statistics</a><a href="#records-grid">Records</a><a href="#gear-card" data-needs="gear-card">Shoes</a><a href="#hr-settings">Settings</a>
   </nav>
 
+  <section class="card needs-data today-hero" id="trend" hidden></section>
+
   <section class="card needs-data" id="perf"></section>
 
   <section class="card needs-data" id="focus-card" hidden>
@@ -86,7 +88,14 @@
       <div class="headline" id="longruns-head"></div>
       <div class="chart-box"><canvas id="longruns" role="img" aria-label="Bar chart of the longest run each week"></canvas></div>
     </div>
-    <div class="card span-all" id="form-card" hidden>
+    <div class="card" id="hrpace-card" hidden>
+      <div class="toolbar"><h2 style="margin:0">Heart rate at a fixed pace</h2><span class="spacer"></span>
+        <label class="hrpace-pick">At <select id="hrpace-pick" aria-label="Pace"></select></label></div>
+      <p class="hint">Your heart rate while running steadily at this pace, adjusted for hills. Falling over time means the same pace costs you less: you're getting fitter. Each dot is a run; click one to open it.</p>
+      <div class="headline" id="hrpace-head"></div>
+      <div class="chart-box"><canvas id="hrpace" role="img" aria-label="Scatter chart of heart rate at a fixed pace over time"></canvas></div>
+    </div>
+    <div class="card" id="form-card" hidden>
       <div class="toolbar"><h2 style="margin:0">Running form</h2><span class="spacer"></span>
         <div class="seg" id="form-by" role="group" aria-label="Measure"></div></div>
       <p class="hint" id="form-hint"></p>

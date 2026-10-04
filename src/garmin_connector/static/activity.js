@@ -185,6 +185,7 @@ function renderTiles() {
     ["HR drift", drift != null ? `${drift.toFixed(1)}%` : null,
       drift == null ? "" : drift < 5 ? "Steady: strong aerobic base" : drift < 8 ? "Some drift" : "High (heat, fatigue or too fast)"],
     ["Efficiency", m.efficiency ? withUnit(`${m.efficiency.toFixed(2)} m/beat`) : null, "Distance per heartbeat"],
+    hrPaceStat(),
     ["VO2max", D.effective_vo2max ? D.effective_vo2max.toFixed(1) : null,
       D.vo2max_shape ? `From pace and HR · your shape ${D.vo2max_shape.toFixed(1)}` : "From pace and heart rate"],
   ].filter(([, v]) => v != null);
@@ -200,6 +201,28 @@ function renderTiles() {
   if (more.hidden && extra.length) more.open = matchMedia("(min-width: 700px)").matches;
   more.hidden = !extra.length;
   $("watch-stats").innerHTML = extra.map(statCell).join("");
+}
+
+// Heart rate at your usual pace (the one picked on Progress), against your runs in the month before
+function hrPaceStat() {
+  const none = ["HR at pace", null, ""];
+  const table = D.metrics?.hr_by_speed;
+  if (!table?.length || !allActivities) return none;
+  const u = Units.get();
+  const pick = hrPaceChoice(hrPaces(allActivities, u), u);
+  const hr = pick && hrAtPace(table, pick.mps);
+  if (hr == null) return none;
+  const t = localDate(D.activity.start_time_local).getTime();
+  const before = allActivities
+    .filter((a) => a.activity_id !== activityId && a.hr_by_speed?.length && isRun(a.activity_type))
+    .filter((a) => { const x = localDate(a.start_time_local).getTime(); return x < t && x > t - 30 * 864e5; })
+    .map((a) => hrAtPace(a.hr_by_speed, pick.mps)).filter((v) => v != null);
+  let sub = "Steady running at that pace, adjusted for hills";
+  if (before.length >= 2) {
+    const d = Math.round(hr - before.reduce((s, v) => s + v, 0) / before.length);
+    sub = d === 0 ? "Same as your runs the month before" : `${Math.abs(d)} bpm ${d < 0 ? "lower" : "higher"} than your runs the month before`;
+  }
+  return [`HR at ${fmtPace(pick.mps, u)}`, withUnit(`${Math.round(hr)} bpm`), sub];
 }
 
 function isIntervalWorkout() {
@@ -893,6 +916,7 @@ function drawSameRoute() {
 let allActivities = null; // the activity list, for the comparison line and older/newer
 async function renderPrevNext() {
   const all = allActivities = await getJSON("/api/activities");
+  renderTiles(); // now with heart rate at your usual pace
   renderComparison(all);
   findSameRoute(all).catch(() => {});
   const list = all.filter((a) => a.has_streams);

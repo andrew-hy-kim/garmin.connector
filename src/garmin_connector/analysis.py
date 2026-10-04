@@ -8,6 +8,8 @@ may be ``None`` where the watch didn't record it.
 
 from __future__ import annotations
 
+from collections import deque
+
 import math
 from dataclasses import dataclass
 from statistics import median
@@ -259,6 +261,60 @@ def aerobic_decoupling(
 
     first, second = efficiency(moving[:half]), efficiency(moving[half:])
     return round((first - second) / first * 100, 1)
+
+
+def hr_by_speed(t: Sequence[int], speed: Sequence[float | None], hr: Sequence[float | None],
+                warmup_s: int = 300, settle_s: int = 120, bin_mps: float = 0.1) -> list[list[float]]:
+    """Heart rate at each pace, from steady running only: [[speed m/s, median HR, seconds], …].
+
+    Leaves out the warm-up (heart rate is still climbing), walking, and anything within two
+    minutes of a change of pace (heart rate takes that long to settle after one: right after a
+    hard rep it's still high on the recovery jog). What's left is heart rate settled at a pace,
+    binned by 0.1 m/s, so the dashboard can read off the heart rate at any pace from it.
+    """
+    if not t or len(t) < 600:
+        return []
+    smooth = rolling_mean(speed, 15)
+    dts = sample_durations(t)
+    lo_q: deque = deque()  # (index) of rising minima / falling maxima over the last settle_s seconds
+    hi_q: deque = deque()
+    start = 0
+    bins: dict[int, list[tuple[float, float]]] = {}
+    for i, (ti, s, h, dt) in enumerate(zip(t, smooth, hr, dts)):
+        if s is None:
+            lo_q.clear(); hi_q.clear(); start = i + 1
+            continue
+        while lo_q and smooth[lo_q[-1]] >= s:
+            lo_q.pop()
+        lo_q.append(i)
+        while hi_q and smooth[hi_q[-1]] <= s:
+            hi_q.pop()
+        hi_q.append(i)
+        while t[start] < ti - settle_s:
+            start += 1
+        while lo_q[0] < start:
+            lo_q.popleft()
+        while hi_q[0] < start:
+            hi_q.popleft()
+        if ti - t[0] < warmup_s or h is None or s < WALK_SPEED_MPS or ti - t[start] < settle_s - 5:
+            continue
+        if smooth[hi_q[0]] - smooth[lo_q[0]] > 0.25:  # the pace changed within the last two minutes
+            continue
+        bins.setdefault(round(s / bin_mps), []).append((h, dt))
+    out = []
+    for k in sorted(bins):
+        pts = sorted(bins[k])
+        secs = sum(dt for _, dt in pts)
+        if secs < 30:
+            continue
+        acc, mid = 0.0, pts[-1][0]
+        for h, dt in pts:  # time-weighted median
+            acc += dt
+            if acc >= secs / 2:
+                mid = h
+                break
+        out.append([round(k * bin_mps, 2), round(mid, 1), round(secs)])
+    return out
 
 
 WALK_SPEED_MPS = 1.8    # about 15 min/mi (9:15 /km); slower than this is walking
@@ -556,6 +612,7 @@ def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[
         "reps": [],
         "pacing": {},
         "walk_share": None,
+        "hr_by_speed": [],
     }
     if run:
         cadence = streams["cadence"]
@@ -579,6 +636,10 @@ def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[
         ]
         if not external_hr:
             metrics["cadence_lock"] = round(cadence_lock_fraction(hr, cadence), 3)
+        # heart rate at each pace (grade-adjusted), for the heart-rate-at-pace trend; not for run/walk,
+        # nor when the wrist sensor locked onto cadence
+        metrics["hr_by_speed"] = [] if run_walk or not has_hr or (metrics.get("cadence_lock") or 0) > 0.2 \
+            else hr_by_speed(t, gap, hr)
     if is_outdoor_run(activity_type):
         metrics["best_efforts"] = best_efforts(t, streams["distance"])
     return metrics

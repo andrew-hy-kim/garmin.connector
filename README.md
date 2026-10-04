@@ -51,6 +51,11 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   workouts and your biggest opportunity to improve, and your recent activities
 
 **Progress**: how you're trending (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the range)
+- **Progress status:** one word, like Readiness on Today: *Improving*, *Edging up*, *Holding
+  steady*, *Slipping* or *Rebuilding* (after a break). It weighs four signals over fixed windows,
+  whatever range the charts show: VO2max shape over 4 weeks, heart rate at your usual pace and
+  easy-run efficiency (the last 4 weeks against the 8 before), and training load against 4 weeks
+  ago. Next to it, the one step that would help most, from *Where to improve*
 - **Running fitness**, the way [RUNALYZE](https://runalyze.com) does it:
   - **VO2max shape:** an effective VO2max from every run's pace and heart rate (Daniels &
     Gilbert), averaged over 30 days and weighted by duration. Races marked in Garmin
@@ -73,6 +78,11 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   easy runs) and **long runs** (your longest each week against the long-run threshold and your
   marathon target). Each chart leads with its headline number, and a click on a week opens its
   runs.
+- **Heart rate at a fixed pace:** your heart rate while running steadily at one pace (adjusted
+  for hills), run by run with a 30-day average. The same pace at a lower heart rate is the
+  plainest sign of getting fitter. Pick the pace from the card (it starts at the pace you run
+  most); only steady stretches count, from five minutes in and two minutes after any change of
+  pace, and run/walk runs and runs where the heart rate locked onto your cadence are left out
 - **Running form:** cadence, stride length, ground contact time and vertical ratio on easy runs
   (whichever your watch records), each run plus a 30-day average, so you see your form change
   over months
@@ -110,7 +120,8 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
 - **Same route:** your other runs along the same line, start to finish, with time, pace, heart
   rate and efficiency, how this one ranks against runs of the same kind, and your route record
 - Training load and Garmin's training effect (with what it means: maintaining, improving…),
-  HR drift, efficiency and effective VO2max; under **More from your watch**, calories, power,
+  HR drift, efficiency, effective VO2max and your heart rate at the pace picked on Progress
+  against your runs the month before; under **More from your watch**, calories, power,
   best pace, stride length, ground contact, vertical oscillation and ratio, and
   sweat loss, whichever your watch records
 - HR, pace + grade-adjusted pace, cadence and elevation on one synced timeline (by time or

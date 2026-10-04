@@ -225,3 +225,20 @@ def test_walk_share_marks_run_walk():
     assert analysis.walk_share(_streams(samples)["speed"]) > analysis.WALK_SHARE_MAX
     samples, _ = steady_run(minutes=40, pace_mps=2.4)  # a slow, continuous jog is still running
     assert analysis.walk_share(_streams(samples)["speed"]) == 0
+
+
+def test_heart_rate_by_pace():
+    # 50 minutes at 3.0 m/s with heart rate settling around 140-146: one pace, one heart rate
+    s = _streams(steady_run(minutes=50, pace_mps=3.0, start_hr=140, drift_bpm=6)[0])
+    table = analysis.hr_by_speed(s["t"], s["speed"], s["hr"])
+    assert len(table) == 1 and table[0][0] == 3.0 and 140 <= table[0][1] <= 147 and table[0][2] > 40 * 60
+    # the warm-up is left out
+    assert table[0][2] < 50 * 60 - 299
+    # intervals: the easy and hard paces each get their heart rate, the changes in between don't count
+    samples, _ = intervals(reps=6, rep_s=240, rest_s=240)
+    s = _streams(samples)
+    table = analysis.hr_by_speed(s["t"], s["speed"], s["hr"])
+    by = {round(v): h for v, h, _ in table}
+    assert by[5] > by[3] if 3 in by else by[5] >= 170  # faster pace, higher heart rate
+    # walking and short files give nothing
+    assert analysis.hr_by_speed([0, 1, 2], [1.0] * 3, [100] * 3) == []

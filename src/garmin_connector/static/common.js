@@ -93,6 +93,46 @@ const fmtDate = (s, opts = { dateStyle: "medium" }) => localDate(s).toLocaleDate
 // "Oct '25": month and year that can't be mistaken for a day of the month
 const fmtMonthYear = (d) => `${d.toLocaleDateString(undefined, { month: "short" })} '${String(d.getFullYear()).slice(2)}`;
 const fmtNum = (v, digits = 0) => Number(v).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
+// ---------- heart rate at a fixed pace ----------
+// Each run carries hr_by_speed, [[grade-adjusted speed m/s, heart rate, seconds], …], from its
+// steady running only. Heart rate at a pace is read off the paces near it: a weighted straight
+// line through them, so a run at 9:20 still says something about 9:30. Null when the run
+// spent under two minutes near that pace.
+function hrAtPace(table, mps) {
+  const near = (table || []).filter(([s]) => Math.abs(s - mps) <= 0.3);
+  const w = near.reduce((t, b) => t + b[2], 0);
+  if (w < 120) return null;
+  const speeds = near.map((b) => b[0]);
+  if (mps < Math.min(...speeds) - 0.1 || mps > Math.max(...speeds) + 0.1) return null; // only paces actually run
+  const ms = near.reduce((t, b) => t + b[0] * b[2], 0) / w, mh = near.reduce((t, b) => t + b[1] * b[2], 0) / w;
+  const vs = near.reduce((t, b) => t + b[2] * (b[0] - ms) ** 2, 0) / w;
+  if (vs < 0.002) return mh; // effectively one pace
+  const slope = near.reduce((t, b) => t + b[2] * (b[0] - ms) * (b[1] - mh), 0) / w / vs;
+  // heart rate rises with pace; noise shouldn't turn that around or blow it up
+  return mh + Math.max(0, Math.min(slope, 80)) * (mps - ms);
+}
+// The paces (15-second steps in your units) at least five runs were run at steadily
+function hrPaces(activities, u = Units.get()) {
+  const runs = activities.filter((a) => a.hr_by_speed?.length && isRun(a.activity_type));
+  const since = Date.now() - 180 * 864e5;
+  const out = [];
+  for (let sec = 180; sec <= 900; sec += 15) {
+    const mps = M_PER[u] / sec;
+    const hits = runs.filter((a) => hrAtPace(a.hr_by_speed, mps) != null);
+    if (hits.length >= 5) out.push({ sec, mps, n: hits.length, recent: hits.filter((a) => localDate(a.start_time_local) > since).length });
+  }
+  return out;
+}
+// The pace you picked, or else the one you've run at most lately (usually your easy pace)
+function hrPaceChoice(paces, u = Units.get()) {
+  if (!paces.length) return null;
+  let saved = null;
+  try { saved = localStorage.getItem("hrPace"); } catch {}
+  return paces.find((p) => `${u}:${p.sec}` === saved)
+    || paces.reduce((b, p) => (p.recent > b.recent || (p.recent === b.recent && p.n > b.n) ? p : b));
+}
+function saveHrPace(sec, u = Units.get()) { try { localStorage.setItem("hrPace", `${u}:${sec}`); } catch {} }
 // Totals of time: "42m", "1h 42m", "161h"
 function fmtTotal(s) {
   s = Math.round(s || 0);

@@ -542,6 +542,59 @@ function renderEfficiency() {
   });
 }
 
+// ---------- heart rate at a fixed pace ----------
+function renderHrPace() {
+  const card = $("hrpace-card");
+  if (!card) return;
+  const u = Units.get();
+  const paces = hrPaces(state.activities, u);
+  card.hidden = !paces.length;
+  if (!paces.length) return;
+  const pick = hrPaceChoice(paces, u);
+  $("hrpace-pick").innerHTML = paces.map((p) => `<option value="${p.sec}"${p === pick ? " selected" : ""}>${fmtPace(p.mps, u)}</option>`).join("");
+  $("hrpace-pick").onchange = (e) => { saveHrPace(Number(e.target.value), u); renderHrPace(); };
+  const all = state.activities
+    .filter((a) => a.hr_by_speed?.length && isRun(a.activity_type))
+    .map((a) => ({ x: localDate(a.start_time_local).getTime(), y: hrAtPace(a.hr_by_speed, pick.mps), a }))
+    .filter((p) => p.y != null)
+    .sort((p, q) => p.x - q.x);
+  const start = rangeStart().getTime();
+  const pts = all.filter((p) => p.x >= start);
+  const trend = pts.map((p) => {
+    const win = all.filter((q) => q.x <= p.x && q.x > p.x - 30 * 864e5);
+    return { x: p.x, y: win.reduce((s, q) => s + q.y, 0) / win.length };
+  });
+  if (trend.length > 1) {
+    const change = trend.at(-1).y - trend[0].y;
+    const flat = Math.abs(change) < 1;
+    const since = state.range === "All" ? "since you started" : `over ${state.range}`;
+    // lower is better: the same pace at a lower heart rate
+    $("hrpace-head").innerHTML = `<span class="big">${Math.round(trend.at(-1).y)}<small>bpm</small></span>
+      <span class="chg ${!flat && change < 0 ? "up" : ""}">${flat ? "Steady" : `${change > 0 ? "▲" : "▼"} ${Math.round(Math.abs(change))} bpm`} ${since}</span>
+      <span class="dim">30-day average at ${fmtPace(pick.mps, u)}</span>`;
+  } else $("hrpace-head").innerHTML = "";
+  const opts = chartBase();
+  opts.interaction = { mode: "nearest", intersect: false };
+  timeAxis(opts);
+  opts.scales.y.ticks.callback = (v) => `${Math.round(v)} bpm`;
+  const dotsAt = (e, chart) => chart.getElementsAtEventForMode(e.native, "nearest", { intersect: true }, false).filter((el) => el.datasetIndex === 0);
+  opts.onClick = (e, _, chart) => { const hit = dotsAt(e, chart)[0]; if (hit) location.href = pageUrl("activity", { id: pts[hit.index].a.activity_id }); };
+  opts.onHover = (e, _, chart) => clickCursor(e, dotsAt(e, chart));
+  opts.plugins.tooltip = { callbacks: {
+    title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
+    label: (i) => i.datasetIndex === 0 ? `${i.raw.a.name}: ${Math.round(i.parsed.y)} bpm at ${fmtPace(pick.mps, u)}`
+      : `30-day average: ${Math.round(i.parsed.y)} bpm`,
+  } };
+  drawChart("hrpace", "hrpace", {
+    type: "scatter",
+    data: { datasets: [
+      { data: pts, backgroundColor: cssVar("--hr") + "66", pointRadius: 3, pointHoverRadius: 5 },
+      { type: "line", data: trend, borderColor: cssVar("--hr"), borderWidth: 2, pointRadius: 0, tension: 0.3 },
+    ] },
+    options: opts,
+  });
+}
+
 // ---------- running form (cadence and running dynamics on easy runs) ----------
 const FORM = [
   { key: "cadence_spm", label: "Cadence", unit: "spm", digits: 0, better: 1,
@@ -953,7 +1006,7 @@ function populateTypes() {
 // Everything that depends on the time range
 function renderCharts() {
   renderMilestones();
-  renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus(); renderGear();
+  renderTrend(); renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus(); renderGear();
 }
 
 // Did you run on day k of the plan week starting `start`?
@@ -1274,6 +1327,89 @@ function renderReadiness() {
       <p>${advice}</p>
       <div class="rd-facts">${facts.map((f) => `<span>${f}</span>`).join("")}</div>
     </div>${session}`;
+}
+
+// ---------- Progress: are you getting fitter? ----------
+// Four signals over fixed windows (not the chart range): VO2max shape over 4 weeks, heart rate at
+// your usual pace and easy-run efficiency (last 4 weeks against the 8 before), and training load
+// (fitness) against 4 weeks ago. Each says better, worse or no change; together, one word.
+function trendSignals() {
+  const out = [];
+  const p = state.perf;
+  if (p?.vo2max && !p.vo2max_as_of && p.vo2max_change_4w != null) {
+    const c = p.vo2max_change_4w;
+    out.push({ dir: c >= 0.5 ? 1 : c <= -0.5 ? -1 : 0, text: `VO2max shape <b>${c >= 0 ? "+" : "−"}${Math.abs(c).toFixed(1)}</b> in 4 weeks` });
+  }
+  const now = Date.now(), day = 864e5;
+  const windows = (vals) => {
+    const recent = vals.filter(([x]) => x > now - 28 * day).map(([, v]) => v);
+    const before = vals.filter(([x]) => x <= now - 28 * day && x > now - 84 * day).map(([, v]) => v);
+    if (recent.length < 3 || before.length < 3) return null;
+    const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+    return [avg(recent), avg(before)];
+  };
+  const runs = state.activities.filter((a) => isRun(a.activity_type));
+  const u = Units.get();
+  const pick = hrPaceChoice(hrPaces(state.activities, u), u);
+  if (pick) {
+    const w = windows(runs.filter((a) => a.hr_by_speed?.length)
+      .map((a) => [localDate(a.start_time_local).getTime(), hrAtPace(a.hr_by_speed, pick.mps)]).filter(([, v]) => v != null));
+    if (w) {
+      const d = Math.round(w[0] - w[1]);
+      out.push({ dir: d <= -2 ? 1 : d >= 2 ? -1 : 0, text: `Heart rate at ${fmtPace(pick.mps, u)} ${d ? `<b>${d > 0 ? "+" : "−"}${Math.abs(d)}</b> bpm` : "<b>unchanged</b>"}` });
+    }
+  }
+  const easyCeiling = state.settings ? 0.9 * state.settings.lthr : 999;
+  const w = windows(runs.filter((a) => a.efficiency && a.avg_hr && a.avg_hr < easyCeiling && !(a.cadence_lock > 0.2))
+    .map((a) => [localDate(a.start_time_local).getTime(), a.efficiency]));
+  if (w) {
+    const c = (w[0] / w[1] - 1) * 100;
+    out.push({ dir: c >= 2 ? 1 : c <= -2 ? -1 : 0, text: `Efficiency <b>${c >= 0 ? "+" : "−"}${Math.abs(c).toFixed(0)}%</b>` });
+  }
+  const load = state.load || [];
+  if (load.length > 28 && load.at(-29).fitness > 5) {
+    const c = (load.at(-1).fitness / load.at(-29).fitness - 1) * 100;
+    out.push({ dir: c >= 5 ? 1 : c <= -10 ? -1 : 0, text: `Training load <b>${c >= 0 ? "+" : "−"}${Math.abs(c).toFixed(0)}%</b> in 4 weeks` });
+  }
+  return out;
+}
+
+function renderTrend() {
+  const el = $("trend");
+  if (!el) return;
+  const signals = trendSignals();
+  const up = signals.filter((x) => x.dir > 0).length, down = signals.filter((x) => x.dir < 0).length;
+  const rebuilding = (state.insights || []).some((n) => n.title.startsWith("Rebuilding after"));
+  if (!rebuilding && signals.length < 2) { el.hidden = true; return; }
+  el.hidden = false;
+  let word, line, color;
+  if (rebuilding) {
+    [word, color, line] = ["Rebuilding", "--info", "Fitness dropped during your break. It comes back faster than it took to build."];
+  } else if (up >= 2 && up > down) {
+    [word, color, line] = ["Improving", "--good", "You're getting fitter. What you're doing is working."];
+  } else if (down >= 2 && down > up) {
+    [word, color, line] = ["Slipping", "--warn-c", "Your fitness is drifting down over the last month."];
+  } else if (up > down) {
+    [word, color, line] = ["Edging up", "--good", "Small gains, not a clear trend yet."];
+  } else {
+    [word, color, line] = ["Holding steady", "--elev", "You're keeping your fitness, but not building it."];
+  }
+  // the next step: the area that holds you back most, from Where to improve
+  const improving = word === "Improving";
+  const area = (state.focus || []).find((a) => a.level === "focus" && a.action) || (!improving && (state.focus || []).find((a) => a.action));
+  const step = area ? unitText(area.action)
+    : rebuilding ? "Run three or more times a week, all easy, and add a little each week."
+    : improving ? "Keep it consistent: steady weeks, mostly easy, one or two harder sessions."
+    : "Run a little more each week, mostly easy, with one harder session a week.";
+  el.innerHTML = `<div class="rd-main" style="--c:var(${color})">
+      <span class="eyebrow">Progress</span>
+      <div class="rd-word"><b>${word}</b></div>
+      <p>${line}</p>
+      ${signals.length ? `<div class="rd-facts">${signals.map((x) => `<span class="${x.dir > 0 ? "good" : x.dir < 0 ? "bad" : ""}">${x.text}</span>`).join("")}</div>` : ""}
+    </div>
+    <div class="rd-session" style="--c:var(${color})"><span class="eyebrow">${improving ? "To keep improving" : "To improve"}${area ? ` · ${esc(area.title)}` : ""}</span>
+      <span>${esc(step)}</span>
+      ${area && $("focus-card") ? `<a class="go" href="#focus-card">Where to improve ›</a>` : ""}</div>`;
 }
 
 // A route drawn from the workout's GPS points: no map tiles needed, so it works offline
