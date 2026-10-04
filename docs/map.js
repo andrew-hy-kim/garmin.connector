@@ -287,14 +287,9 @@ function update() {
 
 function setupMap() {
   const map = M.map = L.map("heatmap", { zoomControl: true, preferCanvas: true, worldCopyJump: true });
-  // a dark basemap for the heatmap (no CSS filter on the tiles, which made panning stutter), the
-  // regular map for routes
-  const attribution = "&copy; OpenStreetMap contributors";
-  M.tiles = {
-    heat: L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      { maxZoom: 19, subdomains: "abcd", attribution: `${attribution} &copy; CARTO` }),
-    routes: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution }),
-  };
+  // In heat mode the map is dimmed by fading the tile layer over a dark background (see app.css):
+  // one cheap layer, unlike a CSS filter on every tile, which made panning stutter
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
   map.setView([20, 0], 2);
   M.heat = new HeatLayer();
   map.on("click", (e) => {
@@ -309,9 +304,6 @@ function setMode(mode) {
   M.map.closePopup();
   $("m-mode").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
   $("heatmap").classList.toggle("heat-mode", mode === "heat");
-  for (const [k, layer] of Object.entries(M.tiles)) {
-    if (k === mode) layer.addTo(M.map); else layer.remove();
-  }
   if (mode === "heat") M.heat.addTo(M.map); else M.heat.remove();
   try { localStorage.setItem("mapMode", mode); } catch {}
   update();

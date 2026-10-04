@@ -811,3 +811,5 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
 .route-table tr.this td { background: var(--accent-soft); }
 .route-table tbody tr td:first-child { white-space: nowrap; }
 .link-btn { background: none; border: 0; color: var(--link); font: inherit; font-size: 14px; font-weight: 600; padding: 10px 0 0; cursor: pointer; }
+#heatmap.heat-mode { background: #0d1117; }
+#heatmap.heat-mode .leaflet-tile-pane { opacity: .32; }
