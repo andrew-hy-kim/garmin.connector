@@ -11,7 +11,7 @@ import sqlite3
 from dataclasses import asdict
 from typing import Any
 
-from . import analysis, db, gear, insights, performance, planner, processing
+from . import analysis, db, gear, insights, performance, planner, processing, weather
 
 
 def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -29,15 +29,17 @@ def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> 
         "json_extract(a.raw_json, '$.avgStrideLength') AS stride_cm, "
         "json_extract(a.raw_json, '$.avgGroundContactTime') AS ground_contact_ms, "
         "json_extract(a.raw_json, '$.avgVerticalRatio') AS vertical_ratio_pct, "
-        "s.activity_id IS NOT NULL AS has_streams "
+        "s.activity_id IS NOT NULL AS has_streams, w.data AS weather "
         "FROM activities a LEFT JOIN activity_metrics m USING (activity_id) "
-        "LEFT JOIN streams s USING (activity_id) ORDER BY a.start_time_local DESC"
+        "LEFT JOIN streams s USING (activity_id) LEFT JOIN weather w USING (activity_id) "
+        "ORDER BY a.start_time_local DESC"
     ).fetchall()
     out = []
     for r in rows:
         row = dict(r)
         row["intensity_seconds"] = json.loads(row["intensity_seconds"]) if row["intensity_seconds"] else None
         row["hr_by_speed"] = json.loads(row["hr_by_speed"]) if row["hr_by_speed"] else None
+        row["weather"] = json.loads(row["weather"]) if row["weather"] else None
         row["vo2max_eff"] = per_run.get(str(row["activity_id"]))
         if not row["avg_speed_mps"] and row["distance_m"]:  # a summary without Garmin's average speed
             secs = row["moving_duration_s"] or row["duration_s"]
@@ -102,6 +104,7 @@ def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bo
     result["paces"] = perf.get("paces") or []
     result["pace_bounds_mps"] = perf.get("pace_bounds_mps")
     result["gear"] = gear.for_activity(conn, activity_id)
+    result["weather"] = weather.for_activity(conn, activity_id)
     raw = conn.execute("SELECT raw_json FROM activities WHERE activity_id = ?", (activity_id,)).fetchone()
     result["watch"] = watch_extras(raw[0] if raw else None)
     return result

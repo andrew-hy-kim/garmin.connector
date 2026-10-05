@@ -119,6 +119,13 @@ CREATE TABLE IF NOT EXISTS heatmap_tracks (
     data         TEXT NOT NULL
 );
 
+-- Conditions during each workout, from Open-Meteo (see weather.py): JSON, metric units.
+CREATE TABLE IF NOT EXISTS weather (
+    activity_id  INTEGER PRIMARY KEY,
+    fetched_at   TEXT NOT NULL,
+    data         TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key    TEXT PRIMARY KEY,
     value  TEXT
@@ -237,7 +244,7 @@ def delete_activities(conn: sqlite3.Connection, ids: Iterable[int]) -> int:
     """Remove activities and everything derived from them (the .fit files on disk are left alone)."""
     ids = list(ids)
     for table in ("streams", "laps", "activity_metrics", "export_streams", "heatmap_tracks", "gear_activity",
-                  "activities"):
+                  "weather", "activities"):
         conn.executemany(f"DELETE FROM {table} WHERE activity_id = ?", [(i,) for i in ids])
     conn.executemany("DELETE FROM ai_reviews WHERE key = ? OR key = ?",
                      [(f"activity:{i}:mi", f"activity:{i}:km") for i in ids])

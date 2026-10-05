@@ -55,7 +55,8 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   steady*, *Slipping* or *Rebuilding* (after a break). It weighs four signals over fixed windows,
   whatever range the charts show: VO2max shape over 4 weeks, heart rate at your usual pace and
   easy-run efficiency (the last 4 weeks against the 8 before), and training load against 4 weeks
-  ago. Next to it, the one step that would help most, from *Where to improve*
+  ago; hot or humid runs are left out, so summer doesn't read as slipping. Next to it, the one
+  step that would help most, from *Where to improve*
 - **Running fitness**, the way [RUNALYZE](https://runalyze.com) does it:
   - **VO2max shape:** an effective VO2max from every run's pace and heart rate (Daniels &
     Gilbert), averaged over 30 days and weighted by duration. Races marked in Garmin
@@ -80,7 +81,8 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   runs.
 - **Heart rate at a fixed pace:** your heart rate while running steadily at one pace (adjusted
   for hills), run by run with a 30-day average. The same pace at a lower heart rate is the
-  plainest sign of getting fitter. Pick the pace from the card (it starts at the pace you run
+  plainest sign of getting fitter. Hot or humid runs show as orange triangles and are left out of the
+  30-day average (on the efficiency chart too), so a summer heatwave doesn't read as lost fitness. Pick the pace from the card (it starts at the pace you run
   most); only steady stretches count, from five minutes in and two minutes after any change of
   pace, and run/walk runs and runs where the heart rate locked onto your cadence are left out
 - **Running form:** cadence, stride length, ground contact time and vertical ratio on easy runs
@@ -103,8 +105,8 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
 - **Consistency calendar:** every run of the past year as a dot, colored by workout type and
   sized by distance, with your runs per week and your streak of weeks with 3+ runs
 - **Activity list** grouped by week, with search (names or workout types; press `/`),
-  workout-type and date filters, sortable columns (including each run's effective VO2max)
-  and paging
+  workout-type and date filters, sortable columns (including each run's effective VO2max),
+  each run's temperature and sky, and paging
 
 **Map**: a **heatmap** of everywhere you've run
 - The more often you've run a street, the brighter it glows. Tap anywhere to list the runs
@@ -115,8 +117,11 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   to zoom there. The map opens on the place you run most.
 
 **Workout page** (click any activity)
-- **Same route:** your other runs along the same line, start to finish, with time, pace, heart
-  rate and efficiency, how this one ranks against runs of the same kind, and your route record
+- **Weather** during the run, from [Open-Meteo](https://open-meteo.com): temperature and
+  feels-like, dew point and humidity, wind, rain or snow, and air quality (US AQI), with what
+  it cost you: heat and humidity together give an expected slowdown at the same effort
+  ("Warm and humid: about 3% slower"). Coach notes connect it to your numbers (heart-rate
+  drift on a hot day, a hard run in poor air), and Claude reviews get it too
 - **Same route:** your other runs along the same line, start to finish, with time, pace, heart
   rate and efficiency, how this one ranks against runs of the same kind, and your route record
 - Training load and Garmin's training effect (with what it means: maintaining, improving…),
@@ -196,6 +201,8 @@ The command is `garmin`; the original, longer `garmin-connector` still works the
 | `garmin settings --max-hr 192` | Override a Garmin value (0 = go back to Garmin's) |
 | `garmin analyze` | Re-run the analysis on every downloaded workout |
 | `garmin export` | Write the phone app's data file now (also happens after every sync) |
+| `garmin weather` | Look up the weather for workouts that don't have it yet (also happens at every sync; the first time it fills in your whole history) |
+| `garmin weather --redo` | Look up every workout's weather again |
 | `garmin logout` | Forget the saved password and tokens |
 
 ### Ask Claude (optional)
@@ -292,15 +299,17 @@ the sync runs when it wakes. Logs: `~/.garmin-connector/sync.log`.
 Everything is in `~/.garmin-connector/` (set `GARMIN_CONNECTOR_HOME` to move it):
 
 - `garmin.db`: SQLite database. `activities` (summaries plus Garmin's full JSON), `streams`
-  (second-by-second data, compressed), `laps`, `activity_metrics`, `vo2max`, `settings`
+  (second-by-second data, compressed), `laps`, `activity_metrics`, `vo2max`, `weather`, `settings`
 - `fit/`: the original `.fit` file for every workout, so nothing is lost even if Garmin
   changes something
 - `tokens/`: login tokens (private to your user account)
 - The phone app's copy: `iCloud Drive/Garmin Dashboard/garmin-dashboard.data` (summaries,
   analysis and 5-second workout data, about 10–15 MB for several years of running)
 
-Your data is only sent to Garmin, to fetch it, with three exceptions: the route map loads
-map tiles from OpenStreetMap, so OpenStreetMap sees roughly which area you ran in; if you
+Your data is only sent to Garmin, to fetch it, with four exceptions: the route map loads
+map tiles from OpenStreetMap, so OpenStreetMap sees roughly which area you ran in; the
+weather lookup sends Open-Meteo each workout's start point rounded to about a kilometre and
+its date (no account, nothing else about you or the run); if you
 set up **Ask Claude**, a training summary goes to Anthropic each time you click it; and the
 phone app's data file is stored in your own iCloud Drive. The dashboard only listens on `127.0.0.1`, so it's reachable only from your Mac.
 

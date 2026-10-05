@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from statistics import median
 from typing import Any
 
-from . import analysis, gear, performance, processing
+from . import analysis, gear, performance, processing, weather
 
 EASY_TYPES = {"easy", "recovery", "long", "easy_strides"}
 BREAK_DAYS = 21       # this long without running counts as a break (injury, illness, off-season)
@@ -28,18 +28,31 @@ def _note(level: str, title: str, detail: str) -> dict[str, str]:
     return {"level": level, "title": title, "detail": detail}
 
 
-_TOKEN = re.compile(r"\{\{([dp]):([0-9.]+)\}\}")
+_TOKEN = re.compile(r"\{\{([dptw]):(-?[0-9.]+)\}\}")
 
 
 def plain(text: str) -> str:
-    """Note text with its distance and pace tokens written out in km, for text that leaves the dashboard."""
+    """Note text with its distance, pace, temperature and wind tokens written out in metric, for
+    text that leaves the dashboard."""
     def out(m: re.Match) -> str:
         v = float(m.group(2))
+        if m.group(1) == "t":
+            return f"{round(v)}°C"
+        if m.group(1) == "w":
+            return f"{round(v)} km/h"
         if m.group(1) == "d":
             return f"{v / 1000:.1f} km" if v < 10000 else f"{round(v / 1000)} km"
         s = round(1000 / v) if v > 0 else 0
         return f"{s // 60}:{s % 60:02d} /km"
     return _TOKEN.sub(out, text)
+
+
+def t(celsius: float) -> str:
+    return f"{{{{t:{celsius:.1f}}}}}"
+
+
+def wind(kmh: float) -> str:
+    return f"{{{{w:{kmh:.0f}}}}}"
 
 
 def _mins(seconds: float) -> str:
@@ -201,6 +214,30 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
             notes.append(_note("warn", f"High HR drift ({drift:.1f}%)",
                                "Heart rate climbed a lot relative to pace. Common causes: heat, not enough "
                                "fluid or fuel, starting too fast, or accumulated fatigue."))
+
+    # Weather: heat, poor air and strong wind change what the numbers mean
+    w = weather.for_activity(conn, activity_id) or {}
+    heat = w.get("heat_pct") or 0
+    if heat >= 2:
+        hot = heat >= 6
+        notes.append(_note("warn" if hot else "info",
+                           f"{'Very hot' if hot else 'Warm'} and {'humid' if (w.get('dew_c') or 0) >= 16 else 'dry'}: "
+                           f"{t(w['temp_c'])}, dew point {t(w['dew_c'])}",
+                           f"Heat like this costs about {heat:g}% in pace at the same effort, and heart rate "
+                           f"runs higher than usual."
+                           + (" That likely explains much of the heart-rate drift." if (drift or 0) >= 5 else "")
+                           + (" On days like this, run early or slow down and drink more." if hot else "")))
+    elif w.get("temp_c") is not None and w["temp_c"] <= -5:
+        notes.append(_note("info", f"Cold run: {t(w['temp_c'])}",
+                           "Cold air makes the first kilometres feel harder; a longer, easier warm-up helps."))
+    if (w.get("aqi") or 0) > 100:
+        notes.append(_note("warn", f"Poor air quality (AQI {w['aqi']})",
+                           f"Air was {weather.aqi_label(w['aqi'])}. Hard breathing in polluted air irritates "
+                           f"the lungs; on days like this, keep runs easy or run indoors."))
+    if (w.get("wind_kmh") or 0) >= 30:
+        notes.append(_note("info", f"Windy: {wind(w['wind_kmh'])}",
+                           "Strong wind slows the into-the-wind stretches more than it helps the others, so "
+                           "pace reads slower than the effort was."))
 
     # Interval execution
     reps = [r for r in m.get("reps") or [] if r.get("seconds")]

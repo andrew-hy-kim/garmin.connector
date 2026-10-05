@@ -515,6 +515,10 @@ summary.week-head::-webkit-details-marker { display: none; }
 
 /* activity table: drop the least important columns as the window narrows */
 @media (max-width: 1060px) { #table-head th:nth-child(8), #rows td:nth-child(8), #table-head th:nth-child(11), #rows td:nth-child(11) { display: none; } }
+@media (max-width: 1180px) and (min-width: 601px) { #table-head th:nth-child(12), #rows td:nth-child(12) { display: none; } }
+/* room for the weather column: the HR-sensor column goes first */
+@media (max-width: 1500px) { #table-head th:nth-child(8), #rows td:nth-child(8) { display: none; } }
+#rows .wx.hot { color: var(--warn-c); }
 @media (max-width: 900px) { #table-head th:nth-child(10), #rows td:nth-child(10) { display: none; } }
 @media (max-width: 780px) { #table-head th:nth-child(7), #rows td:nth-child(7), #table-head th:nth-child(9), #rows td:nth-child(9) { display: none; } }
 
@@ -873,3 +877,23 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
   html, html * { touch-action: pan-x pan-y; }
   .leaflet-container, .leaflet-container * { touch-action: none; }
 }
+
+/* Workout page: weather during the run */
+.conditions { background: var(--surface-1); border-radius: 16px; margin: 0 0 20px; box-shadow: var(--shadow); overflow: hidden; }
+.cond-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.cond-grid > div { padding: 12px 16px; border-left: 1px solid var(--grid); margin-left: -1px; }
+.cond-grid .label { color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.cond-grid .value { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.cond-grid .sub { color: var(--text-secondary); font-size: 12.5px; margin-top: 1px; }
+.cond-impact { margin: 0; padding: 10px 16px 12px; border-top: 1px solid var(--grid); font-size: 14px; color: var(--text-secondary); }
+.cond-impact b { color: var(--text-primary); }
+@media (max-width: 600px) {
+  .conditions { margin: 0 0 12px; border-radius: 14px; }
+  .cond-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cond-grid > div { border-top: 1px solid var(--grid); margin-top: -1px; padding: 10px 12px; }
+  .cond-impact { padding: 10px 12px 12px; }
+}
+#rows td.wx, #rows .wx { white-space: nowrap; }
+.chart-key:empty { display: none; }
+.chart-key { margin-top: 6px; font-size: 12.5px; color: var(--text-secondary); }
+.hot-key::first-letter { color: var(--gap); }

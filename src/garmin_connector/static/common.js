@@ -254,12 +254,38 @@ function zoneRows(zones, seconds) {
 
 // Distances and paces in note text come as tokens ({{d:meters}}, {{p:m/s}}), shown in your units.
 function unitText(s, u = Units.get()) {
-  return String(s ?? "").replace(/\{\{([dp]):([0-9.]+)\}\}/g, (_, kind, v) => {
+  return String(s ?? "").replace(/\{\{([dptw]):(-?[0-9.]+)\}\}/g, (_, kind, v) => {
     v = +v;
     if (kind === "p") return fmtPace(v, u);
+    if (kind === "t") return fmtTemp(v, u);
+    if (kind === "w") return fmtWind(v, u);
     const n = dist(v, u);
     return `${fmtNum(n, n < 10 ? 1 : 0)} ${u}`;
   });
+}
+
+// ---------- weather ----------
+// °F and mph with miles, °C and km/h with kilometres
+const fmtTemp = (c, u = Units.get()) => (c == null ? "" : u === "mi" ? `${Math.round(c * 9 / 5 + 32)}°F` : `${Math.round(c)}°C`);
+const fmtWind = (kmh, u = Units.get()) => (kmh == null ? "" : u === "mi" ? `${Math.round(kmh / 1.609)} mph` : `${Math.round(kmh)} km/h`);
+const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const windFrom = (deg) => (deg == null ? "" : COMPASS[Math.round(deg / 45) % 8]);
+// WMO weather codes, as Open-Meteo documents them (mirrors weather.sky)
+const SKY = [[0, "Clear", "☀️"], [1, "Mostly clear", "🌤️"], [2, "Partly cloudy", "⛅"], [3, "Overcast", "☁️"], [48, "Fog", "🌫️"],
+  [55, "Drizzle", "🌦️"], [57, "Freezing drizzle", "🌧️"], [65, "Rain", "🌧️"], [67, "Freezing rain", "🌧️"], [77, "Snow", "🌨️"],
+  [82, "Rain showers", "🌦️"], [86, "Snow showers", "🌨️"], [99, "Thunderstorm", "⛈️"]];
+const skyOf = (code) => (code == null ? null : SKY.find(([top]) => code <= top) || null);
+const AQI = [[50, "Good", "--good"], [100, "Moderate", "--gap"], [150, "Unhealthy for sensitive groups", "--warn-c"],
+  [200, "Unhealthy", "--hr"], [300, "Very unhealthy", "--hr"], [Infinity, "Hazardous", "--hr"]];
+const aqiOf = (aqi) => (aqi == null ? null : AQI.find(([top]) => aqi <= top));
+// Heat: expected slowdown at the same effort, from temperature + dew point (weather.heat_pct)
+const HOT_PCT = 3;   // from here on a run counts as a hot one on the Progress charts
+const heatWord = (pct) => (pct == null || pct < 0.5 ? null : pct < 2 ? "Mild" : pct < 4.5 ? "Warm" : pct < 8 ? "Hot" : "Very hot");
+// One short line, e.g. "⛅ 72°F · dew 61°F"
+function weatherShort(w, u = Units.get()) {
+  if (!w || w.temp_c == null) return "";
+  const s = skyOf(w.code);
+  return `${s ? s[2] + " " : ""}${fmtTemp(w.temp_c, u)}`;
 }
 
 // ---------- coach notes & Claude reviews ----------

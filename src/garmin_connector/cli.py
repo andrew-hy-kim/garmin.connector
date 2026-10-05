@@ -8,7 +8,7 @@ import webbrowser
 from contextlib import closing
 from datetime import date
 
-from . import auth, config, db, export, processing, sync
+from . import auth, config, db, export, processing, sync, weather
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -34,6 +34,8 @@ def main(argv: list[str] | None = None) -> None:
                          help="on: set up; off: stop and forget the token; now: upload right away")
 
     sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
+    p_weather = sub.add_parser("weather", help="look up the weather for workouts that don't have it yet")
+    p_weather.add_argument("--redo", action="store_true", help="look up every workout again")
     sub.add_parser("set-api-key", help="save an Anthropic API key for 'Ask Claude' reviews (macOS Keychain)")
     sub.add_parser("remove-api-key", help="forget the saved Anthropic API key")
 
@@ -77,6 +79,14 @@ def main(argv: list[str] | None = None) -> None:
         with closing(db.connect(config.db_path())) as conn:
             sync.import_missing_streams(conn)
             print(f"Analyzed {processing.refresh(conn, force=True)} activities.")
+            export.write_quietly(conn)
+    elif args.command == "weather":
+        with closing(db.connect(config.db_path())) as conn:
+            print("Looking up the weather (the first time covers your whole history; usually under a minute)…")
+            r = weather.update(conn, redo=args.redo)
+            print(f"Weather added for {r['weather']} workouts"
+                  + (f"; {r['indoor']} indoor" if r["indoor"] else "")
+                  + (f"; {r['missing']} not available yet" if r["missing"] else "") + ".")
             export.write_quietly(conn)
     elif args.command == "set-api-key":
         import getpass

@@ -18,7 +18,7 @@ from typing import Any
 import anthropic
 import keyring
 
-from . import focus, insights, performance, processing, races
+from . import focus, insights, performance, processing, races, weather
 
 MODEL = "claude-opus-5-5"
 KEYCHAIN_SERVICE = "garmin-connector"
@@ -179,7 +179,10 @@ def _workout_context(conn: sqlite3.Connection, activity_id: int, units: str) -> 
                       "pace": _pace(l["avg_speed"], units), "avg_hr": l["avg_hr"], "max_hr": l["max_hr"],
                       "cadence": l["avg_cadence"]} for l in laps][:40],
             "best_efforts_seconds": {k: v["seconds"] for k, v in (m.get("best_efforts") or {}).items()},
-            "dashboard_coach_notes": insights.workout_insights(conn, activity_id),
+            "dashboard_coach_notes": [{**n, "title": insights.plain(n["title"]), "detail": insights.plain(n["detail"])}
+                                      for n in insights.workout_insights(conn, activity_id)],
+            # metric; heat_pct is the expected slowdown at the same effort from heat and humidity
+            "weather": weather.for_activity(conn, activity_id),
         },
         "recent_training": context,
     }

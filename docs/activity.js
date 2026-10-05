@@ -225,6 +225,36 @@ function hrPaceStat() {
   return [`HR at ${fmtPace(pick.mps, u)}`, withUnit(`${Math.round(hr)} bpm`), sub];
 }
 
+// ---------- weather during the workout ----------
+function renderConditions() {
+  const el = $("conditions"), w = D.weather;
+  if (!w || w.indoor || w.temp_c == null) { el.hidden = true; return; }
+  const u = Units.get();
+  const sky = skyOf(w.code), air = aqiOf(w.aqi);
+  const rain = w.precip_mm >= 0.1 ? (u === "mi" ? `${(w.precip_mm / 25.4).toFixed(2)} in` : `${w.precip_mm.toFixed(1)} mm`) : "";
+  const items = [
+    [sky ? sky[1] : "Weather", `${sky ? sky[2] + " " : ""}${fmtTemp(w.temp_c, u)}`,
+      [w.feels_c != null && Math.abs(w.feels_c - w.temp_c) >= 1.5 ? `Feels like ${fmtTemp(w.feels_c, u)}` : "", rain ? `${rain} of rain` : ""].filter(Boolean).join(" · ")],
+    ["Dew point", fmtTemp(w.dew_c, u), w.humidity != null ? `Humidity ${w.humidity}%` : ""],
+    ["Wind", w.wind_kmh != null ? `${fmtWind(w.wind_kmh, u)}${w.wind_kmh >= 3 && w.wind_dir != null ? " " + windFrom(w.wind_dir) : ""}` : null,
+      w.gust_kmh != null && w.gust_kmh > (w.wind_kmh || 0) + 8 ? `Gusts ${fmtWind(w.gust_kmh, u)}` : ""],
+    ["Air quality", air ? `<span style="color:var(${air[2]})">${w.aqi}</span>` : null, air ? `${air[1]} (US AQI)` : ""],
+  ].filter(([, v]) => v);
+  const heat = w.heat_pct || 0, word = heatWord(heat);
+  const humid = (w.dew_c || 0) >= 16 ? " and humid" : "";
+  let impact = !word ? (w.temp_c <= -5 ? "<b>Cold:</b> the first part feels harder; a longer warm-up helps."
+      : "<b>Good running weather:</b> no meaningful effect on pace.")
+    : heat < 2 ? `<b>${word}${humid}:</b> about ${heat}% slower at the same effort.`
+    : `<b>${word}${humid}:</b> expect about ${heat}% slower at the same effort, with a higher heart rate than usual.`;
+  if (air && w.aqi > 100) impact += ` <b style="color:var(${air[2]})">${air[1]} air:</b> hard efforts are best moved indoors on days like this.`;
+  const range = w.temp_start_c != null && w.temp_end_c != null && Math.abs(w.temp_end_c - w.temp_start_c) >= 2
+    ? ` Temperature went from ${fmtTemp(w.temp_start_c, u)} to ${fmtTemp(w.temp_end_c, u)}.` : "";
+  el.hidden = false;
+  el.innerHTML = `<div class="cond-grid">${items.map(([l, v, sub]) =>
+      `<div><div class="label">${esc(l)}</div><div class="value">${v}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div>`).join("")}</div>
+    <p class="cond-impact">${impact}${esc(range)} <span class="dim">Weather from Open-Meteo.</span></p>`;
+}
+
 function isIntervalWorkout() {
   return D.laps.some((l) => ["rest", "recovery"].includes(l.intensity)) && D.laps.some((l) => l.intensity === "active");
 }
@@ -794,7 +824,7 @@ function updateMapSelection() {
 
 function renderAll() {
   if (D.streams) { derive(); }
-  renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderZones(); if (S) renderPaceZones(); else $("pace-zones-card").hidden = true;
+  renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderConditions(); renderZones(); if (S) renderPaceZones(); else $("pace-zones-card").hidden = true;
   renderLaps(); renderSplits(); renderEfforts(); drawSameRoute();
   renderNotes($("notes"), (D.insights || []).filter((n) => !n.title.startsWith("Tagged:")), "Nothing stands out in this workout.");
   setupAiBox($("ai"), "activity", activityId);

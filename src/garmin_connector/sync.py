@@ -12,7 +12,7 @@ from pathlib import Path
 
 from garminconnect import Garmin
 
-from . import config, db, gear, processing
+from . import config, db, gear, processing, weather
 
 log = logging.getLogger(__name__)
 
@@ -88,8 +88,11 @@ def sync(
         n_fit = download_missing_fit(client, conn, fit_dir or config.fit_dir())
     import_missing_streams(conn)
     n_analyzed = processing.refresh(conn)
+    # conditions for new workouts (and, the first time, the whole history); never stops the sync
+    w = weather.update_quietly(conn) or {}
 
-    return {"activities": n_activities, "vo2max_readings": n_vo2, "fit_files": n_fit, "analyzed": n_analyzed}
+    return {"activities": n_activities, "vo2max_readings": n_vo2, "fit_files": n_fit, "analyzed": n_analyzed,
+            "weather": w.get("weather", 0)}
 
 
 def fetch_hr_profile(client: Garmin, conn: sqlite3.Connection) -> dict:

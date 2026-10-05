@@ -501,6 +501,28 @@ function timeAxis(opts) {
   opts.scales.x.ticks.callback = (v) => fmtMonthYear(new Date(v));
 }
 
+// ---------- hot days on the fitness charts ----------
+// Heat raises heart rate at any pace, so hot or humid runs show as orange triangles and are
+// left out of the 30-day average: the line tracks fitness, not the weather.
+const isHot = (a) => (a.weather?.heat_pct || 0) >= HOT_PCT;
+const hotNote = (a) => (isHot(a) ? ` · hot day: ${fmtTemp(a.weather.temp_c)}, dew point ${fmtTemp(a.weather.dew_c)}` : "");
+function coolTrend(all, pts) {
+  const cool = all.filter((q) => !isHot(q.a));
+  return pts.filter((p) => !isHot(p.a)).map((p) => {
+    const win = cool.filter((q) => q.x <= p.x && q.x > p.x - 30 * 864e5);
+    return { x: p.x, y: win.reduce((s, q) => s + q.y, 0) / win.length };
+  });
+}
+function dotStyle(pts, color) {
+  return {
+    backgroundColor: pts.map((p) => (isHot(p.a) ? cssVar("--gap") + "cc" : color + "66")),
+    pointStyle: pts.map((p) => (isHot(p.a) ? "triangle" : "circle")),
+    pointRadius: pts.map((p) => (isHot(p.a) ? 4 : 3)), pointHoverRadius: 6,
+  };
+}
+// a small key under a chart when it has hot-day dots
+const hotKey = (pts) => (pts.some((p) => isHot(p.a)) ? `<span class="hot-key">▲ Hot or humid day, left out of the average</span>` : "");
+
 // ---------- efficiency ----------
 function renderEfficiency() {
   if (!$("efficiency")) return;
@@ -512,10 +534,7 @@ function renderEfficiency() {
   // 30-day rolling average, so the trend shows through day-to-day noise
   const start = rangeStart().getTime();
   const pts = all.filter((p) => p.x >= start);
-  const trend = pts.map((p) => {
-    const win = all.filter((q) => q.x <= p.x && q.x > p.x - 30 * 864e5);
-    return { x: p.x, y: win.reduce((s, q) => s + q.y, 0) / win.length };
-  });
+  const trend = coolTrend(all, pts);
   const opts = chartBase();
   opts.interaction = { mode: "nearest", intersect: false };
   timeAxis(opts);
@@ -530,16 +549,17 @@ function renderEfficiency() {
   opts.plugins.tooltip = { callbacks: {
     title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
     label: (i) => i.datasetIndex === 0
-      ? `${i.raw.a.name}: ${i.parsed.y.toFixed(2)} m/beat at ${Math.round(i.raw.a.avg_hr)} bpm`
+      ? `${i.raw.a.name}: ${i.parsed.y.toFixed(2)} m/beat at ${Math.round(i.raw.a.avg_hr)} bpm${hotNote(i.raw.a)}`
       : `30-day average: ${i.parsed.y.toFixed(2)} m/beat`,
   } };
   $("eff-head").innerHTML = trend.length > 1 ? headline(`${trend.at(-1).y.toFixed(2)}<small>m/beat</small>`,
     ((trend.at(-1).y / trend[0].y) - 1) * 100, (v) => `${Math.abs(v).toFixed(0)}%`, "30-day average") : "";
+  $("eff-key").innerHTML = hotKey(pts);
   drawChart("efficiency", "efficiency", {
     type: "scatter",
     data: { datasets: [
-      { data: pts, backgroundColor: cssVar("--pace") + "66", pointRadius: 3, pointHoverRadius: 5 },
-      { type: "line", data: trend, borderColor: cssVar("--pace"), borderWidth: 2, pointRadius: 0, tension: 0.3 },
+      { data: pts, ...dotStyle(pts, cssVar("--pace")) },
+      { type: "line", data: trend, borderColor: cssVar("--pace"), borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
     ] },
     options: opts,
   });
@@ -563,10 +583,7 @@ function renderHrPace() {
     .sort((p, q) => p.x - q.x);
   const start = rangeStart().getTime();
   const pts = all.filter((p) => p.x >= start);
-  const trend = pts.map((p) => {
-    const win = all.filter((q) => q.x <= p.x && q.x > p.x - 30 * 864e5);
-    return { x: p.x, y: win.reduce((s, q) => s + q.y, 0) / win.length };
-  });
+  const trend = coolTrend(all, pts);
   if (trend.length > 1) {
     const change = trend.at(-1).y - trend[0].y;
     const flat = Math.abs(change) < 1;
@@ -589,14 +606,15 @@ function renderHrPace() {
   opts.onHover = (e, _, chart) => clickCursor(e, dotsAt(e, chart));
   opts.plugins.tooltip = { callbacks: {
     title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
-    label: (i) => i.datasetIndex === 0 ? `${i.raw.a.name}: ${Math.round(i.parsed.y)} bpm at ${fmtPace(pick.mps, u)}`
+    label: (i) => i.datasetIndex === 0 ? `${i.raw.a.name}: ${Math.round(i.parsed.y)} bpm at ${fmtPace(pick.mps, u)}${hotNote(i.raw.a)}`
       : `30-day average: ${Math.round(i.parsed.y)} bpm`,
   } };
+  $("hrpace-key").innerHTML = hotKey(pts);
   drawChart("hrpace", "hrpace", {
     type: "scatter",
     data: { datasets: [
-      { data: pts, backgroundColor: cssVar("--hr") + "66", pointRadius: 3, pointHoverRadius: 5 },
-      { type: "line", data: trend, borderColor: cssVar("--hr"), borderWidth: 2, pointRadius: 0, tension: 0.3 },
+      { data: pts, ...dotStyle(pts, cssVar("--hr")) },
+      { type: "line", data: trend, borderColor: cssVar("--hr"), borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
     ] },
     options: opts,
   });
@@ -926,7 +944,7 @@ function renderTable() {
     if (k === lastKey) return "";
     lastKey = k;
     const w = weekTotals.get(k);
-    return `<tr class="group"><td colspan="11"><b>${weekName(k)}</b><span>${fmtNum(dist(w.m), 1)} ${Units.get()} · ${w.n} ${w.n === 1 ? (state.type === "run" ? "run" : "activity") : (state.type === "run" ? "runs" : "activities")}</span></td></tr>`;
+    return `<tr class="group"><td colspan="12"><b>${weekName(k)}</b><span>${fmtNum(dist(w.m), 1)} ${Units.get()} · ${w.n} ${w.n === 1 ? (state.type === "run" ? "run" : "activity") : (state.type === "run" ? "runs" : "activities")}</span></td></tr>`;
   };
   $("rows").innerHTML = list.length ? list.map((a) => `${header(a)}<tr class="${a.has_streams ? "clickable" : ""}" ${a.has_streams ? 'tabindex="0"' : ""} data-id="${a.activity_id}">
       <td>${byDate ? fmtDate(a.start_time_local, { weekday: "short", month: "short", day: "numeric" }) : fmtDate(a.start_time_local)}</td>
@@ -934,14 +952,15 @@ function renderTable() {
       <td>${a.workout_label ? tagHtml(a.workout_label, QUALITY.has(a.workout_type), a.workout_type) : `<span class="dim">${esc(prettyType(a.activity_type))}</span>`}</td>
       <td class="num">${fmtDist(a.distance_m)}</td>
       <td class="num">${fmtDuration(a.duration_s)}</td>
-      <td class="num">${fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)}</td>
+      <td class="num">${a.weather?.temp_c != null ? `<span class="narrow-only wx${isHot(a) ? " hot" : ""}">${fmtTemp(a.weather.temp_c)} · </span>` : ""}${fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)}</td>
       <td class="num">${a.avg_hr ? Math.round(a.avg_hr) : ""}</td>
       <td>${a.has_streams && a.avg_hr ? `<span class="badge">${a.external_hr ? "Arm band" : "Wrist"}</span>` : ""}</td>
       <td class="num">${a.trimp != null ? Math.round(a.trimp) : ""}</td>
       <td class="num">${a.decoupling_pct != null ? a.decoupling_pct.toFixed(1) + "%" : ""}</td>
       <td class="num">${a.vo2max_eff != null ? a.vo2max_eff.toFixed(1) : ""}</td>
+      <td class="wx">${a.weather?.indoor ? '<span class="dim">Indoor</span>' : weatherShort(a.weather)}</td>
     </tr>`).join("")
-    : `<tr><td colspan="11" class="empty">${state.activities.length ? "No activities match these filters." : "No activities yet. Click <b>Sync now</b>, or run <code>garmin sync</code>."}</td></tr>`;
+    : `<tr><td colspan="12" class="empty">${state.activities.length ? "No activities match these filters." : "No activities yet. Click <b>Sync now</b>, or run <code>garmin sync</code>."}</td></tr>`;
   $("pager").innerHTML = all.length > PAGE_SIZE ? `
     <span>${t.page * PAGE_SIZE + 1}–${Math.min(all.length, (t.page + 1) * PAGE_SIZE)} of ${all.length}</span>
     <button data-p="-1" ${t.page === 0 ? "disabled" : ""}>‹ Newer</button>
@@ -1360,7 +1379,7 @@ function trendSignals() {
   const u = Units.get();
   const pick = hrPaceChoice(hrPaces(state.activities, u), u);
   if (pick) {
-    const w = windows(runs.filter((a) => a.hr_by_speed?.length)
+    const w = windows(runs.filter((a) => a.hr_by_speed?.length && !isHot(a))
       .map((a) => [localDate(a.start_time_local).getTime(), hrAtPace(a.hr_by_speed, pick.mps)]).filter(([, v]) => v != null));
     if (w) {
       const d = Math.round(w[0] - w[1]);
@@ -1368,7 +1387,7 @@ function trendSignals() {
     }
   }
   const easyCeiling = state.settings ? 0.9 * state.settings.lthr : 999;
-  const w = windows(runs.filter((a) => a.efficiency && a.avg_hr && a.avg_hr < easyCeiling && !(a.cadence_lock > 0.2))
+  const w = windows(runs.filter((a) => a.efficiency && a.avg_hr && a.avg_hr < easyCeiling && !(a.cadence_lock > 0.2) && !isHot(a))
     .map((a) => [localDate(a.start_time_local).getTime(), a.efficiency]));
   if (w) {
     const c = (w[0] / w[1] - 1) * 100;
@@ -1449,6 +1468,7 @@ async function renderLatest() {
     [PACE_TYPES.test(a.activity_type || "") ? "Pace" : "Speed", fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)],
     ["Avg HR", a.avg_hr ? `${Math.round(a.avg_hr)} bpm` : ""], ["Load", a.trimp != null ? Math.round(a.trimp) : ""],
     ["VO2max", a.vo2max_eff ? a.vo2max_eff.toFixed(1) : ""],
+    ["Weather", weatherShort(a.weather)],
   ].filter(([, v]) => v !== "" && v != null);
   const when = fmtDate(a.start_time_local, { weekday: "long", month: "short", day: "numeric" });
   const href = a.has_streams ? pageUrl("activity", { id: a.activity_id }) : null;
