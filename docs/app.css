@@ -376,7 +376,7 @@ button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14p
 .onboard .err { color: var(--danger); margin-top: 10px; }
 
 /* training plan */
-.goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; margin: 10px 0 14px; }
+.goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 10px; margin: 10px 0 14px; }
 .goal { border-radius: 14px; padding: 14px 16px; cursor: pointer; background: var(--surface-2); position: relative; transition: box-shadow .15s; }
 @media (hover: hover) { .goal:hover { box-shadow: inset 0 0 0 1px var(--border); } }
 .goal input { position: absolute; opacity: 0; pointer-events: none; }
@@ -845,3 +845,24 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
 .rd-facts span.good b { color: var(--good); }
 .rd-facts span.bad b { color: var(--warn-c); }
 .rd-session .go { color: var(--link); font-weight: 600; text-decoration: none; margin-top: 4px; }
+/* Today's latest run: units small, so values stay on one line on a phone */
+.latest-stats b { white-space: nowrap; }
+.latest-stats b small { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-left: 2px; }
+@media (max-width: 600px) {
+  /* Today's week / month / year: three across, so the year doesn't sit alone */
+  .tiles:has(> .tile:nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .tiles:has(> .tile:nth-child(3):last-child) .tile { padding: 10px; border-radius: 14px; }
+  .tiles:has(> .tile:nth-child(3):last-child) .tile .value { font-size: 20px; }
+  .tiles:has(> .tile:nth-child(3):last-child) .tile .value small { font-size: 12px; margin-left: 2px; }
+  .tiles:has(> .tile:nth-child(3):last-child) .tile .sub { font-size: 11.5px; line-height: 1.3; }
+}
+@media (max-width: 600px) {
+  .tiles:has(> .tile:nth-child(3):last-child) .tile.with-ring { display: block; position: relative; }
+  .tiles:has(> .tile:nth-child(3):last-child) .tile .ring { width: 22px; height: 22px; position: absolute; top: 9px; right: 9px; margin: 0; }
+  /* Plan goals: compact rows; only the chosen goal spells itself out, so Create plan stays close */
+  .goals { gap: 6px; }
+  .goal { padding: 11px 14px; }
+  .goal b { margin-bottom: 0; }
+  .goal:not(:has(input:checked)) span { display: none; }
+  .goal:has(input:checked) b { margin-bottom: 4px; }
+}

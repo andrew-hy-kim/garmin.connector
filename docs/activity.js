@@ -235,10 +235,11 @@ function renderWarnings() {
   if (!D.streams) {
     notes.push("There's no second-by-second data for this activity yet. Run a sync to download its workout file.");
   } else if (!D.external_hr) {
+    // one note, not two: the arm band fixes both
     if (m.cadence_lock > 0.15) {
-      notes.push(`Heart rate matched your cadence for ${Math.round(m.cadence_lock * 100)}% of this run. The wrist sensor probably locked onto your arm swing, so heart-rate numbers for this run may be off.`);
-    }
-    if (isIntervalWorkout()) {
+      notes.push(`Heart rate matched your cadence for ${Math.round(m.cadence_lock * 100)}% of this run. The wrist sensor probably locked onto your arm swing, so heart-rate numbers for this run may be off.`
+        + (isIntervalWorkout() ? " For reps, your arm band also follows quick changes in heart rate much better." : ""));
+    } else if (isIntervalWorkout()) {
       notes.push("This was recorded with wrist heart rate. Wrist sensors lag behind quick changes in short reps, so wearing your arm band gives better rep-by-rep HR.");
     }
   }
@@ -632,7 +633,7 @@ function renderLaps() {
     const hrs = reps.map((l) => l.avg_hr).filter(Boolean);
     $("laps-hint").textContent = `${reps.length} work reps averaged ${fmtDuration(mean)} /${Units.get()}` +
       (hrs.length ? ` at ${Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length)} bpm` : "") +
-      `, varying by ±${Math.round(spread)} s. Bars show each lap's speed, colored by its heart-rate zone.`;
+      (Math.round(spread) ? `, varying by ±${Math.round(spread)} s` : ", all at the same pace") + `. Bars show each lap's speed, colored by its heart-rate zone.`;
   } else {
     $("laps-hint").textContent = `${act()} a lap to analyze it on the timeline. Bars show each lap's speed${hasHr() ? ", colored by its heart-rate zone" : ""}.`;
   }
@@ -894,7 +895,7 @@ function drawSameRoute() {
   const kinWord = kindOf(self) === "easy" ? "easy runs" : kindOf(self) === "hard" ? "workouts" : "runs";
   $("same-route").hidden = false;
   $("route-hint").textContent = `Your runs that followed this route, start to finish, within a few percent of this distance. Moving time, so stops don't count.`;
-  const bestText = best === self ? "your route record" : `route record ${fmtDuration(secs(best))} on ${esc(fmtDate(best.start_time_local, { month: "short", day: "numeric", year: "numeric" }))}`;
+  const bestText = best === self ? "this run is your route record" : `route record ${fmtDuration(secs(best))} on ${esc(fmtDate(best.start_time_local, { month: "short", day: "numeric", year: "numeric" }))}`;
   const rankText = kin.length < 2 || kin.length === runs.length && rank === 1 ? "" :
     rank === 1 ? `fastest of your ${kin.length} ${kinWord} here · ` : `${ordinal(rank)} fastest of your ${kin.length} ${kinWord} here · `;
   $("route-head").innerHTML = `<span class="big">${runs.length}<small>runs</small></span><span class="dim">${rankText}${bestText}</span>`;

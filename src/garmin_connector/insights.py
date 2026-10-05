@@ -220,8 +220,9 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
                                    "Starting a touch slower usually gives more total quality."))
             elif spread < 0.04:
                 notes.append(_note("good", "Even reps",
-                                   f"All {len(reps)} reps were within {spread:.0%} of each other in "
-                                   f"grade-adjusted pace. Well-judged pacing."))
+                                   (f"All {len(reps)} reps were within {spread:.0%} of each other in "
+                                    if spread >= 0.005 else f"All {len(reps)} reps were at the same ")
+                                   + "grade-adjusted pace. Well-judged pacing."))
             peaks = [r["peak_hr"] for r in reps if r.get("peak_hr")]
             if peaks and kind == "intervals_threshold" and max(peaks) > lthr * 1.03:
                 notes.append(_note("info", "Drifted above threshold",

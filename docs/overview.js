@@ -19,6 +19,9 @@ const FORM_STATES = [
 const textColor = (st) => (st.key === "productive" ? "--warn-c" : st.color);
 // "+3", "-2" or "0" (rounded first, so a small negative never shows as "-0")
 const fmtSigned = (v) => { const r = Math.round(v) || 0; return `${r > 0 ? "+" : ""}${r}`; };
+// After a break, low fatigue reads as "fresh"; that's the break talking, not a good time to race
+const rebuildingNote = (st) => ((st.key === "fresh" || st.key === "neutral") && (state.insights || []).some((n) => n.title.startsWith("Rebuilding after"))
+  ? "Low fatigue after your break, not real freshness. Keep building gradually with easy running." : "");
 const formState = (d) => FORM_STATES.find((s) => (d.fitness > 1 ? d.form / d.fitness : 0) >= s.min);
 const charts = {};
 
@@ -113,7 +116,7 @@ function renderTiles() {
     const list = filtered().filter((a) => { const d = localDate(a.start_time_local); return d >= from && (!to || d < to); });
     return { n: list.length, meters: list.reduce((t, a) => t + (a.distance_m || 0), 0), secs: list.reduce((t, a) => t + (a.duration_s || 0), 0) };
   };
-  const distText = (m) => { const v = dist(m); return fmtNum(v, v >= 100 ? 0 : 1); };
+  const distText = (m) => { const v = dist(m); return fmtNum(v, v >= 100 || !v ? 0 : 1); };
   // With a plan running, this week's tile gets a ring: minutes done vs planned
   const planWeek = state.plan?.progress?.find((w) => w.status === "current");
   const volume = periods.map(([label, from, prevFrom, prevName], i) => {
@@ -258,7 +261,7 @@ function renderExplain() {
     s.key === "fresh" ? "above +10%" : s.key === "neutral" ? "−10% to +10%" : s.key === "productive" ? "−30% to −10%" : "below −30%"} of fitness</div>`).join("");
   $("explain").innerHTML = `
     <div class="verdict" style="--c:var(${textColor(st)})"><span class="big">${sign(today.form)}</span>
-      <div><b>${st.label}</b><span>${st.text}</span></div></div>
+      <div><b>${st.label}</b><span>${rebuildingNote(st) || st.text}</span></div></div>
     <div class="scale">${scale}</div>
     <div>Fitness is <b>${today.fitness.toFixed(0)}</b>${trend == null ? "" : Math.abs(trend) < 1 ? ", about the same as 6 weeks ago"
       : `, ${trend > 0 ? "up" : "down"} ${Math.abs(trend).toFixed(0)} from 6 weeks ago`}. Fatigue is <b>${today.fatigue.toFixed(0)}</b>.
@@ -576,7 +579,11 @@ function renderHrPace() {
   const opts = chartBase();
   opts.interaction = { mode: "nearest", intersect: false };
   timeAxis(opts);
+  // whole beats only, and at least 10 bpm tall, so a steady stretch doesn't repeat labels
+  opts.scales.y.ticks.precision = 0;
   opts.scales.y.ticks.callback = (v) => `${Math.round(v)} bpm`;
+  const ys = pts.map((p) => p.y);
+  if (ys.length) { const mid = (Math.min(...ys) + Math.max(...ys)) / 2; opts.scales.y.suggestedMin = mid - 5; opts.scales.y.suggestedMax = mid + 5; }
   const dotsAt = (e, chart) => chart.getElementsAtEventForMode(e.native, "nearest", { intersect: true }, false).filter((el) => el.datasetIndex === 0);
   opts.onClick = (e, _, chart) => { const hit = dotsAt(e, chart)[0]; if (hit) location.href = pageUrl("activity", { id: pts[hit.index].a.activity_id }); };
   opts.onHover = (e, _, chart) => clickCursor(e, dotsAt(e, chart));
@@ -649,6 +656,7 @@ function renderForm() {
   const opts = chartBase();
   opts.interaction = { mode: "nearest", intersect: false };
   timeAxis(opts);
+  opts.scales.y.ticks.precision = f.digits;
   opts.scales.y.ticks.callback = (v) => `${fmtNum(v, f.digits)} ${unit}`;
   const dotsAt = (e, chart) => chart.getElementsAtEventForMode(e.native, "nearest", { intersect: true }, false).filter((el) => el.datasetIndex === 0);
   opts.onClick = (e, _, chart) => { const hit = dotsAt(e, chart)[0]; if (hit) location.href = pageUrl("activity", { id: pts[hit.index].a.activity_id }); };
@@ -1450,7 +1458,7 @@ async function renderLatest() {
       <div class="latest-main">
         <div class="latest-title"><b>${esc(a.name || prettyType(a.activity_type))}</b> ${a.workout_label ? tagHtml(a.workout_label, QUALITY.has(a.workout_type), a.workout_type) : ""}</div>
         <div class="dim">${esc(when)}</div>
-        <div class="latest-stats">${stats.map(([k, v]) => `<div><span>${k}</span><b>${esc(String(v))}</b></div>`).join("")}</div>
+        <div class="latest-stats">${stats.map(([k, v]) => `<div><span>${k}</span><b>${esc(String(v)).replace(/ (\/?[a-z]+)$/, "<small>$1</small>")}</b></div>`).join("")}</div>
         <div class="notes compact" id="latest-notes"></div>
       </div>
     </div>`;

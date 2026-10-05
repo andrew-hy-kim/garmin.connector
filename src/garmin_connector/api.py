@@ -39,6 +39,9 @@ def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> 
         row["intensity_seconds"] = json.loads(row["intensity_seconds"]) if row["intensity_seconds"] else None
         row["hr_by_speed"] = json.loads(row["hr_by_speed"]) if row["hr_by_speed"] else None
         row["vo2max_eff"] = per_run.get(str(row["activity_id"]))
+        if not row["avg_speed_mps"] and row["distance_m"]:  # a summary without Garmin's average speed
+            secs = row["moving_duration_s"] or row["duration_s"]
+            row["avg_speed_mps"] = row["distance_m"] / secs if secs else None
         out.append(row)
     return out
 
