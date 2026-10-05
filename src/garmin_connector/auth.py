@@ -1,6 +1,6 @@
 """Logging in to Garmin Connect.
 
-The first ``garmin-connector login`` asks for your email and password, saves
+The first ``garmin login`` asks for your email and password, saves
 the password in the macOS Keychain, and saves Garmin's login tokens to
 ``~/.garmin-connector/tokens``. Later runs (including the scheduled background
 sync) reuse the tokens, and only fall back to the Keychain password if the
@@ -47,7 +47,7 @@ def get_client() -> Garmin:
     """Return a logged-in client without prompting (safe for background runs)."""
     email = _saved_email()
     if not email:
-        raise SystemExit("Not logged in yet. Run: garmin-connector login")
+        raise SystemExit("Not logged in yet. Run: garmin login")
     password = keyring.get_password(KEYCHAIN_SERVICE, email)
     # Tokens are tried first; the password is only used if they have expired.
     client = Garmin(email, password)

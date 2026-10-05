@@ -310,7 +310,7 @@ async function setupAiBox(el, scope, activityId) {
     }
     if (!data.configured) {
       el.innerHTML = `<details><summary>Get a written coach's review from Claude</summary><p class="hint">Add an Anthropic API key once with
-        <code>garmin-connector set-api-key</code>, then reload. Your workout summaries (no GPS) are only sent when you click the button, and each review costs a few cents.</p></details>`;
+        <code>garmin set-api-key</code>, then reload. Your workout summaries (no GPS) are only sent when you click the button, and each review costs a few cents.</p></details>`;
       return;
     }
     const r = data.review;

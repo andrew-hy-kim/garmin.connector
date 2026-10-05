@@ -1,4 +1,4 @@
-"""Command line: ``garmin-connector login | sync | dashboard | logout``."""
+"""Command line: ``garmin login | sync | dashboard | logout``."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from . import auth, config, db, export, processing, sync
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        prog="garmin-connector", description="Pull your Garmin Connect activities into a local database."
+        prog="garmin", description="Pull your Garmin Connect activities into a local database."
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="show detailed logging")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -145,14 +145,14 @@ def phone_updates(action: str) -> None:
                 print(f"Automatic phone updates are on: encrypted data goes to the '{publish.BRANCH}' branch of "
                       f"{cfg['repo']} after each sync.\nPhone app: {publish.phone_url(cfg['repo'])}")
             else:
-                print("Automatic phone updates are off. Turn them on with: garmin-connector phone-updates on")
+                print("Automatic phone updates are off. Turn them on with: garmin phone-updates on")
         elif action == "off":
             publish.clear_settings(conn)
             print("Automatic phone updates are off; the token and passphrase were removed from your Keychain.\n"
                   "To also remove the uploaded (encrypted) data, delete the 'phone-data' branch on GitHub.")
         elif action == "now":
             if not cfg:
-                raise SystemExit("Automatic phone updates aren't set up. Run: garmin-connector phone-updates on")
+                raise SystemExit("Automatic phone updates aren't set up. Run: garmin phone-updates on")
             publish.publish(conn, export.write(conn), force=True)
             print("Uploaded. The phone app picks it up the next time you open it.")
         else:  # on

@@ -1,4 +1,4 @@
-"""A small local dashboard: ``garmin-connector dashboard`` then open http://127.0.0.1:8765."""
+"""A small local dashboard: ``garmin dashboard`` then open http://127.0.0.1:8765."""
 
 from __future__ import annotations
 
@@ -168,7 +168,7 @@ def create_app(db_path: Path | str | None = None) -> Flask:
         except ai.NotConfigured as err:
             return jsonify({"error": str(err)}), 400
         except anthropic.AuthenticationError:
-            return jsonify({"error": "Anthropic rejected the API key. Set a new one with: garmin-connector set-api-key"}), 400
+            return jsonify({"error": "Anthropic rejected the API key. Set a new one with: garmin set-api-key"}), 400
         except anthropic.RateLimitError:
             return jsonify({"error": "Anthropic rate limit hit. Try again in a minute."}), 429
         except anthropic.APIConnectionError:

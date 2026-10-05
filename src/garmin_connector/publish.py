@@ -134,7 +134,7 @@ class GitHubError(RuntimeError):
 def _call(session: requests.Session, method: str, path: str, **kwargs) -> requests.Response:
     res = session.request(method, API + path, timeout=TIMEOUT_S, **kwargs)
     if res.status_code == 401:
-        raise GitHubError("GitHub rejected the token. Set it up again with: garmin-connector phone-updates on")
+        raise GitHubError("GitHub rejected the token. Set it up again with: garmin phone-updates on")
     if res.status_code == 403 or res.status_code == 404 and "/git/refs/" not in path:
         raise GitHubError(f"The token can't write to this repository ({res.status_code}). It needs "
                           "Contents: read and write on it.")

@@ -21,6 +21,8 @@ dependencies = [
 dev = ["pytest>=8", "fit-tool>=0.9.13"]
 
 [project.scripts]
+garmin = "garmin_connector.cli:main"
+# the original, longer name keeps working (the daily sync schedule uses it)
 garmin-connector = "garmin_connector.cli:main"
 
 [tool.setuptools.packages.find]

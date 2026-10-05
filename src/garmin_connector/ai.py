@@ -1,6 +1,6 @@
 """Optional coach's review written by Claude.
 
-Off until you add an Anthropic API key (``garmin-connector set-api-key``).
+Off until you add an Anthropic API key (``garmin set-api-key``).
 Only when you click "Ask Claude" does the dashboard send a summary of your
 training (workout tags, distances, heart rate, load, coach notes; no GPS) to
 the Anthropic API. Reviews are saved locally so you only pay once per review.
@@ -76,7 +76,7 @@ def is_configured() -> bool:
 
 def _client() -> anthropic.Anthropic:
     if not is_configured():
-        raise NotConfigured("No Anthropic API key set. Run: garmin-connector set-api-key")
+        raise NotConfigured("No Anthropic API key set. Run: garmin set-api-key")
     key = _keychain_key()
     return anthropic.Anthropic(api_key=key) if key else anthropic.Anthropic()
 

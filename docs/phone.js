@@ -83,7 +83,7 @@
   }
 
   // ---------- automatic updates ----------
-  // When set up on the Mac (garmin-connector phone-updates on), each sync uploads an encrypted
+  // When set up on the Mac (garmin phone-updates on), each sync uploads an encrypted
   // copy of the data file to the "phone-data" branch of the repository this app is served
   // from. A small stamp file says when it changed; only then is the data downloaded. The
   // passphrase is asked once; this phone keeps the key derived from it, not the passphrase.

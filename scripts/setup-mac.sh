@@ -38,8 +38,9 @@ rm -rf .venv
 uv venv --python 3.13 .venv
 uv pip install --python .venv/bin/python -e .
 
-# Make `garmin-connector` work from any new Terminal window.
+# Make `garmin` (and the longer `garmin-connector`) work from any new Terminal window.
 mkdir -p "$BIN_DIR"
+ln -sf "$APP_DIR/.venv/bin/garmin" "$BIN_DIR/garmin"
 ln -sf "$APP_DIR/.venv/bin/garmin-connector" "$BIN_DIR/garmin-connector"
 if ! grep -qs '.local/bin' "$HOME/.zshrc"; then
   echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
@@ -50,13 +51,13 @@ if [[ -f "${GARMIN_CONNECTOR_HOME:-$HOME/.garmin-connector}/account.json" ]]; th
 else
   step "Logging in to Garmin Connect"
   echo "Type your Garmin email and password. The password stays hidden while you type."
-  garmin-connector login < /dev/tty
+  garmin login < /dev/tty
 fi
 
 step "Syncing your workouts (first time: about a second per workout)"
-garmin-connector sync
+garmin sync
 
 step "Opening the dashboard"
 echo "Leave this window open while you use the dashboard. Press Ctrl+C to stop it."
-echo "Next time, just open Terminal and run:  garmin-connector dashboard"
-garmin-connector dashboard
+echo "Next time, just open Terminal and run:  garmin dashboard"
+garmin dashboard

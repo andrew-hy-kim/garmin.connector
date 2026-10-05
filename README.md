@@ -174,9 +174,9 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install -e .
 
-garmin-connector login     # asks for your Garmin email + password
-garmin-connector sync      # first run downloads your whole history; allow ~1 s per workout
-garmin-connector dashboard # opens http://127.0.0.1:8765
+garmin login     # asks for your Garmin email + password
+garmin sync      # first run downloads your whole history; allow ~1 s per workout
+garmin dashboard # opens http://127.0.0.1:8765
 ```
 
 Your password goes in the macOS Keychain and Garmin's login tokens in
@@ -184,17 +184,19 @@ Your password goes in the macOS Keychain and Garmin's login tokens in
 
 ## Everyday use
 
+The command is `garmin`; the original, longer `garmin-connector` still works the same.
+
 | Command | What it does |
 | --- | --- |
-| `garmin-connector sync` | Pull new activities since the last sync |
-| `garmin-connector sync --since 2026-01-01` | Re-pull everything from a date |
-| `garmin-connector sync --no-fit` | Summaries only; skip downloading workout files |
-| `garmin-connector dashboard` | Open the dashboard (it also has a **Sync now** button) |
-| `garmin-connector settings` | Show heart-rate settings and where each came from (Garmin, you, estimated) |
-| `garmin-connector settings --max-hr 192` | Override a Garmin value (0 = go back to Garmin's) |
-| `garmin-connector analyze` | Re-run the analysis on every downloaded workout |
-| `garmin-connector export` | Write the phone app's data file now (also happens after every sync) |
-| `garmin-connector logout` | Forget the saved password and tokens |
+| `garmin sync` | Pull new activities since the last sync |
+| `garmin sync --since 2026-01-01` | Re-pull everything from a date |
+| `garmin sync --no-fit` | Summaries only; skip downloading workout files |
+| `garmin dashboard` | Open the dashboard (it also has a **Sync now** button) |
+| `garmin settings` | Show heart-rate settings and where each came from (Garmin, you, estimated) |
+| `garmin settings --max-hr 192` | Override a Garmin value (0 = go back to Garmin's) |
+| `garmin analyze` | Re-run the analysis on every downloaded workout |
+| `garmin export` | Write the phone app's data file now (also happens after every sync) |
+| `garmin logout` | Forget the saved password and tokens |
 
 ### Ask Claude (optional)
 
@@ -202,13 +204,13 @@ The coach notes work without this. For a written coach's review of a workout or 
 recent training, add an [Anthropic API key](https://console.anthropic.com/) once:
 
 ```bash
-garmin-connector set-api-key     # stored in your macOS Keychain
+garmin set-api-key     # stored in your macOS Keychain
 ```
 
 Then click **Ask Claude** in the dashboard. Only then is a summary of your training sent to
 Anthropic: workout tags, distances, paces, heart rate, load and the coach notes. No GPS
 data is sent. Each review costs a few cents and is saved, so reopening it is free.
-`garmin-connector remove-api-key` turns it off.
+`garmin remove-api-key` turns it off.
 
 ### Updating
 
@@ -250,7 +252,7 @@ again. The bar shows how old the data on the phone is. Or let it update by itsel
 ### Automatic updates
 
 ```bash
-garmin-connector phone-updates on
+garmin phone-updates on
 ```
 
 It walks you through two things: a GitHub token that can change only this repository
@@ -264,12 +266,12 @@ passphrase once. Each time you open the app it checks for new data and loads it.
   private. Use a few unrelated words. The token and passphrase stay in your Mac's Keychain;
   the phone keeps only the key derived from the passphrase.
 - Change the passphrase by running `phone-updates on` again; the phone asks for the new one.
-- `garmin-connector phone-updates status` shows whether it's on; `… now` uploads right
+- `garmin phone-updates status` shows whether it's on; `… now` uploads right
   away; `… off` stops it and removes the token and passphrase (delete the `phone-data`
   branch on GitHub to remove the uploaded file too).
 - Combined with the daily sync below, the phone stays current without touching the Mac.
 
-- No iCloud Drive? Run `garmin-connector export --to ~/Desktop` and AirDrop the file to
+- No iCloud Drive? Run `garmin export --to ~/Desktop` and AirDrop the file to
   your phone (save it to Files), then import it.
 - Needs iOS 16.4 or later.
 - Removing the app from your home screen deletes its copy of the data; just import again.

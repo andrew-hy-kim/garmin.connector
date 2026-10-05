@@ -941,7 +941,7 @@ function renderTable() {
       <td class="num">${a.decoupling_pct != null ? a.decoupling_pct.toFixed(1) + "%" : ""}</td>
       <td class="num">${a.vo2max_eff != null ? a.vo2max_eff.toFixed(1) : ""}</td>
     </tr>`).join("")
-    : `<tr><td colspan="11" class="empty">${state.activities.length ? "No activities match these filters." : "No activities yet. Click <b>Sync now</b>, or run <code>garmin-connector sync</code>."}</td></tr>`;
+    : `<tr><td colspan="11" class="empty">${state.activities.length ? "No activities match these filters." : "No activities yet. Click <b>Sync now</b>, or run <code>garmin sync</code>."}</td></tr>`;
   $("pager").innerHTML = all.length > PAGE_SIZE ? `
     <span>${t.page * PAGE_SIZE + 1}–${Math.min(all.length, (t.page + 1) * PAGE_SIZE)} of ${all.length}</span>
     <button data-p="-1" ${t.page === 0 ? "disabled" : ""}>‹ Newer</button>
