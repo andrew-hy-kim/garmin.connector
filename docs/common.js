@@ -4,6 +4,14 @@
 const PHONE = !!window.PhoneData;
 if (PHONE) document.documentElement.classList.add("phone");
 
+// Phones: Safari ignores user-scalable=no for pinching, so stop its pinch gesture here.
+// Touch screens only (a Mac trackpad pinch is left alone), and not on maps, which zoom themselves.
+if (matchMedia("(pointer: coarse)").matches) {
+  for (const type of ["gesturestart", "gesturechange"]) {
+    document.addEventListener(type, (e) => { if (!e.target.closest?.(".leaflet-container")) e.preventDefault(); }, { passive: false });
+  }
+}
+
 // Links between pages: server routes on the Mac, plain files in the phone app.
 function pageUrl(page, params = {}) {
   // `t` ("start-end" in seconds) opens the workout with that stretch selected

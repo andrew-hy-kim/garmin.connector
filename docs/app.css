@@ -866,3 +866,10 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
   .goal:not(:has(input:checked)) span { display: none; }
   .goal:has(input:checked) b { margin-bottom: 4px; }
 }
+
+/* Phones: no pinch or double-tap zoom on the page; scrolling works as usual. Maps keep their
+   own two-finger zoom (Leaflet sets touch-action: none on them, which wins over this). */
+@media (pointer: coarse) {
+  html, html * { touch-action: pan-x pan-y; }
+  .leaflet-container, .leaflet-container * { touch-action: none; }
+}
