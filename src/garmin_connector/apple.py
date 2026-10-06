@@ -25,6 +25,7 @@ import io
 import json
 import logging
 import math
+import re
 import sqlite3
 import zipfile
 from array import array
@@ -104,6 +105,29 @@ class Export:
 
     def xml(self):
         return self.zip.open(self.xml_name) if self.zip else open(self.xml_path, "rb")
+
+    def routes(self) -> list[str]:
+        """Every GPS route file in the export, as references file() takes."""
+        if self.zip:
+            prefix = self.root + "workout-routes/"
+            return ["/" + n[len(self.root):] for n in self.zip.namelist()
+                    if n.startswith(prefix) and n.lower().endswith(".gpx")]
+        folder = Path(self.root) / "workout-routes"
+        return sorted(f"/workout-routes/{p.name}" for p in folder.glob("*.gpx")) if folder.is_dir() else []
+
+    def first_time(self, ref: str) -> float | None:
+        """When a route starts (its first point's time), reading only the start of the file."""
+        try:
+            if self.zip:
+                with self.zip.open(self.root + ref.lstrip("/")) as f:
+                    head = f.read(8192)
+            else:
+                with open(Path(self.root) / ref.lstrip("/"), "rb") as f:
+                    head = f.read(8192)
+        except (KeyError, OSError):
+            return None
+        m = _GPX_TIME.search(head)
+        return timegm(datetime.strptime(m.group(1).decode(), "%Y-%m-%dT%H:%M:%S").timetuple()) if m else None
 
     def file(self, ref: str) -> bytes | None:
         """A file the XML refers to, like '/workout-routes/route_2023-05-01_7.35am.gpx'."""
@@ -236,6 +260,29 @@ def _workout(el, kind: tuple[str, str]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------- GPS routes
+
+_GPX_TIME = re.compile(rb"<trkpt[^>]*>.*?<time>(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)", re.S)
+
+
+def match_routes(export: Export, workouts: list[dict[str, Any]]) -> int:
+    """Give outdoor workouts whose route the XML doesn't name the route file that starts during
+    them. Some exports list the routes apart from their workouts, or not at all, though the
+    files are there. Returns how many were matched."""
+    named = {w["route"] for w in workouts if w["route"]}
+    want = [w for w in workouts if not w["indoor"] and (not w["route"] or export.file(w["route"]) is None)]
+    if not want:
+        return 0
+    starts = sorted((t, ref) for ref in export.routes() if ref not in named and (t := export.first_time(ref)) is not None)
+    times = [t for t, _ in starts]
+    matched = 0
+    for w in want:
+        t0, t1 = _epoch(w["start"]), _epoch(w["end"])
+        i = bisect_left(times, t0 - 120)  # the GPS can start logging a moment before the workout
+        if i < len(times) and times[i] < t1:
+            w["route"] = starts[i][1]
+            matched += 1
+    return matched
+
 
 def gpx_points(data: bytes) -> list[tuple[float, float, float, float | None, float | None]]:
     """(time, lat, lon, elevation, speed) for each point of a workout route."""
@@ -387,8 +434,26 @@ def _activity(w: dict[str, Any], streams: dict[str, list], aid: int, start_point
     return a
 
 
+def climb_m(altitude: list[float | None], threshold: float = 3.0) -> float | None:
+    """Total ascent from a GPS elevation track: rises count once they top ``threshold`` metres,
+    so GPS jitter up and down on the flat doesn't add up to a hill."""
+    total, low, have = 0.0, None, False
+    for a in altitude:
+        if a is None:
+            continue
+        have = True
+        if low is None or a < low:
+            low = a
+        elif a - low >= threshold:
+            total += a - low
+            low = a
+    return round(total, 1) if have else None
+
+
 def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None = None) -> dict[str, int]:
-    """Import an Apple Health export. Returns counts: imported, skipped (overlapping), vo2max."""
+    """Import an Apple Health export. Returns counts: imported, with_route (outdoor workouts
+    with a GPS route), no_route (outdoor workouts whose route was missing), skipped
+    (overlapping), vo2max."""
     export = Export(path)
     garmin_first = conn.execute(
         "SELECT min(start_time_gmt) FROM activities WHERE activity_id < ?", (APPLE_ID_BASE,)).fetchone()[0]
@@ -399,6 +464,8 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
         limit = timegm(datetime.fromisoformat(garmin_first.replace(" ", "T")[:19]).timetuple())
     log.info("Reading %s%s…", export.path.name, f" (workouts before {datetime.fromtimestamp(limit, tz=timezone.utc):%b %-d, %Y})" if limit else "")
     workouts, series, vo2 = read(export, limit)
+    if (n := match_routes(export, workouts)):
+        log.info("Matched %d route files to their workouts by time", n)
     # what's already there, as (start, end) in Unix seconds, so nothing is imported twice
     taken = []
     for start, dur, aid in conn.execute("SELECT start_time_gmt, duration_s, activity_id FROM activities WHERE start_time_gmt IS NOT NULL"):
@@ -406,7 +473,7 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
             continue
         s = timegm(datetime.fromisoformat(start.replace(" ", "T")[:19]).timetuple())
         taken.append((s, s + (dur or 0)))
-    counts = {"imported": 0, "skipped": 0, "vo2max": 0}
+    counts = {"imported": 0, "with_route": 0, "no_route": 0, "skipped": 0, "vo2max": 0}
     for w in workouts:
         t0, t1 = _epoch(w["start"]), _epoch(w["end"])
         if any(a < t1 and t0 < b for a, b in taken):
@@ -420,12 +487,19 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
                     points = gpx_points(data)
                 except Exception as err:  # one bad route file shouldn't stop the import
                     log.warning("Couldn't read the route %s: %s", w["route"], err)
+            else:
+                log.debug("Route file missing from the export: %s", w["route"])
+        if not w["indoor"]:
+            counts["with_route" if points else "no_route"] += 1
         streams = streams_for(w, series, points)
+        if w["elevation_gain_m"] is None and not w["indoor"]:  # older workouts: work it out from the route
+            w["elevation_gain_m"] = climb_m(streams["altitude"])
         aid = APPLE_ID_BASE + int(t0)
         start_point = next(((la, lo) for la, lo in zip(streams["lat"], streams["lon"]) if la is not None), None)
         db.upsert_activities(conn, [_activity(w, streams, aid, start_point)])
         db.save_streams(conn, aid, streams, external_hr=False)
         conn.execute("DELETE FROM activity_metrics WHERE activity_id = ?", (aid,))  # analyzed afresh
+        conn.execute("DELETE FROM weather WHERE activity_id = ?", (aid,))  # looked up again, now with the route
         counts["imported"] += 1
         if counts["imported"] % 50 == 0:
             conn.commit()

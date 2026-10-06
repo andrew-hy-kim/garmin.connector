@@ -263,14 +263,15 @@ def update(conn: sqlite3.Connection, today: date | None = None, redo: bool = Fal
     today = today or date.today()
     session = session or requests.Session()
     stamp = datetime.now().isoformat(timespec="seconds")
-    done = {"weather": 0, "indoor": 0, "missing": 0}
+    done = {"weather": 0, "indoor": 0, "no_gps": 0, "missing": 0}
     areas: dict[tuple[float, float], list[dict[str, Any]]] = defaultdict(list)
     for w in _wanted(conn, today, redo):
-        point = None if _indoor(w["type"]) else _start_point(conn, w["id"], w["raw"])
-        if point is None:  # treadmill, gym, or no GPS: weather doesn't apply
+        indoor = _indoor(w["type"])
+        point = None if indoor else _start_point(conn, w["id"], w["raw"])
+        if point is None:  # treadmill or gym; or outdoors with no GPS, so no telling where
             conn.execute("INSERT OR REPLACE INTO weather (activity_id, fetched_at, data) VALUES (?, ?, ?)",
-                         (w["id"], stamp, json.dumps({"indoor": True})))
-            done["indoor"] += 1
+                         (w["id"], stamp, json.dumps({"indoor": True} if indoor else {"no_gps": True})))
+            done["indoor" if indoor else "no_gps"] += 1
             continue
         w["point"] = point
         areas[(round(point[0], 1), round(point[1], 1))].append(w)

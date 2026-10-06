@@ -91,6 +91,8 @@ def main(argv: list[str] | None = None) -> None:
             except (ValueError, OSError) as err:
                 raise SystemExit(f"Couldn't read the export: {err}")
             print(f"Imported {r['imported']} workouts"
+                  + (f" ({r['with_route']} with a GPS map" + (f", {r['no_route']} outdoors without one" if r["no_route"] else "") + ")"
+                     if r["with_route"] or r["no_route"] else "")
                   + (f"; skipped {r['skipped']} already in the dashboard" if r["skipped"] else "")
                   + (f"; {r['vo2max']} VO2 max readings" if r["vo2max"] else "") + ". Analyzing…")
             processing.refresh(conn)
@@ -103,6 +105,7 @@ def main(argv: list[str] | None = None) -> None:
             r = weather.update(conn, redo=args.redo)
             print(f"Weather added for {r['weather']} workouts"
                   + (f"; {r['indoor']} indoor" if r["indoor"] else "")
+                  + (f"; {r['no_gps']} without GPS" if r["no_gps"] else "")
                   + (f"; {r['missing']} not available yet" if r["missing"] else "") + ".")
             export.write_quietly(conn)
     elif args.command == "set-api-key":

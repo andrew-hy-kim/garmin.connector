@@ -37,6 +37,7 @@ def _export(tmp_path):
 def test_import_runs_rides_with_streams(conn, tmp_path):
     r = apple.import_export(conn, _export(tmp_path))
     assert r["imported"] == 4 and r["vo2max"] == 2
+    assert r["with_route"] == 3 and r["no_route"] == 0  # two outdoor runs and the ride
     acts = {a["start_time_local"]: a for a in api.activities(conn)}
     out = acts["2023-03-04 07:00:00"]
     assert apple.is_apple(out["activity_id"]) and out["activity_type"] == "running"
@@ -105,3 +106,47 @@ def test_bad_exports_explain_themselves(tmp_path):
 def test_import_before_date(conn, tmp_path):
     r = apple.import_export(conn, _export(tmp_path), before="2023-01-01")
     assert r["imported"] == 1  # only the September 2022 run
+
+
+def test_climb_from_the_route_when_apple_has_no_total(conn, tmp_path):
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    xml, recs, gpx = run(d(2021, 3, 4, 7, 0), minutes=40)
+    xml = xml.replace('<MetadataEntry key="HKElevationAscended" value="2500 cm"/>', "")  # older workouts lack it
+    apple.import_export(conn, export_zip(tmp_path / "e.zip", [(xml, recs, gpx)]))
+    gain = conn.execute("SELECT elevation_gain_m FROM activities WHERE activity_id > ?", (apple.APPLE_ID_BASE,)).fetchone()[0]
+    # the route rolls 10 m up and down (sin, period ~31 min): about 15 m of climb in 40 minutes, no jitter counted
+    assert 10 < gain < 22
+
+
+def test_climb_ignores_jitter():
+    assert apple.climb_m([50, 51, 50, 51.5, 50, 51, 50]) == 0
+    assert apple.climb_m([50, 52, 54, 53, 58, 50]) == 9  # 4 up, a dip, 5 up
+    assert apple.climb_m([None, None]) is None
+
+
+def test_routes_the_xml_does_not_name_are_matched_by_time(conn, tmp_path):
+    import re
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    unnamed = run(d(2021, 3, 4, 7, 0), minutes=30)
+    apart = run(d(2021, 3, 9, 7, 0), minutes=30)
+    no_gps = run(d(2021, 3, 12, 7, 0), minutes=30)
+    strip = lambda x: re.sub(r"<WorkoutRoute.*?</WorkoutRoute>", "", x[0])  # noqa: E731
+    route_el = re.search(r"<WorkoutRoute.*?</WorkoutRoute>", apart[0]).group(0)
+    workouts = [(strip(unnamed), unnamed[1], unnamed[2]),           # no route element at all
+                (strip(apart) + route_el, apart[1], apart[2]),       # route listed apart from its workout
+                (strip(no_gps), no_gps[1], None)]                    # an old watch without GPS
+    r = apple.import_export(conn, export_zip(tmp_path / "e.zip", workouts))
+    assert r["imported"] == 3 and r["with_route"] == 2 and r["no_route"] == 1
+    acts = {a["start_time_local"][:10]: a for a in api.activities(conn)}
+    for day in ("2021-03-04", "2021-03-09"):
+        s, _ = db.load_streams(conn, acts[day]["activity_id"])
+        assert s["lat"][600] is not None and acts[day]["activity_type"] == "running"
+    # no GPS: still an outdoor run, and the weather doesn't call it indoor
+    from garmin_connector import weather
+    assert acts["2021-03-12"]["activity_type"] == "running"
+
+    class Offline:
+        def get(self, *a, **k):
+            raise OSError("offline")
+    weather.update(conn, session=Offline())
+    assert weather.for_activity(conn, acts["2021-03-12"]["activity_id"]) == {"no_gps": True}

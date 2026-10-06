@@ -110,9 +110,10 @@ def test_backfill_groups_requests_and_stores(tmp_path):
     _add(conn, 2, "2025-05-11 08:15:00", lat=40.72, lon=-74.00)
     _add(conn, 3, "2026-09-20 18:00:00", kind="treadmill_running", lat=None)
     _add(conn, 4, "2026-10-03 07:00:00")
+    _add(conn, 5, "2026-09-21 07:00:00", lat=None)  # outdoors, but no GPS
     fake = FakeOpenMeteo()
     r = weather.update(conn, today=today, session=fake)
-    assert r["indoor"] == 1 and r["weather"] == n + 3 and r["missing"] == 0
+    assert r["indoor"] == 1 and r["no_gps"] == 1 and r["weather"] == n + 3 and r["missing"] == 0
     weather_calls = [c for c in fake.calls if "air-quality" not in c[0]]
     assert len(weather_calls) <= 25, len(weather_calls)   # five years of runs: a couple of dozen requests
     for url, p in fake.calls:  # only rounded coordinates leave the Mac
@@ -124,6 +125,7 @@ def test_backfill_groups_requests_and_stores(tmp_path):
     w = weather.for_activity(conn, 4)
     assert w["temp_c"] is not None and w["aqi"] is not None and w["heat_pct"] is not None
     assert weather.for_activity(conn, 3) == {"indoor": True}
+    assert weather.for_activity(conn, 5) == {"no_gps": True}  # not called indoor
     old = weather.for_activity(conn, 1000)
     assert old["aqi"] is None and old["temp_c"] is not None   # before air-quality history
     # nothing left to do; a second run sends nothing
