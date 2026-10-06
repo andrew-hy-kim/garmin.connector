@@ -30,7 +30,7 @@
   --fatigue: #ff9500;
   /* HR zones: grey -> blue -> green -> amber -> red, the colors runners know from their watch.
      Always shown with zone names, never color alone. */
-  --z1: #8e8e93; --z2: #007aff; --z3: #1baf7a; --z4: #eda100; --z5: #ff3b30;
+  --z1: #8e8e93; --z2: #007aff; --z3: #1baf7a; --z4: #eda100; --z5: #ff3b30; --route-casing: #ffffff; --map-z1: #8e8e93;
   --select: rgba(0, 122, 255, 0.10);
   --good: #1f7a35; --info: #007aff; --warn-c: #c93400;
 }
@@ -46,7 +46,7 @@
     --shadow: none;
     --pace: #0a84ff; --gap: #ff9f0a; --cadence: #bf5af2; --hr: #ff453a; --elev: #8e8e93;
     --fitness: #0a84ff; --fatigue: #ff9f0a;
-    --z1: #7c7c82; --z2: #0a84ff; --z3: #199e70; --z4: #d39700; --z5: #e5534b;
+    --z1: #7c7c82; --z2: #0a84ff; --z3: #199e70; --z4: #d39700; --z5: #e5534b; --route-casing: #0b0b0d; --map-z1: #d1d1d6;
     --select: rgba(10, 132, 255, 0.18);
     --good: #30d158; --info: #0a84ff; --warn-c: #ff9f0a;
   }
@@ -62,7 +62,7 @@
   --shadow: none;
   --pace: #0a84ff; --gap: #ff9f0a; --cadence: #bf5af2; --hr: #ff453a; --elev: #8e8e93;
   --fitness: #0a84ff; --fatigue: #ff9f0a;
-  --z1: #7c7c82; --z2: #0a84ff; --z3: #199e70; --z4: #d39700; --z5: #e5534b;
+  --z1: #7c7c82; --z2: #0a84ff; --z3: #199e70; --z4: #d39700; --z5: #e5534b; --route-casing: #0b0b0d; --map-z1: #d1d1d6;
   --select: rgba(10, 132, 255, 0.18);
   --good: #30d158; --info: #0a84ff; --warn-c: #ff9f0a;
 }

@@ -192,10 +192,13 @@ function drawRoutes() {
   if (M.mode !== "routes") return;
   const renderer = L.canvas({ padding: 0.3 });
   const group = L.featureGroup();
+  // outlines first, all of them, so the colored lines sit on top and stand out from the map
+  const casing = cssVar("--route-casing");
+  for (const t of M.shown) L.polyline(t.track, { renderer, color: casing, weight: 5, opacity: 0.75, smoothFactor: 1.5, interactive: false }).addTo(group);
   for (const t of M.shown) {
     const a = M.acts.get(t.id);
     const z = TYPE_ZONE[a.workout_type] || 1;
-    L.polyline(t.track, { renderer, color: cssVar(`--z${z}`), weight: 2.5, opacity: 0.7, smoothFactor: 1.5 })
+    L.polyline(t.track, { renderer, color: cssVar(z === 1 ? "--map-z1" : `--z${z}`), weight: 2.5, opacity: 0.85, smoothFactor: 1.5 })
       .bindPopup(() => popupFor([a]))
       .addTo(group);
   }

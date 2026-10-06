@@ -784,9 +784,17 @@ function renderMap() {
   }
   Object.values(mapLayers).forEach((l) => l && map.removeLayer(l));
   const group = L.featureGroup();
+  // an outline under the whole route (white in light mode, near black in dark), so every zone
+  // stands out from the map, the gray of Z1 included
+  const runs = [[]];
+  for (let i = 0; i < S.n; i++) {
+    if (s.lat[i] == null) { if (runs.at(-1).length) runs.push([]); continue; }
+    runs.at(-1).push([s.lat[i], s.lon[i]]);
+  }
+  for (const r of runs) if (r.length > 1) L.polyline(r, { color: cssVar("--route-casing"), weight: 8, opacity: 0.9, interactive: false }).addTo(group);
   let seg = [], zone = null;
   const flush = () => {
-    if (seg.length > 1) L.polyline(seg, { color: zone >= 0 ? cssVar(`--z${zone + 1}`) : cssVar("--elev"), weight: 4, opacity: 0.9 }).addTo(group);
+    if (seg.length > 1) L.polyline(seg, { color: zone > 0 ? cssVar(`--z${zone + 1}`) : zone === 0 ? cssVar("--map-z1") : cssVar("--elev"), weight: 4.5, opacity: 1 }).addTo(group);
   };
   for (let i = 0; i < S.n; i++) {
     if (s.lat[i] == null) continue;
@@ -797,7 +805,7 @@ function renderMap() {
   flush();
   group.addTo(map);
   mapLayers.route = group;
-  $("map-legend").innerHTML = !colored ? "" : D.zones.map((z, i) => `<span style="--c:var(--z${i + 1})">Z${i + 1}</span>`).join("");
+  $("map-legend").innerHTML = !colored ? "" : D.zones.map((z, i) => `<span style="--c:var(${i ? `--z${i + 1}` : "--map-z1"})">Z${i + 1}</span>`).join("");
   map.fitBounds(group.getBounds(), { padding: [12, 12] });
 }
 
