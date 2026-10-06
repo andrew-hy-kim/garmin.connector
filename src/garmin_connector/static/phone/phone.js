@@ -278,16 +278,6 @@
     return series;
   }
 
-  // Which plan week is "this week" depends on today, not on the day the file was made.
-  function planToToday(data) {
-    if (!data || !data.plan || !data.progress) return data;
-    const today = isoDay(new Date());
-    data.plan.weeks.forEach((w, i) => {
-      const p = data.progress[i];
-      if (p) p.status = today < w.start ? "upcoming" : today < nextDay(w.start, 7) ? "current" : "past";
-    });
-    return data;
-  }
 
   const routes = {
     "/api/activities": () => overview.activities,
@@ -307,7 +297,6 @@
       const d = new Date(), today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       return { ...sg, workouts: sg.workouts.filter((w) => w.date >= today) };
     },
-    "/api/plan": () => planToToday(structuredClone(overview.plan)),
     "/api/race-predictions": () => overview.race_predictions || null,
     "/api/performance": () => overview.performance || null,
     "/api/gear": () => overview.gear || [],

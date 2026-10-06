@@ -275,7 +275,9 @@ def summary(conn: sqlite3.Connection, today: date | None = None) -> dict[str, An
             km = meters / 1000
             adjusted = vo2 * shape_factor(shape["percent"], km)
             secs = race_seconds(adjusted, meters)
+            full = race_seconds(vo2, meters)  # what your VO2max alone supports: your training paces use this
             out["races"].append({"race": label, "meters": meters, "seconds": round(secs) if secs else None,
+                                 "potential_seconds": round(full) if full else None,
                                  "required_shape": round(required_shape(km)),
                                  "limited_by_endurance": adjusted < vo2 - 0.05})
         # the same prognosis three months ago, for the trend

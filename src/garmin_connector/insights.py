@@ -29,6 +29,7 @@ def _note(level: str, title: str, detail: str) -> dict[str, str]:
 
 
 _TOKEN = re.compile(r"\{\{([dptw]):(-?[0-9.]+)\}\}")
+_RANGE = re.compile(r"\{\{r:([0-9.]+),([0-9.]+)\}\}")
 
 
 def plain(text: str) -> str:
@@ -44,7 +45,20 @@ def plain(text: str) -> str:
             return f"{v / 1000:.1f} km" if v < 10000 else f"{round(v / 1000)} km"
         s = round(1000 / v) if v > 0 else 0
         return f"{s // 60}:{s % 60:02d} /km"
+    def pace(v: float) -> str:
+        s = round(1000 / v) if v > 0 else 0
+        return f"{s // 60}:{s % 60:02d}"
+    text = _RANGE.sub(lambda m: f"{pace(float(m.group(2)))}–{pace(float(m.group(1)))} /km", text)
     return _TOKEN.sub(out, text)
+
+
+def p(mps: float) -> str:
+    return f"{{{{p:{mps:.3f}}}}}"
+
+
+def pace_range(slow_mps: float, fast_mps: float) -> str:
+    """A pace range as one token: shown fastest first, the unit once ("6:14–6:30 /mi")."""
+    return f"{{{{r:{slow_mps:.3f},{fast_mps:.3f}}}}}"
 
 
 def t(celsius: float) -> str:
@@ -137,7 +151,7 @@ def _weeks(days: int) -> str:
 
 # ---------------------------------------------------------------- one workout
 
-def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[str, str]]:
+def workout_insights(conn: sqlite3.Connection, activity_id: int, perf: dict[str, Any] | None = None) -> list[dict[str, str]]:
     row = conn.execute(
         "SELECT a.activity_type, a.start_time_local, m.data FROM activities a "
         "JOIN activity_metrics m USING (activity_id) WHERE activity_id = ?", (activity_id,)
@@ -267,6 +281,35 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
                                    f"{round(lthr)}. For threshold work, holding just under it builds the "
                                    f"most fitness for the recovery it costs."))
 
+        # rep pace against the training pace this kind of rep is meant for (recent workouts only:
+        # today's paces don't apply to a session from long ago)
+        zone_key = {"intervals_vo2": "interval", "intervals_threshold": "threshold", "speed": "repetition"}.get(kind)
+        recent = row["start_time_local"][:10] >= (date.today() - timedelta(days=60)).isoformat()
+        all_reps = [r for r in m.get("reps") or [] if r.get("seconds") and (r.get("gap_mps") or r.get("meters"))]
+        if zone_key and recent and len(all_reps) >= 2:
+            perf = perf or performance.summary(conn)
+            z = next((x for x in perf.get("paces") or [] if x["key"] == zone_key), None)
+            if z:
+                # all reps, long and short, weighted by time
+                avg = sum((r.get("gap_mps") or r["meters"] / r["seconds"]) * r["seconds"] for r in all_reps) \
+                    / sum(r["seconds"] for r in all_reps)
+                name = z["label"].lower()
+                rng = pace_range(z["slow_mps"], z["fast_mps"])
+                if avg > z["fast_mps"] * 1.02:
+                    notes.append(_note("info", f"Reps faster than {name} pace",
+                                       f"Your reps averaged {p(avg)}; {name} pace for your fitness is {rng}. "
+                                       f"Either your fitness is ahead of your VO2max shape (it catches up as you "
+                                       f"train) or the reps were run too hard. At {name} pace every rep gets the "
+                                       f"same quality, without digging a hole for the next days."))
+                elif avg < z["slow_mps"] * 0.98:
+                    notes.append(_note("info", f"Reps slower than {name} pace",
+                                       f"Your reps averaged {p(avg)}; {name} pace for your fitness is {rng}. "
+                                       f"Fine on a tired day, in heat or on hills; if it's usual, shorten the "
+                                       f"reps or lengthen the recoveries."))
+                else:
+                    notes.append(_note("good", "Reps on target",
+                                       f"Your reps averaged {p(avg)}, right in your {name} range ({rng})."))
+
     # Pacing and form on steady runs
     pacing = m.get("pacing") or {}
     halves = pacing.get("speed_halves") or []
@@ -326,13 +369,13 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int) -> list[dict[st
 FORM_STATES = [
     # (min form as share of fitness, key, label, advice)
     (0.10, "fresh", "Fresh",
-     "You're well rested. Good for a race or a hard session; weeks of this means fitness is slipping."),
+     "You're well rested. Good for a race or a hard session; weeks of this means your base is slipping."),
     (-0.10, "neutral", "Maintaining",
      "Training and recovery are balanced. You can train normally."),
     (-0.30, "productive", "Productive training",
      "You're carrying the fatigue that builds fitness. Keep easy days easy and sleep well."),
     (-9.0, "overreaching", "Overreaching",
-     "Fatigue is far above your fitness. Take 2–3 easy or rest days before the next hard session."),
+     "Fatigue is far above your base. Take 2–3 easy or rest days before the next hard session."),
 ]
 
 
@@ -359,7 +402,7 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
                 "info", f"Rebuilding after {_weeks(back['break_days'])} off",
                 f"Back since {_day(back['back_on'])} ({back['runs_back']} run{'s' if back['runs_back'] != 1 else ''}, "
                 f"{round(back['week_minutes'])} min of "
-                f"running in the last 7 days). Fitness numbers dropped during the break, which is expected. "
+                f"running in the last 7 days). Your training base dropped during the break, which is expected. "
                 f"Build running time by roughly 10–20% a week and keep it all easy for now."))
             if state["key"] == "fresh":
                 state = {**state, "advice": "This reads 'fresh' only because your recent training load is low "
@@ -368,11 +411,11 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
         if week_ago["fitness"] > 5:
             ramp = now["fitness"] / week_ago["fitness"] - 1
             if ramp > 0.08:
-                notes.append(_note("warn", f"Fitness ramping fast (+{ramp:.0%} this week)",
+                notes.append(_note("warn", f"Training base ramping fast (+{ramp:.0%} this week)",
                                    "Load is climbing faster than most bodies adapt to. Hold this week's "
                                    "volume steady before adding more."))
             elif ramp < -0.08:
-                notes.append(_note("info", f"Fitness dropping ({ramp:.0%} this week)",
+                notes.append(_note("info", f"Training base dropping ({ramp:.0%} this week)",
                                    "Normal during a taper, illness or a break. Otherwise, it's time to "
                                    "rebuild consistency."))
 

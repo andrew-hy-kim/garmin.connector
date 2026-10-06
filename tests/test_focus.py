@@ -32,7 +32,7 @@ def test_regular_easy_running(tmp_path):
     levels = [a["level"] for a in areas]
     assert levels == sorted(levels, key=focus.LEVEL_RANK.get)
     # paces and distances are tokens the dashboard shows in your units
-    assert "{{p:" in by["quality"]["action"] and "{{d:" in by["endurance"]["detail"]
+    assert "{{r:" in by["quality"]["action"] and "{{d:" in by["endurance"]["detail"]
     assert "{{" not in insights.plain(by["endurance"]["detail"]) and " km" in insights.plain(by["endurance"]["detail"])
     c.close()
 

@@ -11,7 +11,7 @@ import sqlite3
 from dataclasses import asdict
 from typing import Any
 
-from . import analysis, db, gear, insights, performance, planner, processing, weather
+from . import analysis, db, gear, insights, performance, processing, weather
 
 
 def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -25,6 +25,7 @@ def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> 
         "json_extract(m.data, '$.workout.label') AS workout_label, "
         "json_extract(m.data, '$.intensity_seconds') AS intensity_seconds, "
         "json_extract(m.data, '$.hr_by_speed') AS hr_by_speed, "
+        "json_extract(m.data, '$.reps') AS reps, "
         "json_extract(a.raw_json, '$.averageRunningCadenceInStepsPerMinute') AS cadence_spm, "
         "json_extract(a.raw_json, '$.avgStrideLength') AS stride_cm, "
         "json_extract(a.raw_json, '$.avgGroundContactTime') AS ground_contact_ms, "
@@ -40,12 +41,28 @@ def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> 
         row["intensity_seconds"] = json.loads(row["intensity_seconds"]) if row["intensity_seconds"] else None
         row["hr_by_speed"] = json.loads(row["hr_by_speed"]) if row["hr_by_speed"] else None
         row["weather"] = json.loads(row["weather"]) if row["weather"] else None
+        row["reps"] = rep_summary(json.loads(row["reps"])) if row["reps"] else None
         row["vo2max_eff"] = per_run.get(str(row["activity_id"]))
         if not row["avg_speed_mps"] and row["distance_m"]:  # a summary without Garmin's average speed
             secs = row["moving_duration_s"] or row["duration_s"]
             row["avg_speed_mps"] = row["distance_m"] / secs if secs else None
         out.append(row)
     return out
+
+
+def rep_summary(reps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """A workout's reps in one line, for comparing sessions of the same kind: how many, their
+    typical length, and average grade-adjusted pace and heart rate over the reps of that length."""
+    reps = [r for r in reps if r.get("seconds")]
+    if len(reps) < 2:
+        return None
+    typical = sorted(r["seconds"] for r in reps)[len(reps) // 2]
+    like = [r for r in reps if abs(r["seconds"] / typical - 1) <= 0.15]
+    speeds = [r.get("gap_mps") or (r["meters"] / r["seconds"] if r.get("meters") else None) for r in like]
+    speeds = [v for v in speeds if v]
+    hrs = [r["avg_hr"] for r in like if r.get("avg_hr")]
+    return {"n": len(reps), "seconds": round(typical), "mps": round(sum(speeds) / len(speeds), 3) if speeds else None,
+            "hr": round(sum(hrs) / len(hrs)) if hrs else None}
 
 
 # What Garmin's own summary of a run adds: running dynamics, power, calories and the like
@@ -97,8 +114,8 @@ def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bo
     }
     if loaded:
         result["streams"], result["external_hr"] = display_streams(*loaded)
-    result["insights"] = insights.workout_insights(conn, activity_id)
     perf = perf or performance.summary(conn)
+    result["insights"] = insights.workout_insights(conn, activity_id, perf)
     result["effective_vo2max"] = perf["per_activity"].get(str(activity_id))
     result["vo2max_shape"] = perf["vo2max"]
     result["paces"] = perf.get("paces") or []
@@ -175,17 +192,4 @@ def zone_options(conn: sqlite3.Connection, settings: dict[str, Any]) -> dict[str
         "threshold": {"zones": [asdict(z) for z in analysis.hr_zones(settings["max_hr"], settings["lthr"])],
                       "floors": None, "method": None},
         "garmin": garmin,
-    }
-
-
-def plan(conn: sqlite3.Connection) -> dict[str, Any]:
-    saved = planner.load(conn)
-    ctx = planner.context(conn)
-    return {
-        "plan": saved,
-        "progress": planner.progress(conn, saved) if saved else None,
-        "goals": {k: {"label": v["label"], "blurb": v["blurb"]} for k, v in planner.GOALS.items()},
-        "defaults": {"runs_per_week": max(3, min(6, round(ctx["runs_per_week_4wk"]) or 3)), "long_day": "Sun",
-                     "weeks": 6, "goal": "return" if ctx["comeback"] else "base"},
-        "context": ctx,
     }

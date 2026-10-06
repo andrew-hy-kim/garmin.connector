@@ -5,8 +5,8 @@ from datetime import date, timedelta
 import pytest
 
 from fitgen import intervals, steady_run
-from garmin_connector import db, planner, processing, suggest
-from test_planner import _add
+from garmin_connector import db, processing, sessions, suggest
+from test_sessions import _add
 
 
 @pytest.fixture(scope="module")
@@ -36,14 +36,14 @@ def conn(tmp_path_factory):
 
 @pytest.fixture
 def neutral_form(monkeypatch):
-    real = planner.context
+    real = sessions.context
 
     def ctx(c, today=None):
         out = real(c, today)
         out["form"] = {"key": "neutral", "label": "Maintaining", "advice": "", "ratio": 0.0}
         return out
 
-    monkeypatch.setattr(planner, "context", ctx)
+    monkeypatch.setattr(sessions, "context", ctx)
 
 
 def _dates(ws):
@@ -81,29 +81,18 @@ def test_count_and_dates_ascend(conn, neutral_form):
 
 
 def test_overreaching_keeps_the_next_days_easy(conn, monkeypatch):
-    real = planner.context
+    real = sessions.context
 
     def tired(c, today=None):
         out = real(c, today)
         out["form"] = {"key": "overreaching", "label": "Overreaching", "advice": "", "ratio": -0.4}
         return out
 
-    monkeypatch.setattr(planner, "context", tired)
+    monkeypatch.setattr(sessions, "context", tired)
     out = suggest.suggest(conn, count=7)
     soon = [w for w in out["workouts"] if (date.fromisoformat(w["date"]) - date.today()).days < 3]
     assert all(w["type"] in ("easy", "long") for w in soon)
     assert "fatigue" in out["basis"]
-
-
-def test_plan_takes_over(conn):
-    plan = planner.generate(conn, "vo2", weeks=4, runs_per_week=4)
-    planner.save(conn, plan)
-    try:
-        out = suggest.suggest(conn, count=5)
-        assert out["source"] == "plan" and len(out["workouts"]) == 5
-        assert all("plan" in w["why"] for w in out["workouts"])
-    finally:
-        planner.delete(conn)
 
 
 def test_not_enough_history(tmp_path):

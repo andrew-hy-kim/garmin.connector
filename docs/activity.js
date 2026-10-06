@@ -825,7 +825,7 @@ function updateMapSelection() {
 function renderAll() {
   if (D.streams) { derive(); }
   renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderConditions(); renderZones(); if (S) renderPaceZones(); else $("pace-zones-card").hidden = true;
-  renderLaps(); renderSplits(); renderEfforts(); drawSameRoute();
+  renderLaps(); renderSplits(); renderEfforts(); drawSameRoute(); if (allActivities) renderKind(allActivities);
   renderNotes($("notes"), (D.insights || []).filter((n) => !n.title.startsWith("Tagged:")), "Nothing stands out in this workout.");
   setupAiBox($("ai"), "activity", activityId);
   $("charts-card").style.display = D.streams ? "" : "none";
@@ -865,6 +865,53 @@ function renderComparison(all) {
   el.hidden = false;
   el.innerHTML = `<span class="${better ? "up" : ""}">vs. your last ${esc(/^.[a-z]/.test(w.label) ? w.label[0].toLowerCase() + w.label.slice(1) : w.label)}</span>
     (<a href="${pageUrl("activity", { id: prev.activity_id })}">${esc(fmtDate(prev.start_time_local, { month: "short", day: "numeric" }))}</a>): ${pace}${hr}`;
+}
+
+// ---------- recent sessions of the same kind: is this workout getting easier? ----------
+const REP_KINDS = new Set(["intervals_vo2", "intervals_threshold", "speed"]);
+const STEADY_KINDS = new Set(["tempo", "threshold", "progression", "long", "race", "fartlek"]);
+function renderKind(all) {
+  const card = $("kind-card"), a = D.activity, w = D.metrics?.workout;
+  const kind = w?.type;
+  const reps = REP_KINDS.has(kind);
+  if (!kind || !(reps || STEADY_KINDS.has(kind)) || !isRun(a.activity_type)) { card.hidden = true; return; }
+  const same = all.filter((x) => x.workout_type === kind && isRun(x.activity_type) && (!reps || x.reps?.mps))
+    .sort((p, q) => q.start_time_local.localeCompare(p.start_time_local));   // newest first
+  const i = same.findIndex((x) => x.activity_id === activityId);
+  if (i < 0 || same.length < 2) { card.hidden = true; return; }
+  const self = same[i];
+  const shown = same.slice(Math.max(0, i - 2), Math.max(0, i - 2) + 8);
+  const u = Units.get();
+  const label = /^.[a-z]/.test(w.label) ? w.label[0].toLowerCase() + w.label.slice(1) : w.label;
+  $("kind-title").textContent = `Your ${label} sessions`;
+  // this one against the median of the three before it
+  const before = same.slice(i + 1, i + 4);
+  const speed = (x) => (reps ? x.reps.mps : x.avg_speed_mps);
+  const hr = (x) => (reps ? x.reps.hr : x.avg_hr);
+  const med = (vals) => { const v = vals.filter(Boolean).sort((p, q) => p - q); return v.length ? v[Math.floor(v.length / 2)] : null; };
+  let head = "";
+  const ms = med(before.map(speed)), mh = med(before.map(hr));
+  if (before.length && ms && speed(self)) {
+    const dp = Math.round(paceSeconds(speed(self)) - paceSeconds(ms));
+    const dh = hr(self) && mh ? Math.round(hr(self) - mh) : null;
+    const pace = Math.abs(dp) < 2 ? "Same pace" : `${fmtDuration(Math.abs(dp))} /${u} ${dp < 0 ? "faster" : "slower"}`;
+    const beat = dh == null ? "" : Math.abs(dh) < 1 ? ", same heart rate" : `, ${Math.abs(dh)} bpm ${dh < 0 ? "lower" : "higher"} heart rate`;
+    const better = dp <= 0 && (dh == null || dh <= 0) && (dp < -1 || (dh != null && dh < 0));
+    head = `<span class="${better ? "chg up" : ""}">${reps && Math.abs(dp) >= 2 ? "Reps " : ""}${pace}${beat}</span>
+      <span class="dim">vs. your ${before.length === 1 ? "previous session" : `previous ${before.length}`}</span>`;
+  }
+  $("kind-head").innerHTML = head;
+  $("kind-cols").innerHTML = reps
+    ? `<th>Date</th><th class="num">Reps</th><th class="num">Rep pace</th><th class="num">Rep HR</th>`
+    : `<th>Date</th><th class="num">Distance</th><th class="num">Pace</th><th class="num">Avg HR</th>`;
+  $("kind-rows").innerHTML = shown.map((x) => {
+    const date = x === self ? "<b>This run</b>"
+      : `<a href="${pageUrl("activity", { id: x.activity_id })}">${esc(fmtDate(x.start_time_local, { month: "short", day: "numeric", year: "2-digit" }))}</a>`;
+    return `<tr class="${x === self ? "this" : ""}"><td>${date}</td>${reps
+      ? `<td class="num">${x.reps.n} × ${fmtDuration(x.reps.seconds)}</td><td class="num">${fmtPace(x.reps.mps, u, false)}</td><td class="num">${x.reps.hr || "–"}</td>`
+      : `<td class="num">${fmtDist(x.distance_m)}</td><td class="num">${fmtPace(x.avg_speed_mps, u, false)}</td><td class="num">${x.avg_hr ? Math.round(x.avg_hr) : "–"}</td>`}</tr>`;
+  }).join("");
+  card.hidden = false;
 }
 
 // ---------- same route: your other runs along the same line ----------
@@ -949,6 +996,7 @@ async function renderPrevNext() {
   const all = allActivities = await getJSON("/api/activities");
   renderTiles(); // now with heart rate at your usual pace
   renderComparison(all);
+  renderKind(all);
   findSameRoute(all).catch(() => {});
   const list = all.filter((a) => a.has_streams);
   const i = list.findIndex((a) => a.activity_id === activityId);

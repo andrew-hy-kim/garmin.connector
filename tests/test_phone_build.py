@@ -12,7 +12,8 @@ REPO = Path(__file__).resolve().parent.parent
 def test_phone_pages_are_rewritten():
     html = phone_build.phone_page((phone_build.STATIC / "index.html").read_text())
     assert "/static/" not in html
-    assert 'href="index.html"' in html and 'href="plan.html"' in html and 'href="/"' not in html
+    assert 'href="index.html"' in html and 'href="progress.html"' in html and 'href="/"' not in html
+    assert "plan.html" not in html  # the Plan tab is gone
     assert html.index('src="phone.js"') < html.index('src="common.js"')  # data layer loads first
     assert 'rel="manifest"' in html and 'apple-touch-icon' in html
 
@@ -20,6 +21,7 @@ def test_phone_pages_are_rewritten():
 def test_build_output(tmp_path):
     out = phone_build.build(tmp_path / "docs")
     names = {p.name for p in out.iterdir()}
+    assert "index.html" in (out / "plan.html").read_text()  # old home-screen links to the plan land on Today
     for name in ["index.html", "activity.html", "plan.html", "phone.js", "common.js", "sw.js",
                  "manifest.webmanifest", "icon-180.png", ".nojekyll"]:
         assert name in names

@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from fitgen import steady_run
 from garmin_connector import db, heatmap
-from test_planner import _add
+from test_sessions import _add
 
 
 def test_simplify_keeps_turns_and_drops_straight_points():

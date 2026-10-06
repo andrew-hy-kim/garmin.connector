@@ -127,7 +127,7 @@ def balance(runs: list[dict[str, Any]], perf: dict[str, Any]) -> dict[str, Any] 
     action = None
     if level != "strength":
         e = _pace(perf, "easy")
-        action = ("Slow your easy runs down" + (f" to {p(e['slow_mps'])}–{p(e['fast_mps'])}" if e else "")
+        action = ("Slow your easy runs down" + (f" to {insights.pace_range(e['slow_mps'], e['fast_mps'])}" if e else "")
                   + ", or keep heart rate in zone 2. Easy days that are truly easy make the hard days better.")
     return _area("balance", "Easy vs. hard", level, f"{easy:.0%} easy", detail, action,
                  priority=2 if easy < 0.65 else 3)
@@ -151,8 +151,8 @@ def quality(runs: list[dict[str, Any]], perf: dict[str, Any], today: date,
     if not hard:
         level, headline = "focus", "No workouts in 6 weeks"
         detail = "All of your recent running has been easy. That builds the base; a little faster running sharpens it."
-        action = ("Add one session a week: a tempo of 3 × 10 minutes" + (f" at {p(t['slow_mps'])}–{p(t['fast_mps'])}" if t else "")
-                  + " with 2 minutes' jog between, or later 5 × 3 minutes" + (f" at {p(i['slow_mps'])}–{p(i['fast_mps'])}" if i else " hard")
+        action = ("Add one session a week: a tempo of 3 × 10 minutes" + (f" at {insights.pace_range(t['slow_mps'], t['fast_mps'])}" if t else "")
+                  + " with 2 minutes' jog between, or later 5 × 3 minutes" + (f" at {insights.pace_range(i['slow_mps'], i['fast_mps'])}" if i else " hard")
                   + ".")
         priority = 3
     elif per_week > 2.5:

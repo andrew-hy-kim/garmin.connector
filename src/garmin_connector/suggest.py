@@ -3,7 +3,7 @@
 With a training plan running, these are simply its next sessions. Without one,
 they come from your own history: the days you usually run, your usual long-run
 day and lengths, the kinds of hard sessions you do (rotated and progressed),
-your current form and any comeback from a break. The same rules as the planner
+your current form and any comeback from a break. The same rules as the session recipes
 apply: mostly easy running, hard days at least 48 hours apart, never the day
 before the long run, and no hard sessions early in a comeback or while
 overreaching.
@@ -17,14 +17,14 @@ from datetime import date, timedelta
 from statistics import median
 from typing import Any
 
-from . import insights, planner
+from . import insights, sessions
 
-DAYS = planner.DAYS
+DAYS = sessions.DAYS
 HISTORY_DAYS = 56          # what "usually" means: the last 8 weeks
-MAX_COUNT = 7
+MAX_COUNT = 8  # one more than the most you can show: the first is in the Readiness card
 LOOKAHEAD_DAYS = 28
 
-# Your workout tags -> the planner's session kinds
+# Your workout tags -> session kinds
 KIND_OF = {
     "intervals_vo2": "vo2", "speed": "vo2", "fartlek": "vo2",
     "intervals_threshold": "threshold", "threshold": "threshold",
@@ -34,44 +34,31 @@ KIND_LABEL = {"vo2": "VO2 max session", "threshold": "threshold session", "tempo
 
 
 def _session(kind: str, k: int, lthr: float, paces: dict[str, Any]) -> dict[str, Any]:
-    """A hard session in the planner's format, progressed by how many of this kind you've done lately."""
+    """A hard session, progressed by how many of this kind you've done lately."""
     if kind == "vo2":
-        reps, mins, jog = planner.VO2_SETS[min(k, len(planner.VO2_SETS) - 1)]
-        title, main, main_min = "VO2 max intervals", planner._fmt_reps(reps, mins, jog), reps * mins + (reps - 1) * jog
+        reps, mins, jog = sessions.VO2_SETS[min(k, len(sessions.VO2_SETS) - 1)]
+        title, main, main_min = "VO2 max intervals", sessions._fmt_reps(reps, mins, jog), reps * mins + (reps - 1) * jog
         hr, speed = f"reaching {round(lthr)}+ bpm by the end of each rep", paces.get("vo2_mps")
     elif kind == "threshold":
-        reps, mins, jog = planner.THRESHOLD_SETS[min(k, len(planner.THRESHOLD_SETS) - 1)]
+        reps, mins, jog = sessions.THRESHOLD_SETS[min(k, len(sessions.THRESHOLD_SETS) - 1)]
         title = "Threshold intervals"
-        main = planner._fmt_reps(reps, mins, jog).replace("hard", "at threshold")
+        main = sessions._fmt_reps(reps, mins, jog).replace("hard", "at threshold")
         main_min = reps * mins + (reps - 1) * jog
         hr, speed = f"{round(0.95 * lthr)}–{round(lthr)} bpm", paces.get("threshold_mps")
     elif kind == "hills":
-        reps, secs = planner.HILL_SETS[min(k, len(planner.HILL_SETS) - 1)]
+        reps, secs = sessions.HILL_SETS[min(k, len(sessions.HILL_SETS) - 1)]
         title, main, main_min = "Hill repeats", f"{reps} × {secs} s uphill at a strong effort, walk or jog back down", reps * secs * 2 / 60
         hr, speed = "hard but controlled; HR will lag on short hills", None
     else:
-        mins = planner.TEMPO_MINUTES[min(k, len(planner.TEMPO_MINUTES) - 1)]
+        mins = sessions.TEMPO_MINUTES[min(k, len(sessions.TEMPO_MINUTES) - 1)]
         title, main, main_min = "Tempo run", f"{mins} min steady at tempo effort", mins
         hr, speed = f"{round(0.90 * lthr)}–{round(0.94 * lthr)} bpm", paces.get("tempo_mps")
     return {
         "type": kind, "title": title,
-        "minutes": planner._r5(planner.WARMUP_MIN + main_min + planner.COOLDOWN_MIN),
-        "details": f"{planner.WARMUP_MIN} min easy, then {main}, then {planner.COOLDOWN_MIN} min easy.",
+        "minutes": sessions._r5(sessions.WARMUP_MIN + main_min + sessions.COOLDOWN_MIN),
+        "details": f"{sessions.WARMUP_MIN} min easy, then {main}, then {sessions.COOLDOWN_MIN} min easy.",
         "hr": hr, "speed": speed,
     }
-
-
-def _from_plan(plan: dict[str, Any], today: date, ran_today: bool, count: int) -> list[dict[str, Any]]:
-    out = []
-    for w in plan["weeks"]:
-        start = date.fromisoformat(w["start"])
-        for k, d in enumerate(w["days"]):
-            day = start + timedelta(days=k)
-            if d["type"] == "rest" or day < today or (day == today and ran_today):
-                continue
-            out.append({**d, "date": day.isoformat(), "day": DAYS[day.weekday()],
-                        "why": f"Week {w['week']} of your plan · {w['focus']}."})
-    return out[:count]
 
 
 def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None = None) -> dict[str, Any]:
@@ -82,17 +69,10 @@ def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None
     runs = [r for r in runs if r["date"] <= today.isoformat()]
     ran_today = any(r["date"] == today.isoformat() for r in runs)
 
-    plan = planner.load(conn)
-    if plan:
-        planned = _from_plan(plan, today, ran_today, count)
-        if planned:
-            return {"source": "plan", "basis": f"Your next sessions from your plan: {plan['goal_label']}.",
-                    "workouts": planned}
-
     if len(runs) < 4:
         return {"source": "none", "basis": "Suggestions appear once a few weeks of runs are synced.", "workouts": []}
 
-    ctx = planner.context(conn, today)
+    ctx = sessions.context(conn, today)
     lthr, paces = ctx["lthr"], ctx["paces"]
     easy_hr = round(0.89 * lthr)
 
@@ -125,11 +105,11 @@ def suggest(conn: sqlite3.Connection, count: int = MAX_COUNT, today: date | None
                 run_days.add(d)
 
     easy_runs = [r for r in runs if r["workout"] in ("easy", "recovery", "easy_strides") and r["duration_s"]]
-    easy_min = planner._r5(median([r["duration_s"] / 60 for r in easy_runs])) if easy_runs else 40
+    easy_min = sessions._r5(median([r["duration_s"] / 60 for r in easy_runs])) if easy_runs else 40
     longest = [max((r["duration_s"] or 0) for r in by_week[w]) / 60 for w in by_week]
-    long_min = planner._r5(max(easy_min * 1.25, median(longest))) if longest else planner._r5(easy_min * 1.5)
+    long_min = sessions._r5(max(easy_min * 1.25, median(longest))) if longest else sessions._r5(easy_min * 1.5)
     if rebuilding:  # build gradually: the long run only a little past your longest since coming back
-        long_min = max(easy_min + 5, planner._r5(max(longest) * 1.1)) if longest else easy_min + 5
+        long_min = max(easy_min + 5, sessions._r5(max(longest) * 1.1)) if longest else easy_min + 5
 
     # --- hard sessions: how many you do, which kinds, and when the last one was
     quality = [r for r in runs if (r["metrics"].get("workout") or {}).get("quality")]

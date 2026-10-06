@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from fitgen import intervals, steady_run, write_fit
-from garmin_connector import api, db, export, planner, processing
+from garmin_connector import api, db, export, processing
 
 
 @pytest.fixture(scope="module")
@@ -29,7 +29,6 @@ def conn(tmp_path_factory):
     db.upsert_activities(conn, [{"activityId": 999, "activityName": "Manual ride", "startTimeLocal": f"{today} 09:00:00",
                                  "activityType": {"typeKey": "cycling"}, "duration": 3600, "manualActivity": True}])
     processing.refresh(conn)
-    planner.save(conn, planner.generate(conn, "base", weeks=4, runs_per_week=4))
     conn.execute("INSERT INTO ai_reviews (key, created_at, text) VALUES ('overview::mi', '2026-10-01 20:00:00', 'Nice.')")
     conn.commit()
     yield conn
@@ -54,11 +53,11 @@ def test_snapshot_matches_the_dashboard(conn):
     ov = snap["overview"]
     assert ov["activities"] == json.loads(json.dumps(api.activities(conn)))
     assert ov["records"] == json.loads(json.dumps(api.records(conn)))
-    assert ov["plan"]["plan"]["goal"] == "base" and len(ov["plan"]["progress"]) == 4
+    assert "plan" not in ov  # the training plan was removed
     assert ov["settings"]["lthr"] == 170 and len(ov["settings"]["zones"]) == 5
     assert ov["training_load"][-1]["state"]["key"]
     assert ov["ai_reviews"]["overview::mi"]["text"] == "Nice."
-    assert ov["suggestions"]["source"] == "plan" and ov["suggestions"]["workouts"]  # next workouts for coach notes
+    assert ov["suggestions"]["workouts"]  # next workouts for coach notes
     assert [r["race"] for r in ov["race_predictions"]["races"]] == ["400 m", "1 km", "1 mile", "5 km", "10 km", "Half marathon", "Marathon"]
 
     assert set(snap["details"]) == {str(a["activity_id"]) for a in ov["activities"]}

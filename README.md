@@ -14,41 +14,30 @@ aerobic efficiency and HR drift, since walk breaks would read as lost fitness; a
 the coach eases off workout suggestions and mileage warnings while you rebuild.
 
 **Your next workouts:** at the top of the coach notes, your next 3, 5 or 7 sessions, each with
-a date, length, how to run it, HR/pace target and why it was picked. With a training plan
-running they're the plan's next sessions; otherwise they're built from your last 8 weeks:
+a date, length, how to run it, HR/pace target and why it was picked. They're built from your last 8 weeks:
 the days you usually run, your usual long-run day and lengths, and the hard sessions you do
 (on your usual days, rotated and gently progressed), with hard days 48 hours apart, never the
 day before the long run, and none while you're overreaching or early in a comeback.
 
 **Coach notes:** feedback on each workout and on your training overall (easy days drifting
 too hard, HR drift, rep pacing, efficiency vs. your usual, 80/20 balance, mileage jumps,
-ramp rate, new bests, and how you're building back after a break of 3+ weeks), worked out
+ramp rate, new bests, interval reps against the pace they're meant for, heat and air quality,
+and how you're building back after a break of 3+ weeks), worked out
 on your Mac. Optionally, **Ask Claude** for a written
 coach's review (see below).
 
-**Training plan:** pick a goal (build aerobic base, improve VO2 max, raise threshold, return
-from a break, or maintain), how many weeks, runs per week and your long-run day. The plan is
-built from your recent running time, run frequency, fitness and form, any comeback from a
-break, your threshold HR and recent best efforts: mostly easy running, volume growing gradually,
-a lighter week every fourth week, progressing workouts with HR and pace targets, and no hard
-sessions until you've been consistent for about four weeks after a break. Each week shows
-planned vs. done (every past day is ticked with what you ran, or marked "Not done"), finished
-weeks fold away, Today leads with today's session and this week's plan (with a
-progress ring on the This week tile), and you can **Ask Claude** to review it. **Add to
-Calendar** downloads the remaining sessions as calendar events, and the plan prints cleanly.
-
-The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** and **Plan**
+The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
 (the same tabs sit at the bottom of the screen on a phone).
 
 **Today**: how you're doing and what to do now
-- **Readiness:** fresh / balanced / building / tired from your form, with fitness and fatigue,
+- **Readiness:** fresh / balanced / building / tired from your form, with base and fatigue,
   how many easy days until you're fresh, and the most training load you can do today and stay
-  balanced, next to today's session (from your plan, or the next suggested workout). It's all
+  balanced, next to today's suggested session (or the next one). It's all
   worked out from your workouts, so it doesn't need the watch worn day and night.
 - **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
   its coach notes
-- This week / month / year (each opens its runs), this week's plan, coach notes with your next
-  workouts and your biggest opportunity to improve, and your recent activities
+- This week / month / year (each opens its runs), coach notes with the workouts after today's
+  and your biggest opportunity to improve, and your recent activities
 
 **Progress**: how you're trending (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the range)
 - **Progress status:** one word, like Readiness on Today: *Improving*, *Edging up*, *Holding
@@ -67,14 +56,18 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
 - **Where to improve:** your last three months area by area (consistency, endurance, easy vs.
   hard, workouts, aerobic efficiency), each marked *work on*, *fine* or *strength*,
   with what to work on first and a concrete next step using your own paces and distances
-- **Fitness, fatigue & form** in plain language, plus **monotony** and **training strain**
-  (Foster) for the last 7 days, what resting would do, and your fitness now vs. earlier and
-  at its peak
-- **Race predictor** at the record distances (400 m to marathon). The main prediction comes
-  from VO2max shape, held back for long races when marathon shape is short of what they need.
-  Next to it are your fastest recent stretch scaled to each distance (Riegel) and Garmin's
-  prediction (saved at each sync), each with its change over three months.
-- **Training paces** (easy, marathon, threshold, interval, repetition) from your VO2max shape
+- **Base, fatigue & form** in plain language: *base* is your training load built up over about
+  6 weeks (what other apps call "fitness"; your actual running fitness is VO2max shape), plus
+  **monotony** and **training strain** (Foster) for the last 7 days, what resting would do, and
+  your base now vs. earlier
+- **Race predictor** at the record distances (400 m to marathon), from VO2max shape, with
+  Garmin's prediction (saved at each sync) and the change over three months. Long races that
+  your endurance doesn't support yet show two times: what you'd run today, and what your speed
+  supports once weekly distance and long runs catch up. Click a row for your fastest recent
+  stretch at that distance.
+- **Training paces** (easy, marathon, threshold, interval, repetition) from your VO2max shape,
+  folded away under one summary line; marathon pace is your potential, with today's marathon
+  pace noted when endurance holds it back
 - Weekly distance, easy vs. hard running, **aerobic efficiency** (distance per heartbeat on
   easy runs) and **long runs** (your longest each week against the long-run threshold and your
   marathon target). Each chart leads with its headline number, and a click on a week opens its
@@ -97,7 +90,7 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
 - **Shoes:** distance on each pair from your gear in Garmin Connect, against its limit (or
   500 miles), with how much you've run in it this month. A coach note warns when a pair you're
   still using passes 85%. Each workout shows the shoes it was run in.
-- Heart-rate settings (max, resting, threshold) and **zones pulled from your Garmin account**
+- Heart-rate settings (folded away, with a summary line), max, resting and threshold HR and **zones pulled from your Garmin account**
   on every sync, so zones match your watch. You can override any value, and anything Garmin
   doesn't have is estimated from your data.
 
@@ -122,6 +115,9 @@ The dashboard has five tabs: **Today**, **Progress**, **Activities**, **Map** an
   it cost you: heat and humidity together give an expected slowdown at the same effort
   ("Warm and humid: about 3% slower"). Coach notes connect it to your numbers (heart-rate
   drift on a hot day, a hard run in poor air), and Claude reviews get it too
+- **Your recent sessions of the same kind** (intervals, tempo, threshold, long runs…): for interval
+  sessions the reps (6 × 3:00), rep pace and rep heart rate; for steady ones distance, pace and
+  heart rate, with how this session compares with your previous three
 - **Same route:** your other runs along the same line, start to finish, with time, pace, heart
   rate and efficiency, how this one ranks against runs of the same kind, and your route record
 - Training load and Garmin's training effect (with what it means: maintaining, improving…),
@@ -226,9 +222,9 @@ opens the dashboard.
 
 ## On your iPhone
 
-The phone app is the same dashboard (overview, workouts, training plan, coach notes and
-saved Claude reviews) as a home-screen app. It's **view-only**: syncing, changing settings,
-making plans and asking Claude happen on the Mac. It works offline; only the route map's
+The phone app is the same dashboard (overview, workouts, suggested workouts, coach notes and
+saved Claude reviews) as a home-screen app. It's **view-only**: syncing, changing settings
+and asking Claude happen on the Mac. It works offline; only the route map's
 background needs a connection.
 
 **How it works:** after every sync (including the daily automatic one), your Mac writes

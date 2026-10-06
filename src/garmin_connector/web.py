@@ -8,9 +8,9 @@ from contextlib import closing
 from pathlib import Path
 
 import anthropic
-from flask import Flask, abort, jsonify, request, send_from_directory
+from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 
-from . import ai, api, auth, config, db, export, focus, gear, heatmap, insights, performance, planner, processing, races, suggest, sync
+from . import ai, api, auth, config, db, export, focus, gear, heatmap, insights, performance, processing, races, suggest, sync
 
 log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
@@ -41,8 +41,8 @@ def create_app(db_path: Path | str | None = None) -> Flask:
         return send_from_directory(STATIC, "index.html")
 
     @app.get("/plan")
-    def plan_page():
-        return send_from_directory(STATIC, "plan.html")
+    def plan_page():  # the training plan was removed; old links land on Today
+        return redirect("/")
 
     @app.get("/progress")
     def progress_page():
@@ -55,34 +55,6 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     @app.get("/map")
     def map_page():
         return send_from_directory(STATIC, "map.html")
-
-    @app.get("/api/plan")
-    def get_plan():
-        with conn() as c:
-            return jsonify(api.plan(c))
-
-    @app.post("/api/plan")
-    def make_plan():
-        body = request.get_json(force=True) or {}
-        goal = body.get("goal")
-        if goal not in planner.GOALS:
-            return jsonify({"error": "Pick a goal."}), 400
-        with conn() as c:
-            plan = planner.generate(c, goal, weeks=int(body.get("weeks") or 6),
-                                    runs_per_week=int(body.get("runs_per_week") or 0) or None,
-                                    long_day="Sat" if body.get("long_day") == "Sat" else "Sun")
-            planner.save(c, plan)
-            result = api.plan(c)
-        export_in_background()
-        return jsonify(result)
-
-    @app.delete("/api/plan")
-    def delete_plan():
-        with conn() as c:
-            planner.delete(c)
-            result = api.plan(c)
-        export_in_background()
-        return jsonify(result)
 
     @app.get("/activity/<int:activity_id>")
     def activity_page(activity_id):
@@ -242,7 +214,7 @@ def create_app(db_path: Path | str | None = None) -> Flask:
 
 
 def _review_args(args) -> tuple[str, int | None, str]:
-    scope = args.get("scope") if args.get("scope") in ("activity", "plan") else "overview"
+    scope = args.get("scope") if args.get("scope") == "activity" else "overview"
     activity_id = int(args["activity_id"]) if scope == "activity" else None
     units = "km" if args.get("units") == "km" else "mi"
     return scope, activity_id, units

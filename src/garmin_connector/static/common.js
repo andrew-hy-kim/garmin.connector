@@ -16,7 +16,6 @@ if (matchMedia("(pointer: coarse)").matches) {
 function pageUrl(page, params = {}) {
   // `t` ("start-end" in seconds) opens the workout with that stretch selected
   if (page === "activity") return (PHONE ? `activity.html?id=${params.id}` : `/activity/${params.id}`) + (params.t ? `#t=${params.t}` : "");
-  if (page === "plan") return (PHONE ? "plan.html" : "/plan") + (params.new ? "?new" : "");
   if (["progress", "activities", "map"].includes(page)) {
     const query = params.query ? `?${new URLSearchParams(params.query)}` : "";
     return (PHONE ? `${page}.html` : `/${page}`) + query + (params.hash ? `#${params.hash}` : "");
@@ -32,7 +31,7 @@ function pageUrl(page, params = {}) {
 
 // Highlight this page's tab (a workout belongs to Activities)
 {
-  const page = document.body.dataset.page || (/plan/.test(location.pathname) ? "plan" : /activit/.test(location.pathname) ? "activities" : "today");
+  const page = document.body.dataset.page || (/activit/.test(location.pathname) ? "activities" : "today");
   const mark = (a) => document.querySelectorAll(".tabs a").forEach((x) => (x === a ? x.setAttribute("aria-current", "page") : x.removeAttribute("aria-current")));
   mark(document.querySelector(`.tabs a[data-page="${page}"]`));
   // the tapped tab lights up the moment it's touched, before the next page has loaded
@@ -254,7 +253,8 @@ function zoneRows(zones, seconds) {
 
 // Distances and paces in note text come as tokens ({{d:meters}}, {{p:m/s}}), shown in your units.
 function unitText(s, u = Units.get()) {
-  return String(s ?? "").replace(/\{\{([dptw]):(-?[0-9.]+)\}\}/g, (_, kind, v) => {
+  return String(s ?? "").replace(/\{\{r:([0-9.]+),([0-9.]+)\}\}/g, (_, slow, fast) => `${fmtPace(+fast, u, false)}–${fmtPace(+slow, u)}`)
+    .replace(/\{\{([dptw]):(-?[0-9.]+)\}\}/g, (_, kind, v) => {
     v = +v;
     if (kind === "p") return fmtPace(v, u);
     if (kind === "t") return fmtTemp(v, u);
@@ -365,7 +365,7 @@ async function setupAiBox(el, scope, activityId) {
   try { show(await getJSON(`/api/ai/review?${params()}`)); } catch (err) { el.innerHTML = ""; }
 }
 
-// Workout type -> the HR zone it mostly trains, so tags, plan days and charts share one color language.
+// Workout type -> the HR zone it mostly trains, so tags, suggested sessions and charts share one color language.
 const TYPE_ZONE = {
   recovery: 1, easy: 2, easy_strides: 2, long: 2, progression: 3, tempo: 3, threshold: 4, intervals_threshold: 4,
   fartlek: 4, intervals_vo2: 5, speed: 5, race: 5, vo2: 5, hills: 5,
@@ -373,8 +373,8 @@ const TYPE_ZONE = {
 const typeColor = (type) => (TYPE_ZONE[type] ? `var(--z${TYPE_ZONE[type]})` : "var(--z1)");
 const tagHtml = (label, quality, type) => (label
   ? `<span class="tag ${quality ? "q" : ""}" style="--c:${typeColor(type)}">${esc(label)}</span>` : "");
-// A planned or suggested session, said once: "Easy run" already means easy and conversational
-// (the plan's guidance says so), so that sentence isn't repeated on every easy day.
+// A suggested session, said once: "Easy run" already means easy and conversational,
+// so that sentence isn't repeated on every easy day.
 function sessionDetails(d) {
   if (!d.details) return "";
   return ["easy", "long"].includes(d.type)
@@ -383,3 +383,13 @@ function sessionDetails(d) {
 // "HR under 153 bpm · about 8:42 /mi"
 const sessionTarget = (d) => [d.hr ? `HR ${d.hr}` : "", d.speed ? `about ${fmtPace(d.speed)}` : ""].filter(Boolean).join(" · ");
 const QUALITY = new Set(["race", "progression", "tempo", "threshold", "intervals_threshold", "intervals_vo2", "speed", "fartlek"]);
+
+// A link to a section that's folded away opens it
+function openFoldAt(hash) {
+  const el = hash && hash.length > 1 && document.getElementById(hash.slice(1));
+  const fold = el && (el.matches("details.fold") ? el : el.querySelector("details.fold"));
+  if (fold) fold.open = true;
+}
+addEventListener("hashchange", () => openFoldAt(location.hash));
+document.addEventListener("click", (e) => { const a = e.target.closest('a[href^="#"]'); if (a) openFoldAt(a.getAttribute("href")); });
+openFoldAt(location.hash);

@@ -109,6 +109,7 @@ def predictions(conn: sqlite3.Connection, today: date | None = None,
             # from VO2max shape and marathon shape (RUNALYZE's model): the main prediction
             "fitness_seconds": f.get("seconds"), "fitness_change_s": f.get("change_s"),
             "endurance_limited": f.get("limited_by_endurance", False),
+            "potential_seconds": f.get("potential_seconds"),
             "seconds": p["seconds"] if p else None,
             "change_s": p["seconds"] - before["seconds"] if p and before else None,
             "basis": p["basis"] if p else None,

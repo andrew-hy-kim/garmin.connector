@@ -137,7 +137,6 @@ def snapshot(conn: sqlite3.Connection) -> dict[str, Any]:
             "performance": {k: v for k, v in perf.items() if k != "per_activity"},
             "gear": gear.summary(conn),
             "focus": focus.areas(conn, perf),
-            "plan": api.plan(conn),
             "ai_reviews": reviews,
         },
         "details": details,

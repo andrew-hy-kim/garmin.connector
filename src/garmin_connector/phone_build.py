@@ -20,8 +20,8 @@ from pathlib import Path
 STATIC = Path(__file__).parent / "static"
 PHONE = STATIC / "phone"
 
-PAGES = ["index.html", "progress.html", "activities.html", "map.html", "activity.html", "plan.html"]
-ASSETS = ["app.css", "common.js", "overview.js", "activity.js", "plan.js", "map.js",
+PAGES = ["index.html", "progress.html", "activities.html", "map.html", "activity.html"]
+ASSETS = ["app.css", "common.js", "overview.js", "activity.js", "map.js",
           "chart.umd.min.js", "leaflet.js", "leaflet.css"]
 PHONE_ASSETS = ["phone.js", "icon-180.png", "icon-192.png", "icon-512.png"]
 
@@ -87,7 +87,7 @@ self.addEventListener("fetch", (event) => {
 def phone_page(html: str) -> str:
     """Turn a server page into its phone-app version."""
     html = html.replace('href="/static/', 'href="').replace('src="/static/', 'src="')
-    for page in ("plan", "progress", "activities", "map"):
+    for page in ("progress", "activities", "map"):
         html = html.replace(f'href="/{page}"', f'href="{page}.html"')
     html = html.replace('href="/"', 'href="index.html"')
     html = html.replace("</head>", HEAD_EXTRA + "</head>", 1)
@@ -116,6 +116,8 @@ def build(out: Path | str = "docs") -> Path:
     files["sw.js"] = (SERVICE_WORKER.replace("__VERSION__", version)
                       .replace("__FILES__", json.dumps(cached))).encode()
     files[".nojekyll"] = b""  # serve files as-is on GitHub Pages
+    # the Plan tab was removed; a home-screen shortcut to it still lands somewhere useful
+    files["plan.html"] = b'<!doctype html><meta charset="utf-8"><script>location.replace("index.html")</script>\n'
     for name, data in files.items():
         (out / name).write_bytes(data)
     return out

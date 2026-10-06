@@ -6,7 +6,7 @@ import pytest
 
 from fitgen import steady_run
 from garmin_connector import db, performance as perf, processing
-from test_planner import _add as _add_run
+from test_sessions import _add as _add_run
 
 
 def _add(conn, tmp_path, activity_id, day, samples, laps):
