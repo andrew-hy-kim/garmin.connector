@@ -456,7 +456,9 @@ def _activity(w: dict[str, Any], streams: dict[str, list], aid: int, start_point
     hr = [h for h in streams["hr"] if h]
     dist = w["distance_m"] or next((d for d in reversed(streams["distance"]) if d is not None), None)
     duration = w["duration_s"] or (_epoch(w["end"]) - _epoch(w["start"]))
-    moving = sum(1 for s in streams["speed"] if s is not None and s > 0.5) or None
+    # moving time: all but the seconds you were seen standing still (a gap in the data isn't a stop)
+    stopped = sum(1 for s in streams["speed"] if s is not None and s <= 0.5)
+    moving = (len(streams["speed"]) - stopped) if any(s is not None for s in streams["speed"]) else None
     a = {
         "activityId": aid, "activityName": NAMES.get(w["type"], "Workout"),
         "startTimeLocal": _local(w["start"]), "startTimeGMT": _gmt(w["start"]),

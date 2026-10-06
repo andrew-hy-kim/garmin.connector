@@ -221,3 +221,21 @@ def test_hr_check_flags_heart_rate_on_the_step_rate(conn, tmp_path):
     apple.import_export(conn, export_zip(tmp_path / "e.zip", [run(d(2021, 3, 4, 7, 0), minutes=40, hr=165)]))
     processing.refresh(conn)
     assert {y["year"]: y for y in hrcheck.report(conn)["years"]}["2021"]["locked"] == 1
+
+
+def test_gaps_in_the_data_are_not_stops(conn, tmp_path):
+    """A run without GPS whose distance samples have gaps keeps its whole time as moving time."""
+    import re
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    xml, recs, _ = run(d(2020, 4, 15, 12, 0), minutes=40, speed=3.0)
+    xml = re.sub(r"<WorkoutRoute.*?</WorkoutRoute>", "", xml)
+    # keep the distance samples for only the first and last 10 minutes
+    keep = []
+    for r in recs:
+        m = re.search(r'type="HKQuantityTypeIdentifierDistanceWalkingRunning".*?startDate="2020-04-15 12:(\d\d)', r)
+        if m and 10 <= int(m.group(1)) < 30:
+            continue
+        keep.append(r)
+    apple.import_export(conn, export_zip(tmp_path / "e.zip", [(xml, keep, None)]))
+    a = next(x for x in api.activities(conn) if apple.is_apple(x["activity_id"]))
+    assert a["moving_duration_s"] > 0.95 * 2400
