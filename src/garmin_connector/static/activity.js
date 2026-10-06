@@ -252,7 +252,8 @@ function renderConditions() {
   el.hidden = false;
   el.innerHTML = `<div class="cond-grid">${items.map(([l, v, sub]) =>
       `<div><div class="label">${esc(l)}</div><div class="value">${v}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div>`).join("")}</div>
-    <p class="cond-impact">${impact}${esc(range)} <span class="dim">Weather from Open-Meteo.</span></p>`;
+    <p class="cond-impact">${impact}${esc(range)} <span class="dim">Weather from Open-Meteo${w.place_assumed
+      ? ", for where your runs around then started (this one has no GPS)" : ""}.</span></p>`;
 }
 
 function isIntervalWorkout() {

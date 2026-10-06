@@ -20,12 +20,13 @@ Each workout stores (metric; the dashboard converts):
 
 from __future__ import annotations
 
+import bisect
 import json
 import logging
 import math
 import sqlite3
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -117,15 +118,49 @@ def _start_point(conn: sqlite3.Connection, activity_id: int, raw_json: str | Non
     return (track[0][0], track[0][1]) if track else None
 
 
+NEARBY_DAYS = 21  # a run without GPS takes the place of your runs within three weeks of it
+
+
+def _known_places(conn: sqlite3.Connection) -> list[tuple[int, float, float]]:
+    """(day number, lat, lon) of every workout's start, by date."""
+    rows = conn.execute(
+        "SELECT start_time_local, json_extract(raw_json, '$.startLatitude'), json_extract(raw_json, '$.startLongitude') "
+        "FROM activities WHERE start_time_local IS NOT NULL AND json_extract(raw_json, '$.startLatitude') IS NOT NULL")
+    return sorted((date.fromisoformat(s[:10]).toordinal(), float(la), float(lo))
+                  for s, la, lo in rows if (la, lo) != (0, 0))
+
+
+def _nearby_place(places: list[tuple[int, float, float]], day: date) -> tuple[float, float] | None:
+    """The most common area (about 10 km) among runs within NEARBY_DAYS of ``day``: where you
+    lived or were staying then. None if there were none."""
+    d = day.toordinal()
+    i = bisect.bisect_left(places, (d - NEARBY_DAYS,))
+    near = []
+    while i < len(places) and places[i][0] <= d + NEARBY_DAYS:
+        near.append(places[i])
+        i += 1
+    if not near:
+        return None
+    areas = Counter((round(la, 1), round(lo, 1)) for _, la, lo in near)
+    area = areas.most_common(1)[0][0]
+    # the start closest in time within that area
+    best = min((p for p in near if (round(p[1], 1), round(p[2], 1)) == area), key=lambda p: abs(p[0] - d))
+    return best[1], best[2]
+
+
 def _wanted(conn: sqlite3.Connection, today: date, redo: bool = False) -> list[dict[str, Any]]:
     """Workouts with no weather yet, or whose weather came from the recent past and is now final."""
     rows = conn.execute(
-        "SELECT a.activity_id, a.activity_type, a.start_time_local, a.duration_s, a.raw_json, w.fetched_at "
+        "SELECT a.activity_id, a.activity_type, a.start_time_local, a.duration_s, a.raw_json, w.fetched_at, "
+        "coalesce(json_extract(w.data, '$.no_gps'), json_extract(w.data, '$.indoor'), 0) AS placeless "
         "FROM activities a LEFT JOIN weather w USING (activity_id) WHERE a.start_time_local IS NOT NULL"
     ).fetchall()
     out = []
-    for activity_id, kind, start, duration, raw_json, fetched_at in rows:
+    for activity_id, kind, start, duration, raw_json, fetched_at, placeless in rows:
         day = date.fromisoformat(start[:10])
+        # an outdoor workout filed with no place: look again, nearby runs may tell where it was
+        if placeless and not _indoor(kind):
+            fetched_at = None
         if fetched_at and not redo:
             got = date.fromisoformat(fetched_at[:10])
             # fetched while still recent, and old enough now for the final history: once more
@@ -265,10 +300,15 @@ def update(conn: sqlite3.Connection, today: date | None = None, redo: bool = Fal
     stamp = datetime.now().isoformat(timespec="seconds")
     done = {"weather": 0, "indoor": 0, "no_gps": 0, "missing": 0}
     areas: dict[tuple[float, float], list[dict[str, Any]]] = defaultdict(list)
+    nearby = None
     for w in _wanted(conn, today, redo):
         indoor = _indoor(w["type"])
         point = None if indoor else _start_point(conn, w["id"], w["raw"])
-        if point is None:  # treadmill or gym; or outdoors with no GPS, so no telling where
+        if point is None and not indoor:  # no GPS: where your other runs around then started
+            nearby = nearby if nearby is not None else _known_places(conn)
+            point = _nearby_place(nearby, w["day"])
+            w["assumed"] = point is not None
+        if point is None:  # treadmill or gym; or outdoors with no GPS and no runs near then
             conn.execute("INSERT OR REPLACE INTO weather (activity_id, fetched_at, data) VALUES (?, ?, ?)",
                          (w["id"], stamp, json.dumps({"indoor": True} if indoor else {"no_gps": True})))
             done["indoor" if indoor else "no_gps"] += 1
@@ -294,6 +334,8 @@ def update(conn: sqlite3.Connection, today: date | None = None, redo: bool = Fal
                              (r["id"], stamp, json.dumps({"unavailable": True})))
                 done["missing"] += 1
                 continue
+            if r.get("assumed"):
+                c["place_assumed"] = True
             conn.execute("INSERT OR REPLACE INTO weather (activity_id, fetched_at, data) VALUES (?, ?, ?)",
                          (r["id"], stamp, json.dumps(c, separators=(",", ":"))))
             done["weather"] += 1

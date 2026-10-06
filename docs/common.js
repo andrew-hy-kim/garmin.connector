@@ -94,6 +94,8 @@ const fmtElev = (m, u = Units.get()) => (m == null ? "" : `${Math.round(u === "m
 const elevUnit = (m, u = Units.get()) => (u === "mi" ? m * 3.28084 : m);
 const prettyType = (t) => (t || "other").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const isRun = (t) => /run/.test(t || "");
+// Workouts imported from Apple Health have IDs from 8e15 up (see apple.py); Garmin's are far below
+const isApple = (id) => Number(id) >= 8e15;
 // "2026-09-12 07:00:00" or a bare "2026-09-12" (read as local noon, so it never shifts a day)
 const localDate = (s) => new Date(s.length === 10 ? `${s}T12:00:00` : s.replace(" ", "T"));
 const fmtDate = (s, opts = { dateStyle: "medium" }) => localDate(s).toLocaleDateString(undefined, opts);

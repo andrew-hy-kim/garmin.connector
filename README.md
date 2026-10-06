@@ -200,6 +200,7 @@ The command is `garmin`; the original, longer `garmin-connector` still works the
 | `garmin weather` | Look up the weather for workouts that don't have it yet (also happens at every sync; the first time it fills in your whole history) |
 | `garmin weather --redo` | Look up every workout's weather again |
 | `garmin import-apple export.zip` | Add your Apple Watch workouts from before your Garmin (see below) |
+| `garmin hr-check` | Your running heart rate year by year: heart rate at one fixed pace, highest heart rate, and signs of a misreading wrist sensor (`--km` for km paces) |
 | `garmin logout` | Forget the saved password and tokens |
 
 ### Apple Watch history (optional)
@@ -216,7 +217,9 @@ load, efficiency, records, the map, weather. Apple's VO2 max (Cardio Fitness) re
 then fill in the VO2 max chart. Anything that overlaps an activity already in the dashboard
 is skipped, so nothing shows up twice, and running it again just updates them. To pick the
 cut-off yourself: `--before 2023-06-01`. Workouts from the watch are marked
-"Apple Watch" on their page.
+"Apple Watch" in the activity list (which can show just one watch) and on their page.
+Runs without GPS get the weather where your other runs that month started. The import
+lists any outdoor runs that came without a GPS route, and why.
 
 ### Ask Claude (optional)
 

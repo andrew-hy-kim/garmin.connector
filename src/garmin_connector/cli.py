@@ -8,7 +8,7 @@ import webbrowser
 from contextlib import closing
 from datetime import date
 
-from . import apple, auth, config, db, export, processing, sync, weather
+from . import apple, auth, config, db, export, hrcheck, processing, sync, weather
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -34,6 +34,8 @@ def main(argv: list[str] | None = None) -> None:
                          help="on: set up; off: stop and forget the token; now: upload right away")
 
     sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
+    p_hrc = sub.add_parser("hr-check", help="your running heart rate year by year, to spot sensor trouble")
+    p_hrc.add_argument("--km", action="store_true", help="paces per km (default: per mile)")
     p_apple = sub.add_parser("import-apple", help="import your Apple Watch workouts from an Apple Health export")
     p_apple.add_argument("path", help="export.zip from the Health app (or the unzipped folder)")
     p_apple.add_argument("--before", help="only workouts before this date (YYYY-MM-DD); default: your first Garmin activity")
@@ -83,6 +85,9 @@ def main(argv: list[str] | None = None) -> None:
             sync.import_missing_streams(conn)
             print(f"Analyzed {processing.refresh(conn, force=True)} activities.")
             export.write_quietly(conn)
+    elif args.command == "hr-check":
+        with closing(db.connect(config.db_path())) as conn:
+            hrcheck.print_report(conn, "km" if args.km else "mi")
     elif args.command == "import-apple":
         with closing(db.connect(config.db_path())) as conn:
             print("Reading your Apple Health export (a big one takes a minute or two)…")

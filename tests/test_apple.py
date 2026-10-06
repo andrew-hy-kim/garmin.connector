@@ -149,7 +149,8 @@ def test_routes_the_xml_does_not_name_are_matched_by_time(conn, tmp_path):
         def get(self, *a, **k):
             raise OSError("offline")
     weather.update(conn, session=Offline())
-    assert weather.for_activity(conn, acts["2021-03-12"]["activity_id"]) == {"no_gps": True}
+    # placed where the runs that week started, so it's looked up (offline here: nothing stored yet)
+    assert weather.for_activity(conn, acts["2021-03-12"]["activity_id"]) is None
 
 
 def _local_times(gpx, shift_s=0):
@@ -195,3 +196,28 @@ def test_import_says_why_runs_have_no_map(conn, tmp_path):
     ]))
     assert r["no_route"] == 3 and r["why_no_route"] == {"missing": 1, "times": 1, "none": 1}
     assert r["no_route_days"][0].startswith("2021-05-01 07:00")
+
+
+def test_hr_check_reports_each_year(conn, tmp_path, capsys):
+    from garmin_connector import hrcheck
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    apple.import_export(conn, export_zip(tmp_path / "e.zip", [
+        run(d(2021, 3, 4, 7, 0), minutes=40, speed=2.9, hr=150),
+        run(d(2022, 3, 4, 7, 0), minutes=40, speed=2.9, hr=135),
+    ]))
+    processing.refresh(conn)
+    r = hrcheck.report(conn)
+    years = {y["year"]: y for y in r["years"]}
+    assert set(years) >= {"2021", "2022"} and years["2021"]["apple"] == 1
+    assert years["2021"]["hr_at_ref"] > years["2022"]["hr_at_ref"]  # same pace, harder work in 2021
+    assert years["2021"]["locked"] == 0
+    hrcheck.print_report(conn)
+    assert "2021" in capsys.readouterr().out
+
+
+def test_hr_check_flags_heart_rate_on_the_step_rate(conn, tmp_path):
+    from garmin_connector import hrcheck
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    apple.import_export(conn, export_zip(tmp_path / "e.zip", [run(d(2021, 3, 4, 7, 0), minutes=40, hr=165)]))
+    processing.refresh(conn)
+    assert {y["year"]: y for y in hrcheck.report(conn)["years"]}["2021"]["locked"] == 1

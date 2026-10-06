@@ -5,7 +5,7 @@ const RANGES = [["3M", 91], ["6M", 182], ["1Y", 365], ["2Y", 730], ["5Y", 1826],
 const state = {
   activities: [], vo2: [], load: [], records: {}, settings: null, insights: [], type: "run",
   range: (() => { try { return localStorage.getItem("range") || "1Y"; } catch { return "1Y"; } })(),
-  table: { search: "", workout: "all", when: "any", from: "", to: "", sort: "start_time_local", dir: -1, page: 0 },
+  table: { search: "", workout: "all", source: "all", when: "any", from: "", to: "", sort: "start_time_local", dir: -1, page: 0 },
 };
 
 // Form as a share of fitness -> state. Mirrors insights.FORM_STATES.
@@ -735,6 +735,24 @@ function renderRecords() {
   }).join("") : `<tr><td colspan="5" class="empty">Records appear after your runs are synced and analyzed.</td></tr>`;
 }
 
+// Best time at each distance, year by year: how each year compares, whichever watch it was on
+const YEAR_DISTANCES = ["1 mile", "5 km", "10 km", "Half marathon", "Marathon"];
+function renderRecordsByYear() {
+  if (!$("records-years")) return;
+  const cols = YEAR_DISTANCES.filter((l) => state.records[l]?.length);
+  const years = [...new Set(cols.flatMap((l) => state.records[l].map((e) => e.date.slice(0, 4))))].sort().reverse();
+  $("records-years-fold").hidden = years.length < 2;
+  if (years.length < 2) return;
+  $("records-years-head").innerHTML = `<tr><th>Year</th>${cols.map((l) => `<th class="num">${esc(l)}</th>`).join("")}</tr>`;
+  $("records-years").innerHTML = years.map((y) => `<tr><td>${y}</td>${cols.map((l) => {
+    const list = state.records[l];
+    const e = list.find((x) => x.date.startsWith(y));  // fastest first, so the year's best
+    if (!e) return `<td class="num dim">–</td>`;
+    const t = fmtDuration(e.seconds);
+    return `<td class="num"><a href="${pageUrl("activity", { id: e.activity_id, t: span(e) })}" title="${esc(fmtDate(e.date))}">${e === list[0] ? `<b>${t}</b>` : t}</a></td>`;
+  }).join("")}</tr>`).join("");
+}
+
 // Longest run, biggest week and month: all-time, and the best within the chart range
 function renderMilestones() {
   if (!$("milestones")) return;
@@ -874,7 +892,8 @@ function tableRows() {
   const rows = filtered().filter((a) => {
     const d = localDate(a.start_time_local);
     return (!from || d >= from) && (!to || d < to) && (!types || types.includes(a.workout_type))
-      && (!q || `${a.name || ""} ${a.workout_label || ""} ${prettyType(a.activity_type)}`.toLowerCase().includes(q));
+      && (t.source === "all" || (t.source === "apple") === isApple(a.activity_id))
+      && (!q || `${a.name || ""} ${a.workout_label || ""} ${prettyType(a.activity_type)} ${isApple(a.activity_id) ? "apple watch" : ""}`.toLowerCase().includes(q));
   });
   const key = t.sort;
   rows.sort((a, b) => {
@@ -897,8 +916,10 @@ function renderTable() {
   const meters = all.reduce((s, a) => s + (a.distance_m || 0), 0);
   const secs = all.reduce((s, a) => s + (a.duration_s || 0), 0);
   // Clear only shows when a filter is on
-  const filtering = t.search || t.workout !== "all" || t.when !== "any" || t.sort !== "start_time_local" || t.dir !== -1;
+  const filtering = t.search || t.workout !== "all" || t.source !== "all" || t.when !== "any" || t.sort !== "start_time_local" || t.dir !== -1;
   $("f-clear").hidden = !filtering;
+  // Which watch: only worth a menu once there are Apple Watch workouts too
+  $("f-source").hidden = !state.activities.some((a) => isApple(a.activity_id));
   const sortValue = `${t.sort}:${t.dir}`;
   $("f-sort").value = [...$("f-sort").options].some((o) => o.value === sortValue) ? sortValue : "";
   $("f-summary").textContent = all.length
@@ -936,7 +957,7 @@ function renderTable() {
   };
   $("rows").innerHTML = list.length ? list.map((a) => `${header(a)}<tr class="${a.has_streams ? "clickable" : ""}" ${a.has_streams ? 'tabindex="0"' : ""} data-id="${a.activity_id}">
       <td>${byDate ? fmtDate(a.start_time_local, { weekday: "short", month: "short", day: "numeric" }) : fmtDate(a.start_time_local)}</td>
-      <td class="name">${esc(a.name)}</td>
+      <td class="name">${esc(a.name)}${isApple(a.activity_id) ? ' <span class="badge">Apple Watch</span>' : ""}</td>
       <td>${a.workout_label ? tagHtml(a.workout_label, QUALITY.has(a.workout_type), a.workout_type) : `<span class="dim">${esc(prettyType(a.activity_type))}</span>`}</td>
       <td class="num">${fmtDist(a.distance_m)}</td>
       <td class="num">${fmtDuration(a.duration_s)}</td>
@@ -964,6 +985,7 @@ function setupTable() {
   if (q.get("workout")) t.workout = q.get("workout");
   $("f-workout").innerHTML = WORKOUT_FILTERS.map(([k, label]) => `<option value="${k}">${label}</option>`).join("");
   $("f-workout").value = t.workout;
+  $("f-source").addEventListener("change", (e) => { t.source = e.target.value; update(); });
   if (t.when === "custom") { $("f-when").value = "custom"; $("f-custom").hidden = false; $("f-from").value = t.from; $("f-to").value = t.to; }
   const update = () => { t.page = 0; renderTable(); };
   let timer;
@@ -977,9 +999,9 @@ function setupTable() {
   $("f-from").addEventListener("change", (e) => { t.from = e.target.value; update(); });
   $("f-to").addEventListener("change", (e) => { t.to = e.target.value; update(); });
   $("f-clear").addEventListener("click", () => {
-    Object.assign(t, { search: "", workout: "all", when: "any", from: "", to: "", sort: "start_time_local", dir: -1 });
+    Object.assign(t, { search: "", workout: "all", source: "all", when: "any", from: "", to: "", sort: "start_time_local", dir: -1 });
     $("f-sort").value = "start_time_local:-1";
-    $("f-search").value = ""; $("f-workout").value = "all"; $("f-when").value = "any";
+    $("f-search").value = ""; $("f-workout").value = "all"; $("f-source").value = "all"; $("f-when").value = "any";
     $("f-from").value = ""; $("f-to").value = ""; $("f-custom").hidden = true;
     update();
   });
@@ -1021,6 +1043,7 @@ function populateTypes() {
 // Everything that depends on the time range
 function renderCharts() {
   renderMilestones();
+  renderRecordsByYear();
   renderTrend(); renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus(); renderGear();
 }
 
