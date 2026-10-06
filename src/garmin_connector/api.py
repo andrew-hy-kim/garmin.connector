@@ -11,7 +11,7 @@ import sqlite3
 from dataclasses import asdict
 from typing import Any
 
-from . import analysis, db, gear, insights, performance, processing, weather
+from . import analysis, apple, db, gear, insights, performance, processing, weather
 
 
 def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -124,6 +124,7 @@ def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bo
     result["weather"] = weather.for_activity(conn, activity_id)
     raw = conn.execute("SELECT raw_json FROM activities WHERE activity_id = ?", (activity_id,)).fetchone()
     result["watch"] = watch_extras(raw[0] if raw else None)
+    result["source"] = "apple" if apple.is_apple(activity_id) else "garmin"
     return result
 
 

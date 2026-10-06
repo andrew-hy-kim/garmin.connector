@@ -12,7 +12,7 @@ from pathlib import Path
 
 from garminconnect import Garmin
 
-from . import config, db, gear, processing, weather
+from . import apple, config, db, gear, processing, weather
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +53,8 @@ def sync(
     if activities and since != EARLIEST:
         listed = {a.get("activityId") for a in activities}
         gone = [r[0] for r in conn.execute(
-            "SELECT activity_id FROM activities WHERE substr(start_time_local, 1, 10) >= ?", (since.isoformat(),))
+            "SELECT activity_id FROM activities WHERE substr(start_time_local, 1, 10) >= ? AND activity_id < ?",
+            (since.isoformat(), apple.APPLE_ID_BASE))  # workouts imported from Apple Health aren't Garmin's to delete
             if r[0] not in listed]
         if gone:
             db.delete_activities(conn, gone)
@@ -164,7 +165,7 @@ def vo2max_days_to_check(conn: sqlite3.Connection) -> list[str]:
     """Run days not yet checked for VO2 max (runs are what update your running VO2 max)."""
     return [r[0] for r in conn.execute(
         "SELECT DISTINCT substr(start_time_local, 1, 10) AS day FROM activities "
-        "WHERE activity_type LIKE '%run%' AND start_time_local IS NOT NULL "
+        f"WHERE activity_type LIKE '%run%' AND start_time_local IS NOT NULL AND activity_id < {apple.APPLE_ID_BASE} "
         "AND day NOT IN (SELECT date FROM vo2max_checked) "
         "AND day NOT IN (SELECT date FROM vo2max WHERE date < date('now', '-2 days')) ORDER BY day"
     )]
@@ -191,7 +192,8 @@ def download_missing_fit(client: Garmin, conn: sqlite3.Connection, fit_dir: Path
     # Manually entered activities have no .fit file to download.
     missing = [r[0] for r in conn.execute(
         "SELECT activity_id FROM activities WHERE fit_path IS NULL "
-        "AND coalesce(json_extract(raw_json, '$.manualActivity'), 0) = 0"
+        "AND coalesce(json_extract(raw_json, '$.manualActivity'), 0) = 0 "
+        f"AND activity_id < {apple.APPLE_ID_BASE}"  # Apple Health workouts have no Garmin file
     )]
     count = 0
     if missing:

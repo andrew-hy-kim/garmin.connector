@@ -123,7 +123,7 @@ function renderHeader() {
   $("subtitle").textContent = [
     timeRange(a),
     prettyType(a.activity_type), a.location,
-    D.streams && hasHr() ? (D.external_hr ? "HR: arm band / strap" : "HR: wrist") : null,
+    D.source === "apple" ? "Apple Watch" : D.streams && hasHr() ? (D.external_hr ? "HR: arm band / strap" : "HR: wrist") : null,
     ...(D.gear || []).map((g) => `${(g.type || "").toLowerCase() === "shoes" ? "Shoes" : g.type || "Gear"}: ${g.name}`),
   ].filter(Boolean).join(" · ");
 }

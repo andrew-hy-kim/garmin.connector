@@ -8,7 +8,7 @@ import webbrowser
 from contextlib import closing
 from datetime import date
 
-from . import auth, config, db, export, processing, sync, weather
+from . import apple, auth, config, db, export, processing, sync, weather
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -34,6 +34,9 @@ def main(argv: list[str] | None = None) -> None:
                          help="on: set up; off: stop and forget the token; now: upload right away")
 
     sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
+    p_apple = sub.add_parser("import-apple", help="import your Apple Watch workouts from an Apple Health export")
+    p_apple.add_argument("path", help="export.zip from the Health app (or the unzipped folder)")
+    p_apple.add_argument("--before", help="only workouts before this date (YYYY-MM-DD); default: your first Garmin activity")
     p_weather = sub.add_parser("weather", help="look up the weather for workouts that don't have it yet")
     p_weather.add_argument("--redo", action="store_true", help="look up every workout again")
     sub.add_parser("set-api-key", help="save an Anthropic API key for 'Ask Claude' reviews (macOS Keychain)")
@@ -80,6 +83,20 @@ def main(argv: list[str] | None = None) -> None:
             sync.import_missing_streams(conn)
             print(f"Analyzed {processing.refresh(conn, force=True)} activities.")
             export.write_quietly(conn)
+    elif args.command == "import-apple":
+        with closing(db.connect(config.db_path())) as conn:
+            print("Reading your Apple Health export (a big one takes a minute or two)…")
+            try:
+                r = apple.import_export(conn, args.path, before=args.before)
+            except (ValueError, OSError) as err:
+                raise SystemExit(f"Couldn't read the export: {err}")
+            print(f"Imported {r['imported']} workouts"
+                  + (f"; skipped {r['skipped']} already in the dashboard" if r["skipped"] else "")
+                  + (f"; {r['vo2max']} VO2 max readings" if r["vo2max"] else "") + ". Analyzing…")
+            processing.refresh(conn)
+            weather.update_quietly(conn)
+            export.write_quietly(conn)
+            print("Done. They're in the dashboard alongside your Garmin runs.")
     elif args.command == "weather":
         with closing(db.connect(config.db_path())) as conn:
             print("Looking up the weather (the first time covers your whole history; usually under a minute)…")

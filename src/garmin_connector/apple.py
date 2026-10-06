@@ -1,0 +1,445 @@
+"""Import workouts from an Apple Health export: your runs from before your Garmin watch.
+
+On iPhone: Health app → your picture → Export All Health Data. That gives export.zip, with
+``export.xml`` (every workout and every heart-rate sample) and a GPS file for each outdoor
+workout in ``workout-routes/``. ``garmin import-apple export.zip`` reads it once:
+
+- Runs, rides, walks and hikes from before your first Garmin activity become ordinary
+  activities, with second-by-second streams rebuilt from the GPS route (position, distance,
+  speed, elevation), the heart rate the watch recorded during the workout, step cadence and
+  running power where the watch recorded them. They then go through the same analysis as
+  Garmin workouts: zones, load, efficiency, best efforts, records, the heatmap, weather.
+- Anything overlapping an activity already in the dashboard is skipped, so a workout that
+  Garmin Connect also wrote into Apple Health never shows up twice.
+- Apple's VO2 max estimates (Cardio Fitness) from that time fill in the VO2 max chart.
+
+Apple workouts get IDs from APPLE_ID_BASE up (base + start time in seconds), far above
+Garmin's, so they never collide; syncs leave them alone. Importing again updates them in
+place. The export is read in one pass, keeping only what's needed, so even a multi-gigabyte
+file takes a minute or two.
+"""
+
+from __future__ import annotations
+
+import io
+import json
+import logging
+import math
+import sqlite3
+import zipfile
+from array import array
+from bisect import bisect_left, bisect_right
+from calendar import timegm
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+from xml.etree.ElementTree import iterparse
+
+from . import db
+
+log = logging.getLogger(__name__)
+
+APPLE_ID_BASE = 8_000_000_000_000_000  # + start time (Unix seconds); Garmin's IDs are ~1e10
+KINDS = {  # Apple's workout type -> (outdoor type, indoor type), in Garmin's names
+    "HKWorkoutActivityTypeRunning": ("running", "treadmill_running"),
+    "HKWorkoutActivityTypeCycling": ("cycling", "indoor_cycling"),
+    "HKWorkoutActivityTypeWalking": ("walking", "walking"),
+    "HKWorkoutActivityTypeHiking": ("hiking", "hiking"),
+}
+NAMES = {"running": "Run", "treadmill_running": "Treadmill run", "cycling": "Ride", "indoor_cycling": "Indoor ride",
+         "walking": "Walk", "hiking": "Hike"}
+SERIES = {  # samples kept for building streams
+    "HKQuantityTypeIdentifierHeartRate": "hr",
+    "HKQuantityTypeIdentifierStepCount": "steps",
+    "HKQuantityTypeIdentifierRunningPower": "power",
+    "HKQuantityTypeIdentifierCyclingPower": "power",
+    "HKQuantityTypeIdentifierDistanceWalkingRunning": "dist",
+    "HKQuantityTypeIdentifierDistanceCycling": "dist",
+}
+HR_GAP_S = 30  # longer than this without a heart-rate sample: no heart rate there
+
+
+def is_apple(activity_id: int) -> bool:
+    return activity_id >= APPLE_ID_BASE
+
+
+# ---------------------------------------------------------------- dates
+
+def _epoch(s: str) -> float:
+    """'2023-05-01 07:03:05 -0700' -> Unix seconds (fast: millions of these)."""
+    t = timegm((int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]), int(s[14:16]), int(s[17:19])))
+    sign = -1 if s[20] == "-" else 1
+    return t - sign * (int(s[21:23]) * 3600 + int(s[23:25]) * 60)
+
+
+def _local(s: str) -> str:
+    """'2023-05-01 07:03:05 -0700' -> '2023-05-01 07:03:05' (local time where it happened)."""
+    return s[:19]
+
+
+def _gmt(s: str) -> str:
+    return datetime.fromtimestamp(_epoch(s), tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+
+# ---------------------------------------------------------------- reading the export
+
+class Export:
+    """export.zip, the unzipped folder, or export.xml itself."""
+
+    def __init__(self, path: Path | str):
+        self.path = Path(path).expanduser()
+        self.zip = zipfile.ZipFile(self.path) if self.path.suffix.lower() == ".zip" else None
+        if self.zip:
+            names = self.zip.namelist()
+            xml = [n for n in names if n.endswith("/export.xml") or n == "export.xml"]
+            if not xml:
+                raise ValueError("This zip has no export.xml. Export it from the Health app: your picture → Export All Health Data.")
+            self.xml_name = xml[0]
+            self.root = self.xml_name[: -len("export.xml")]
+        else:
+            self.xml_path = self.path / "export.xml" if self.path.is_dir() else self.path
+            if not self.xml_path.exists():
+                raise ValueError(f"No export.xml at {self.xml_path}")
+            self.root = self.xml_path.parent
+
+    def xml(self):
+        return self.zip.open(self.xml_name) if self.zip else open(self.xml_path, "rb")
+
+    def file(self, ref: str) -> bytes | None:
+        """A file the XML refers to, like '/workout-routes/route_2023-05-01_7.35am.gpx'."""
+        ref = ref.lstrip("/")
+        try:
+            if self.zip:
+                return self.zip.read(self.root + ref)
+            return (Path(self.root) / ref).read_bytes()
+        except (KeyError, OSError):
+            return None
+
+
+def _meta(el) -> dict[str, str]:
+    return {m.get("key"): m.get("value") for m in el.findall("MetadataEntry")}
+
+
+def _quantity(value: str | None, to: str) -> float | None:
+    """'4500 cm' -> 45.0 (to 'm'); plain numbers pass through."""
+    if not value:
+        return None
+    parts = value.split()
+    try:
+        v = float(parts[0])
+    except ValueError:
+        return None
+    unit = parts[1] if len(parts) > 1 else to
+    factor = {("cm", "m"): 0.01, ("m", "m"): 1, ("km", "m"): 1000, ("mi", "m"): 1609.344, ("ft", "m"): 0.3048}
+    return v * factor.get((unit, to), 1)
+
+
+def _distance_m(value: str | None, unit: str | None) -> float | None:
+    if value is None:
+        return None
+    return float(value) * {"km": 1000, "mi": 1609.344, "m": 1, "yd": 0.9144}.get(unit or "km", 1000)
+
+
+SPANS = ("steps", "dist")  # samples that cover a stretch of time rather than a moment
+
+
+def read(export: Export, before: float | None = None) -> tuple[list[dict[str, Any]], dict[str, tuple], list[dict]]:
+    """Workouts, the sample series (sorted by time), and VO2 max readings, from one pass over
+    export.xml. Only things that start before ``before`` (Unix seconds) are kept.
+
+    Moment samples (heart rate, power) are (times, values); span samples (steps, distance) are
+    (starts, ends, values, sources), the source being a number per device, as in each workout's
+    "source_id": an iPhone in your pocket counts steps and distance too, on top of the watch's."""
+    workouts: list[dict[str, Any]] = []
+    series: dict[str, tuple] = {k: (array("d"), array("d")) for k in ("hr", "power")}
+    series.update({k: (array("d"), array("d"), array("d"), array("d")) for k in SPANS})
+    vo2: list[dict] = []
+    sources: dict[str | None, int] = {}
+    limit = before or float("inf")
+    with export.xml() as f:
+        root = None
+        for event, el in iterparse(f, events=("start", "end")):
+            if event == "start":
+                if root is None:
+                    root = el
+                continue
+            tag = el.tag
+            if tag == "Record":
+                kind = el.get("type")
+                key = SERIES.get(kind)
+                if key or kind == "HKQuantityTypeIdentifierVO2Max":
+                    start = el.get("startDate")
+                    t = _epoch(start) if start else None
+                    try:
+                        value = float(el.get("value"))
+                    except (TypeError, ValueError):
+                        value = None
+                    if t is not None and t < limit and value is not None:
+                        if key in SPANS:
+                            if key == "dist":
+                                value = _distance_m(el.get("value"), el.get("unit")) or 0.0
+                            end = el.get("endDate")
+                            col = series[key]
+                            col[0].append(t)
+                            col[1].append(_epoch(end) if end else t)
+                            col[2].append(value)
+                            col[3].append(sources.setdefault(el.get("sourceName"), len(sources)))
+                        elif key:
+                            series[key][0].append(t)
+                            series[key][1].append(value)
+                        else:
+                            vo2.append({"date": start[:10], "value": value})
+            elif tag == "Workout":
+                kind = KINDS.get(el.get("workoutActivityType"))
+                start, end = el.get("startDate"), el.get("endDate")
+                if kind and start and end and _epoch(start) < limit:
+                    w = _workout(el, kind)
+                    w["source_id"] = sources.setdefault(w["source"], len(sources))
+                    workouts.append(w)
+            else:
+                continue
+            el.clear()
+            if root is not None:
+                root.clear()  # drop finished elements, or millions of empty ones pile up
+    for key, cols in series.items():
+        order = sorted(range(len(cols[0])), key=cols[0].__getitem__)
+        series[key] = tuple(array("d", (c[i] for i in order)) for c in cols)
+    return workouts, series, vo2
+
+
+def _workout(el, kind: tuple[str, str]) -> dict[str, Any]:
+    meta = _meta(el)
+    indoor = meta.get("HKIndoorWorkout") == "1"
+    w = {"start": el.get("startDate"), "end": el.get("endDate"), "type": kind[1] if indoor else kind[0],
+         "indoor": indoor, "source": el.get("sourceName"),
+         "duration_s": float(el.get("duration") or 0) * {"min": 60, "s": 1, "hr": 3600}.get(el.get("durationUnit") or "min", 60),
+         "distance_m": _distance_m(el.get("totalDistance"), el.get("totalDistanceUnit")),
+         "calories": float(el.get("totalEnergyBurned")) if el.get("totalEnergyBurned") else None,
+         "elevation_gain_m": _quantity(meta.get("HKElevationAscended"), "m"),
+         "route": None, "pauses": []}
+    for s in el.findall("WorkoutStatistics"):  # newer exports put the totals here
+        t = s.get("type") or ""
+        if "Distance" in t and w["distance_m"] is None:
+            w["distance_m"] = _distance_m(s.get("sum"), s.get("unit"))
+        elif t == "HKQuantityTypeIdentifierActiveEnergyBurned" and w["calories"] is None and s.get("sum"):
+            w["calories"] = float(s.get("sum"))
+    for ev in el.findall("WorkoutEvent"):  # pauses, to know when the watch wasn't recording
+        if ev.get("type") in ("HKWorkoutEventTypePause", "HKWorkoutEventTypeMotionPaused"):
+            w["pauses"].append(["pause", _epoch(ev.get("date"))])
+        elif ev.get("type") in ("HKWorkoutEventTypeResume", "HKWorkoutEventTypeMotionResumed"):
+            w["pauses"].append(["resume", _epoch(ev.get("date"))])
+    route = el.find("WorkoutRoute")
+    if route is not None:
+        ref = route.find("FileReference")
+        w["route"] = ref.get("path") if ref is not None else None
+    return w
+
+
+# ---------------------------------------------------------------- GPS routes
+
+def gpx_points(data: bytes) -> list[tuple[float, float, float, float | None, float | None]]:
+    """(time, lat, lon, elevation, speed) for each point of a workout route."""
+    out = []
+    for _, el in iterparse(io.BytesIO(data), events=("end",)):
+        if el.tag.endswith("trkpt"):
+            t = ele = speed = None
+            for child in el:
+                name = child.tag.rsplit("}", 1)[-1]
+                if name == "time" and child.text:
+                    t = timegm(datetime.strptime(child.text.strip()[:19], "%Y-%m-%dT%H:%M:%S").timetuple())
+                elif name == "ele" and child.text:
+                    ele = float(child.text)
+                elif name == "extensions":
+                    for x in child:
+                        if x.tag.rsplit("}", 1)[-1] == "speed" and x.text:
+                            speed = float(x.text)
+            if t is not None:
+                out.append((t, float(el.get("lat")), float(el.get("lon")), ele, speed))
+            el.clear()
+    out.sort()
+    return out
+
+
+def _meters(a: tuple[float, float], b: tuple[float, float]) -> float:
+    la1, lo1, la2, lo2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 2 * 6_371_000 * math.asin(math.sqrt(min(1.0, h)))
+
+
+# ---------------------------------------------------------------- streams
+
+def _window(series: tuple, t0: float, t1: float) -> tuple[list[float], list[float]]:
+    ts, vs = series
+    i, j = bisect_left(ts, t0), bisect_right(ts, t1)
+    return list(ts[i:j]), list(vs[i:j])
+
+
+def _interp(ts: list[float], vs: list[float], t: float, gap: float) -> float | None:
+    if not ts:
+        return None
+    i = bisect_left(ts, t)
+    if i < len(ts) and ts[i] == t:
+        return vs[i]
+    if i == 0 or i == len(ts):
+        k = 0 if i == 0 else len(ts) - 1
+        return vs[k] if abs(ts[k] - t) <= gap / 2 else None
+    a, b = ts[i - 1], ts[i]
+    if b - a > gap:
+        return None
+    return vs[i - 1] + (vs[i] - vs[i - 1]) * (t - a) / (b - a)
+
+
+def _spans(series: tuple, t0: float, t1: float, source: int | None) -> list[tuple[float, float, float]]:
+    """(start, end, value) of the span samples starting in [t0, t1], from the workout's own device
+    when it recorded any there (else from every device: an older export without watch samples)."""
+    starts, ends, vals, srcs = series
+    ks = range(bisect_left(starts, t0), bisect_right(starts, t1))
+    own = [k for k in ks if srcs[k] == source]
+    return [(starts[k], ends[k], vals[k]) for k in (own or ks)]
+
+
+def streams_for(w: dict[str, Any], series: dict[str, tuple], points: list) -> dict[str, list]:
+    """Second-by-second streams in the dashboard's format, from the route and the samples."""
+    t0, t1 = _epoch(w["start"]), _epoch(w["end"])
+    n = int(t1 - t0) + 1
+    out: dict[str, list] = {k: [None] * n for k in ("hr", "speed", "distance", "cadence", "altitude", "power", "lat", "lon")}
+    out["t"] = list(range(n))
+    # heart rate and power: sampled every few seconds during a workout
+    hts, hvs = _window(series.get("hr", (array("d"), array("d"))), t0 - HR_GAP_S, t1 + HR_GAP_S)
+    pts_, pvs = _window(series.get("power", (array("d"), array("d"))), t0 - 10, t1 + 10)
+    for i in range(n):
+        h = _interp(hts, hvs, t0 + i, HR_GAP_S)
+        out["hr"][i] = round(h) if h is not None else None
+        p = _interp(pts_, pvs, t0 + i, 10)
+        out["power"][i] = round(p) if p is not None else None
+    if points:
+        # position, elevation and distance from the route, one value per second
+        pts = [p for p in points if t0 - 1 <= p[0] <= t1 + 1]
+        cum, total = [], 0.0
+        for k, p in enumerate(pts):
+            if k:
+                step = _meters(pts[k - 1][1:3], p[1:3])
+                # a jump after a pause or GPS gap isn't distance run
+                if p[0] - pts[k - 1][0] <= 30 or step < 15 * (p[0] - pts[k - 1][0]):
+                    total += step
+            cum.append(total)
+        ts = [p[0] for p in pts]
+        for i in range(n):
+            t = t0 + i
+            j = bisect_left(ts, t)
+            near = [k for k in (j - 1, j) if 0 <= k < len(ts)]
+            if near:
+                k = min(near, key=lambda k: abs(ts[k] - t))
+                if abs(ts[k] - t) <= 2:  # the nearest route point, if the watch had a fix then
+                    out["lat"][i], out["lon"][i], out["altitude"][i] = pts[k][1], pts[k][2], pts[k][3]
+            d = _interp(ts, cum, t, 30)
+            out["distance"][i] = d
+        # speed: distance over a short window (the GPX speed values are noisy)
+        for i in range(n):
+            a, b = max(0, i - 5), min(n - 1, i + 5)
+            da, db_ = out["distance"][a], out["distance"][b]
+            out["speed"][i] = (db_ - da) / (b - a) if da is not None and db_ is not None and b > a else None
+    else:
+        # indoors: distance from the watch's own distance samples, each counted at its end
+        spans = _spans(series["dist"], t0 - 60, t1, w.get("source_id")) if "dist" in series else []
+        if spans:
+            pts = sorted((e, v) for _, e, v in spans)
+            ts, cum, total = [t0], [0.0], 0.0
+            for e, v in pts:
+                total += v
+                ts.append(e)
+                cum.append(total)
+            for i in range(n):
+                out["distance"][i] = _interp(ts, cum, t0 + i, 120)
+            for i in range(n):
+                a, b = max(0, i - 10), min(n - 1, i + 10)
+                da, db_ = out["distance"][a], out["distance"][b]
+                out["speed"][i] = (db_ - da) / (b - a) if da is not None and db_ is not None and b > a else None
+    # cadence from step counts (steps per minute, both feet), runs and walks only
+    if w["type"] not in ("cycling", "indoor_cycling"):
+        for a, b, v in (_spans(series["steps"], t0 - 60, t1, w.get("source_id")) if "steps" in series else []):
+            if b - a >= 5:
+                spm = v / (b - a) * 60
+                if 60 <= spm <= 260:
+                    for i in range(max(0, int(a - t0)), min(n, int(b - t0) + 1)):
+                        out["cadence"][i] = round(spm)
+    return out
+
+
+# ---------------------------------------------------------------- the import
+
+def _activity(w: dict[str, Any], streams: dict[str, list], aid: int, start_point) -> dict[str, Any]:
+    hr = [h for h in streams["hr"] if h]
+    dist = w["distance_m"] or next((d for d in reversed(streams["distance"]) if d is not None), None)
+    duration = w["duration_s"] or (_epoch(w["end"]) - _epoch(w["start"]))
+    moving = sum(1 for s in streams["speed"] if s is not None and s > 0.5) or None
+    a = {
+        "activityId": aid, "activityName": NAMES.get(w["type"], "Workout"),
+        "startTimeLocal": _local(w["start"]), "startTimeGMT": _gmt(w["start"]),
+        "activityType": {"typeKey": w["type"]}, "distance": dist, "duration": duration,
+        "movingDuration": min(moving, duration) if moving else None,
+        "elevationGain": w["elevation_gain_m"], "averageHR": sum(hr) / len(hr) if hr else None,
+        "maxHR": max(hr) if hr else None, "averageSpeed": dist / duration if dist and duration else None,
+        "calories": w["calories"], "source": "apple", "sourceName": w["source"],
+    }
+    if start_point:
+        a["startLatitude"], a["startLongitude"] = start_point
+    return a
+
+
+def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None = None) -> dict[str, int]:
+    """Import an Apple Health export. Returns counts: imported, skipped (overlapping), vo2max."""
+    export = Export(path)
+    garmin_first = conn.execute(
+        "SELECT min(start_time_gmt) FROM activities WHERE activity_id < ?", (APPLE_ID_BASE,)).fetchone()[0]
+    limit = None
+    if before:
+        limit = timegm(datetime.fromisoformat(before).timetuple())
+    elif garmin_first:
+        limit = timegm(datetime.fromisoformat(garmin_first.replace(" ", "T")[:19]).timetuple())
+    log.info("Reading %s%s…", export.path.name, f" (workouts before {datetime.fromtimestamp(limit, tz=timezone.utc):%b %-d, %Y})" if limit else "")
+    workouts, series, vo2 = read(export, limit)
+    # what's already there, as (start, end) in Unix seconds, so nothing is imported twice
+    taken = []
+    for start, dur, aid in conn.execute("SELECT start_time_gmt, duration_s, activity_id FROM activities WHERE start_time_gmt IS NOT NULL"):
+        if is_apple(aid):
+            continue
+        s = timegm(datetime.fromisoformat(start.replace(" ", "T")[:19]).timetuple())
+        taken.append((s, s + (dur or 0)))
+    counts = {"imported": 0, "skipped": 0, "vo2max": 0}
+    for w in workouts:
+        t0, t1 = _epoch(w["start"]), _epoch(w["end"])
+        if any(a < t1 and t0 < b for a, b in taken):
+            counts["skipped"] += 1
+            continue
+        points = []
+        if w["route"]:
+            data = export.file(w["route"])
+            if data:
+                try:
+                    points = gpx_points(data)
+                except Exception as err:  # one bad route file shouldn't stop the import
+                    log.warning("Couldn't read the route %s: %s", w["route"], err)
+        streams = streams_for(w, series, points)
+        aid = APPLE_ID_BASE + int(t0)
+        start_point = next(((la, lo) for la, lo in zip(streams["lat"], streams["lon"]) if la is not None), None)
+        db.upsert_activities(conn, [_activity(w, streams, aid, start_point)])
+        db.save_streams(conn, aid, streams, external_hr=False)
+        conn.execute("DELETE FROM activity_metrics WHERE activity_id = ?", (aid,))  # analyzed afresh
+        counts["imported"] += 1
+        if counts["imported"] % 50 == 0:
+            conn.commit()
+            log.info("Imported %d workouts", counts["imported"])
+    # Apple's VO2 max (Cardio Fitness): one reading per day, for days Garmin doesn't cover
+    by_day: dict[str, float] = {}
+    for r in vo2:
+        by_day[r["date"]] = r["value"]
+    rows = [{"date": d, "sport": "running", "value": round(v, 1), "raw_json": json.dumps({"source": "apple"})}
+            for d, v in sorted(by_day.items())]
+    existing = {r[0] for r in conn.execute("SELECT date FROM vo2max WHERE sport = 'running'")}
+    rows = [r for r in rows if r["date"] not in existing]
+    if rows:
+        db.upsert_vo2max(conn, rows)
+    counts["vo2max"] = len(rows)
+    conn.commit()
+    return counts

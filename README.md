@@ -199,7 +199,24 @@ The command is `garmin`; the original, longer `garmin-connector` still works the
 | `garmin export` | Write the phone app's data file now (also happens after every sync) |
 | `garmin weather` | Look up the weather for workouts that don't have it yet (also happens at every sync; the first time it fills in your whole history) |
 | `garmin weather --redo` | Look up every workout's weather again |
+| `garmin import-apple export.zip` | Add your Apple Watch workouts from before your Garmin (see below) |
 | `garmin logout` | Forget the saved password and tokens |
+
+### Apple Watch history (optional)
+
+Ran with an Apple Watch before your Garmin? Bring those workouts in once:
+
+1. On your iPhone: **Health** app → your picture (top right) → **Export All Health Data**.
+   It takes a few minutes; AirDrop or save the `export.zip` it makes to your Mac.
+2. On the Mac: `garmin import-apple ~/Downloads/export.zip`
+
+Runs, rides, walks and hikes from before your first Garmin activity come in with their GPS
+route, heart rate, cadence and power, and are analysed like any other workout: zones,
+load, efficiency, records, the map, weather. Apple's VO2 max (Cardio Fitness) readings from
+then fill in the VO2 max chart. Anything that overlaps an activity already in the dashboard
+is skipped, so nothing shows up twice, and running it again just updates them. To pick the
+cut-off yourself: `--before 2023-06-01`. Workouts from the watch are marked
+"Apple Watch" on their page.
 
 ### Ask Claude (optional)
 
