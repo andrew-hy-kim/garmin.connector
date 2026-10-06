@@ -150,3 +150,48 @@ def test_routes_the_xml_does_not_name_are_matched_by_time(conn, tmp_path):
             raise OSError("offline")
     weather.update(conn, session=Offline())
     assert weather.for_activity(conn, acts["2021-03-12"]["activity_id"]) == {"no_gps": True}
+
+
+def _local_times(gpx, shift_s=0):
+    """The same route with its times written in local time (-07:00), optionally shifted."""
+    import re
+    from datetime import timedelta
+
+    def local(m):
+        t = datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=apple.timezone.utc)
+        return "<time>" + (t + timedelta(seconds=shift_s)).astimezone(TZ).strftime("%Y-%m-%dT%H:%M:%S.000%z")[:-2] + ":00</time>"
+    return gpx[0], re.sub(r"<time>([^<]+)</time>", local, gpx[1])
+
+
+def test_route_times_in_local_time_and_early_starts(conn, tmp_path):
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    local = run(d(2021, 4, 1, 7, 0), minutes=30)
+    early = run(d(2021, 4, 3, 7, 0), minutes=30)
+    import re
+    early_xml = re.sub(r"<WorkoutRoute.*?</WorkoutRoute>", "", early[0])  # not named, and starts 5 min early
+    r = apple.import_export(conn, export_zip(tmp_path / "e.zip", [
+        (local[0], local[1], _local_times(local[2])),
+        (early_xml, early[1], _local_times(early[2], shift_s=-300)),
+    ]))
+    assert r["with_route"] == 2 and r["no_route"] == 0, r
+    acts = {a["start_time_local"][:10]: a for a in api.activities(conn)}
+    s, _ = db.load_streams(conn, acts["2021-04-01"]["activity_id"])
+    assert sum(x is not None for x in s["lat"]) > 0.95 * len(s["t"])
+    assert abs(acts["2021-04-01"]["distance_m"] - 3.0 * 1800) < 60
+
+
+def test_import_says_why_runs_have_no_map(conn, tmp_path):
+    import re
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    gone = run(d(2021, 5, 1, 7, 0), minutes=30)        # route named, file not in the zip
+    wrong = run(d(2021, 5, 2, 7, 0), minutes=30)       # route file from another day
+    bare = run(d(2021, 5, 3, 7, 0), minutes=30)        # no route at all
+    other = run(d(2021, 5, 20, 7, 0), minutes=30)
+    wrong_xml = wrong[0].replace(wrong[2][0], "elsewhere.gpx")
+    r = apple.import_export(conn, export_zip(tmp_path / "e.zip", [
+        (gone[0], gone[1], None),
+        (wrong_xml, wrong[1], ("elsewhere.gpx", other[2][1])),
+        (re.sub(r"<WorkoutRoute.*?</WorkoutRoute>", "", bare[0]), bare[1], None),
+    ]))
+    assert r["no_route"] == 3 and r["why_no_route"] == {"missing": 1, "times": 1, "none": 1}
+    assert r["no_route_days"][0].startswith("2021-05-01 07:00")

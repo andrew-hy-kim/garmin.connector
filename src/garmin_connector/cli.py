@@ -94,7 +94,15 @@ def main(argv: list[str] | None = None) -> None:
                   + (f" ({r['with_route']} with a GPS map" + (f", {r['no_route']} outdoors without one" if r["no_route"] else "") + ")"
                      if r["with_route"] or r["no_route"] else "")
                   + (f"; skipped {r['skipped']} already in the dashboard" if r["skipped"] else "")
-                  + (f"; {r['vo2max']} VO2 max readings" if r["vo2max"] else "") + ". Analyzing…")
+                  + (f"; {r['vo2max']} VO2 max readings" if r["vo2max"] else "") + ".")
+            if r["no_route"]:
+                why = {"none": "the export has no route for them", "missing": "their route file isn't in the zip",
+                       "times": "their route's times don't match the workout", "unreadable": "their route file couldn't be read"}
+                for k, n in r["why_no_route"].items():
+                    print(f"  {n} without a map because {why.get(k, k)}")
+                days = r["no_route_days"]
+                print("  For example: " + "; ".join(days[:8]) + (f" (and {len(days) - 8} more)" if len(days) > 8 else ""))
+            print("Analyzing…")
             processing.refresh(conn)
             weather.update_quietly(conn)
             export.write_quietly(conn)

@@ -127,7 +127,10 @@ class Export:
         except (KeyError, OSError):
             return None
         m = _GPX_TIME.search(head)
-        return timegm(datetime.strptime(m.group(1).decode(), "%Y-%m-%dT%H:%M:%S").timetuple()) if m else None
+        try:
+            return _iso_epoch(m.group(1).decode()) if m else None
+        except ValueError:
+            return None
 
     def file(self, ref: str) -> bytes | None:
         """A file the XML refers to, like '/workout-routes/route_2023-05-01_7.35am.gpx'."""
@@ -261,27 +264,61 @@ def _workout(el, kind: tuple[str, str]) -> dict[str, Any]:
 
 # ---------------------------------------------------------------- GPS routes
 
-_GPX_TIME = re.compile(rb"<trkpt[^>]*>.*?<time>(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)", re.S)
+_GPX_TIME = re.compile(rb"<trkpt[^>]*>.*?<time>\s*([^<\s]+)", re.S)
+_ISO_TZ = re.compile(r"([+-])(\d\d):?(\d\d)$")
 
 
-def match_routes(export: Export, workouts: list[dict[str, Any]]) -> int:
-    """Give outdoor workouts whose route the XML doesn't name the route file that starts during
-    them. Some exports list the routes apart from their workouts, or not at all, though the
-    files are there. Returns how many were matched."""
-    named = {w["route"] for w in workouts if w["route"]}
-    want = [w for w in workouts if not w["indoor"] and (not w["route"] or export.file(w["route"]) is None)]
-    if not want:
-        return 0
-    starts = sorted((t, ref) for ref in export.routes() if ref not in named and (t := export.first_time(ref)) is not None)
-    times = [t for t, _ in starts]
-    matched = 0
-    for w in want:
-        t0, t1 = _epoch(w["start"]), _epoch(w["end"])
-        i = bisect_left(times, t0 - 120)  # the GPS can start logging a moment before the workout
-        if i < len(times) and times[i] < t1:
-            w["route"] = starts[i][1]
-            matched += 1
-    return matched
+def _iso_epoch(s: str) -> float:
+    """A GPX timestamp -> Unix seconds: '2021-03-04T15:30:12Z', with fractions of a second, or
+    with an offset like '2021-03-04T08:30:12-07:00' (some routes are written in local time)."""
+    s = s.strip()
+    t = timegm(datetime.strptime(s[:19], "%Y-%m-%dT%H:%M:%S").timetuple())
+    m = _ISO_TZ.search(s[19:])
+    if m:
+        t -= (1 if m.group(1) == "+" else -1) * (int(m.group(2)) * 3600 + int(m.group(3)) * 60)
+    return t
+
+
+class RouteIndex:
+    """The export's route files by start time, for workouts whose route the XML doesn't name,
+    or names wrongly. Some exports list the routes apart from their workouts, or not at all,
+    though the files are there. Built the first time it's needed."""
+
+    EARLY_S = 600  # the GPS can start logging a while before the workout does
+
+    def __init__(self, export: Export, named: set[str]):
+        self.export, self.named, self.starts, self.used = export, named, None, set()
+
+    def find(self, t0: float, t1: float) -> str | None:
+        if self.starts is None:
+            self.starts = sorted((t, ref) for ref in self.export.routes()
+                                 if ref not in self.named and (t := self.export.first_time(ref)) is not None)
+            self.times = [t for t, _ in self.starts]
+        i = bisect_left(self.times, t0 - self.EARLY_S)
+        while i < len(self.times) and self.times[i] < t1:
+            ref = self.starts[i][1]
+            if ref not in self.used:
+                self.used.add(ref)
+                return ref
+            i += 1
+        return None
+
+
+def _route_points(export: Export, ref: str | None, t0: float, t1: float) -> tuple[list, str | None]:
+    """The route's points if they cover the workout, else ([], why not)."""
+    if not ref:
+        return [], "none"
+    data = export.file(ref)
+    if data is None:
+        return [], "missing"
+    try:
+        points = gpx_points(data)
+    except Exception as err:  # one bad route file shouldn't stop the import
+        log.warning("Couldn't read the route %s: %s", ref, err)
+        return [], "unreadable"
+    if not any(t0 - 60 <= p[0] <= t1 + 60 for p in points):
+        return [], "times"
+    return points, None
 
 
 def gpx_points(data: bytes) -> list[tuple[float, float, float, float | None, float | None]]:
@@ -293,7 +330,7 @@ def gpx_points(data: bytes) -> list[tuple[float, float, float, float | None, flo
             for child in el:
                 name = child.tag.rsplit("}", 1)[-1]
                 if name == "time" and child.text:
-                    t = timegm(datetime.strptime(child.text.strip()[:19], "%Y-%m-%dT%H:%M:%S").timetuple())
+                    t = _iso_epoch(child.text)
                 elif name == "ele" and child.text:
                     ele = float(child.text)
                 elif name == "extensions":
@@ -464,8 +501,7 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
         limit = timegm(datetime.fromisoformat(garmin_first.replace(" ", "T")[:19]).timetuple())
     log.info("Reading %s%s…", export.path.name, f" (workouts before {datetime.fromtimestamp(limit, tz=timezone.utc):%b %-d, %Y})" if limit else "")
     workouts, series, vo2 = read(export, limit)
-    if (n := match_routes(export, workouts)):
-        log.info("Matched %d route files to their workouts by time", n)
+    index = RouteIndex(export, {w["route"] for w in workouts if w["route"]})
     # what's already there, as (start, end) in Unix seconds, so nothing is imported twice
     taken = []
     for start, dur, aid in conn.execute("SELECT start_time_gmt, duration_s, activity_id FROM activities WHERE start_time_gmt IS NOT NULL"):
@@ -473,24 +509,25 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
             continue
         s = timegm(datetime.fromisoformat(start.replace(" ", "T")[:19]).timetuple())
         taken.append((s, s + (dur or 0)))
-    counts = {"imported": 0, "with_route": 0, "no_route": 0, "skipped": 0, "vo2max": 0}
+    counts: dict[str, Any] = {"imported": 0, "with_route": 0, "no_route": 0, "skipped": 0, "vo2max": 0,
+                              "matched": 0, "why_no_route": {}, "no_route_days": []}
     for w in workouts:
         t0, t1 = _epoch(w["start"]), _epoch(w["end"])
         if any(a < t1 and t0 < b for a, b in taken):
             counts["skipped"] += 1
             continue
-        points = []
-        if w["route"]:
-            data = export.file(w["route"])
-            if data:
-                try:
-                    points = gpx_points(data)
-                except Exception as err:  # one bad route file shouldn't stop the import
-                    log.warning("Couldn't read the route %s: %s", w["route"], err)
-            else:
-                log.debug("Route file missing from the export: %s", w["route"])
+        points: list = []
         if not w["indoor"]:
-            counts["with_route" if points else "no_route"] += 1
+            points, why = _route_points(export, w["route"], t0, t1)
+            if not points and (ref := index.find(t0, t1)):  # the right file under another name
+                points, _ = _route_points(export, ref, t0, t1)
+                counts["matched"] += bool(points)
+            if points:
+                counts["with_route"] += 1
+            else:
+                counts["no_route"] += 1
+                counts["why_no_route"][why] = counts["why_no_route"].get(why, 0) + 1
+                counts["no_route_days"].append(f"{_local(w['start'])[:16]} {w['type']}")
         streams = streams_for(w, series, points)
         if w["elevation_gain_m"] is None and not w["indoor"]:  # older workouts: work it out from the route
             w["elevation_gain_m"] = climb_m(streams["altitude"])
