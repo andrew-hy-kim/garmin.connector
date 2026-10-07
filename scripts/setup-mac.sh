@@ -5,8 +5,8 @@
 #
 # It downloads (or updates) the app into ~/garmin.connector, installs a private copy
 # of Python with uv (no admin password needed, and the Python that comes with macOS
-# is left alone), installs the app, then logs you in, runs the first sync and opens
-# the dashboard. Safe to run again: it updates the app and skips the login if
+# is left alone), installs the app, then logs you in, runs the first sync, makes the
+# Garmin Dashboard app (Applications, plus a Desktop shortcut) and opens the dashboard. Safe to run again: it updates the app and skips the login if
 # you're already logged in, so it doubles as the update command.
 set -euo pipefail
 
@@ -34,6 +34,8 @@ else
 fi
 
 step "Installing Python 3.13 and the app"
+# a dashboard left running in the background would keep showing the old version
+if [[ -x .venv/bin/garmin ]]; then .venv/bin/garmin dashboard --stop >/dev/null 2>&1 || true; fi
 rm -rf .venv
 uv venv --python 3.13 .venv
 uv pip install --python .venv/bin/python -e .
@@ -57,7 +59,10 @@ fi
 step "Syncing your workouts (first time: about a second per workout)"
 garmin sync
 
+step "Making the Garmin Dashboard app"
+bash "$APP_DIR/scripts/make-mac-app.sh"
+
 step "Opening the dashboard"
-echo "Leave this window open while you use the dashboard. Press Ctrl+C to stop it."
-echo "Next time, just open Terminal and run:  garmin dashboard"
-garmin dashboard
+open "$HOME/Applications/Garmin Dashboard.app"
+echo "Done. From now on, click Garmin Dashboard on your Desktop (or in Applications, or the Dock)."
+echo "It keeps running in the background until you restart; 'garmin dashboard --stop' stops it."

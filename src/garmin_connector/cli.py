@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 import webbrowser
 from contextlib import closing
 from datetime import date
@@ -52,6 +53,7 @@ def main(argv: list[str] | None = None) -> None:
     p_dash = sub.add_parser("dashboard", help="open the dashboard in your browser")
     p_dash.add_argument("--port", type=int, default=8765)
     p_dash.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
+    p_dash.add_argument("--stop", action="store_true", help="stop a dashboard running in the background")
 
     args = parser.parse_args(argv)
     logging.basicConfig(
@@ -166,14 +168,67 @@ def main(argv: list[str] | None = None) -> None:
         except requests.RequestException as err:
             raise SystemExit(f"Couldn't reach GitHub: {err}")
     elif args.command == "dashboard":
-        from .web import create_app
+        dashboard(args.port, browser=not args.no_browser, stop=args.stop)
 
-        url = f"http://127.0.0.1:{args.port}"
-        if not args.no_browser:
+
+def _running(url: str) -> bool:
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(url + "/", timeout=2):
+            return True
+    except OSError:
+        return False
+
+
+def _is_dashboard(pid: int) -> bool:
+    """Whether that process is a dashboard, not some later process that got the same ID."""
+    import subprocess
+
+    try:
+        cmd = subprocess.run(["ps", "-p", str(pid), "-o", "command="], capture_output=True, text=True).stdout
+    except OSError:
+        return False
+    return "garmin" in cmd and "dashboard" in cmd
+
+
+def dashboard(port: int, browser: bool = True, stop: bool = False) -> None:
+    """Run the dashboard; or, if one is already running (say, started from the Garmin Dashboard
+    app), just open it. Its process ID goes in dashboard.pid so `--stop` can find it."""
+    import os
+    import signal
+
+    pid_file = config.home_dir() / "dashboard.pid"
+    if stop:
+        try:
+            pid = int(pid_file.read_text())
+        except (OSError, ValueError):
+            pid = None
+        if pid and _is_dashboard(pid):
+            os.kill(pid, signal.SIGTERM)
+            print("Dashboard stopped.")
+        else:
+            print("No dashboard is running in the background.")
+        pid_file.unlink(missing_ok=True)
+        return
+    url = f"http://127.0.0.1:{port}"
+    if _running(url):
+        if browser:
             webbrowser.open(url)
-        print(f"Dashboard running at {url} (Ctrl+C to stop)")
+        print(f"The dashboard is already running at {url}.")
+        return
+    from .web import create_app
+
+    pid_file.write_text(str(os.getpid()))
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))  # so the cleanup below runs
+    if browser:
+        webbrowser.open(url)
+    print(f"Dashboard running at {url} (Ctrl+C to stop)")
+    try:
         # Bound to 127.0.0.1 so it's only reachable from this Mac.
-        create_app().run(host="127.0.0.1", port=args.port)
+        create_app().run(host="127.0.0.1", port=port)
+    finally:
+        pid_file.unlink(missing_ok=True)
 
 
 def phone_updates(action: str) -> None:

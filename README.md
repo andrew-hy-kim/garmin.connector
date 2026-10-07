@@ -155,7 +155,8 @@ it on the phone. See [On your iPhone](#on-your-iphone).
 ## Setup (once)
 
 **Easiest:** paste this into Terminal. It installs everything (including its own Python,
-no admin password needed), logs you in, runs the first sync and opens the dashboard:
+no admin password needed), logs you in, runs the first sync, adds a **Garmin Dashboard**
+app (in Applications, with a shortcut on your Desktop) and opens the dashboard:
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/andrew-hy-kim/garmin.connector/claude/affectionate-bohr-2g8s7y/scripts/setup-mac.sh)"
@@ -185,14 +186,22 @@ Your password goes in the macOS Keychain and Garmin's login tokens in
 
 ## Everyday use
 
-The command is `garmin`; the original, longer `garmin-connector` still works the same.
+Click **Garmin Dashboard** on your Desktop, in Applications, or in the Dock (drag it there
+to keep it). It starts the dashboard in the background, if it isn't running yet, and opens
+it in your browser. It then keeps running quietly until you restart; `garmin dashboard
+--stop` stops it. If the app ever goes missing, `bash ~/garmin.connector/scripts/make-mac-app.sh`
+makes it again.
+
+Everything else is a command in Terminal. The command is `garmin`; the original, longer
+`garmin-connector` still works the same.
 
 | Command | What it does |
 | --- | --- |
 | `garmin sync` | Pull new activities since the last sync |
 | `garmin sync --since 2026-01-01` | Re-pull everything from a date |
 | `garmin sync --no-fit` | Summaries only; skip downloading workout files |
-| `garmin dashboard` | Open the dashboard (it also has a **Sync now** button) |
+| `garmin dashboard` | Open the dashboard (it also has a **Sync now** button); same as clicking the app |
+| `garmin dashboard --stop` | Stop a dashboard running in the background |
 | `garmin settings` | Show heart-rate settings and where each came from (Garmin, you, estimated) |
 | `garmin settings --max-hr 192` | Override a Garmin value (0 = go back to Garmin's) |
 | `garmin analyze` | Re-run the analysis on every downloaded workout |
