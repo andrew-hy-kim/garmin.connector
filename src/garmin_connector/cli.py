@@ -6,8 +6,10 @@ import argparse
 import logging
 import sys
 import webbrowser
+import zipfile
 from contextlib import closing
 from datetime import date
+from xml.etree import ElementTree
 
 from . import apple, auth, config, db, export, hrcheck, processing, sync, weather
 
@@ -95,6 +97,12 @@ def main(argv: list[str] | None = None) -> None:
             print("Reading your Apple Health export (a big one takes a minute or two)…")
             try:
                 r = apple.import_export(conn, args.path, before=args.before)
+            except zipfile.BadZipFile:
+                raise SystemExit("That file isn't a zip, or it's damaged. Export it again from the Health app "
+                                 "(your picture → Export All Health Data) and use the export.zip it makes.")
+            except ElementTree.ParseError as err:
+                raise SystemExit(f"The export.xml inside is cut short or damaged ({err}). Export it again from "
+                                 "the Health app; if it was unzipped, use the original export.zip instead.")
             except (ValueError, OSError) as err:
                 raise SystemExit(f"Couldn't read the export: {err}")
             print(f"Imported {r['imported']} workouts"

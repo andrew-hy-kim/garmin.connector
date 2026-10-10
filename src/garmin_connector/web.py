@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
 HR_LIMITS = [("max_hr", "Max HR", 120, 230), ("resting_hr", "Resting HR", 30, 100), ("lthr", "Threshold HR", 100, 220)]
 STATIC = Path(__file__).parent / "static"
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
 def create_app(db_path: Path | str | None = None) -> Flask:
@@ -26,6 +27,21 @@ def create_app(db_path: Path | str | None = None) -> Flask:
 
     def conn():
         return closing(db.connect(db_path))
+
+    @app.before_request
+    def only_this_mac():
+        """The dashboard answers only to itself. Any website you visit can send requests to
+        127.0.0.1: a page addressed through another name (DNS rebinding, to read your runs and
+        where you live) is refused, and so is a change (settings, sync, a paid Claude review)
+        sent from another site's page."""
+        host = (request.host or "").rsplit(":", 1)[0].strip("[]")
+        if host not in LOCAL_HOSTS:
+            abort(403)
+        if request.method != "GET":
+            origin = request.headers.get("Origin")
+            if request.headers.get("Sec-Fetch-Site") == "cross-site" or (
+                    origin and origin.rstrip("/") != f"{request.scheme}://{request.host}"):
+                abort(403)
 
     export_lock = threading.Lock()
 

@@ -257,3 +257,21 @@ def test_activities_deleted_in_garmin_are_removed(conn):
     client.activities = []
     sync.sync(client, conn)
     assert conn.execute("SELECT count(*) FROM activities").fetchone()[0] == 2
+
+
+def test_dashboard_refuses_other_sites(tmp_path):
+    """Websites can send requests to 127.0.0.1: a change from another site's page, or any request
+    addressed through another name (DNS rebinding), is refused."""
+    from garmin_connector.web import create_app
+    client = create_app(tmp_path / "w.db").test_client()
+    assert client.get("/api/settings").status_code == 200
+    assert client.get("/api/settings", headers={"Host": "127.0.0.1:8765"}).status_code == 200
+    assert client.get("/api/activities", headers={"Host": "evil.example:8765"}).status_code == 403
+    # a form another site posts (plain text, so no CORS check stops it): refused
+    hostile = {"Origin": "https://evil.example", "Content-Type": "text/plain"}
+    assert client.post("/api/settings", data='{"max_hr": 230}', headers=hostile).status_code == 403
+    assert client.post("/api/sync", headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
+    assert client.post("/api/ai/review", data="{}", headers=hostile).status_code == 403
+    # the dashboard's own page
+    own = {"Origin": "http://localhost", "Sec-Fetch-Site": "same-origin"}
+    assert client.post("/api/settings", json={"max_hr": 188}, headers=own).status_code == 200

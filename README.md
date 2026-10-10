@@ -339,7 +339,9 @@ map tiles from OpenStreetMap, so OpenStreetMap sees roughly which area you ran i
 weather lookup sends Open-Meteo each workout's start point rounded to about a kilometre and
 its date (no account, nothing else about you or the run); if you
 set up **Ask Claude**, a training summary goes to Anthropic each time you click it; and the
-phone app's data file is stored in your own iCloud Drive. The dashboard only listens on `127.0.0.1`, so it's reachable only from your Mac.
+phone app's data file is stored in your own iCloud Drive. The dashboard only listens on `127.0.0.1`, so it's reachable only from your Mac, and it
+refuses requests that other websites open in your browser could send it (changing settings,
+starting a sync or a Claude review, or reading your runs through another web address).
 
 ## Development
 
