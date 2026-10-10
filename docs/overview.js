@@ -1515,6 +1515,7 @@ function renderGear() {
   card.hidden = !list.length;
   if (!list.length) return;
   const u = Units.get();
+  $("gear-default").textContent = u === "mi" ? "500 miles" : "800 km";
   const row = (g) => {
     const share = g.share == null ? null : Math.min(1, g.share);
     const level = g.share >= 1 ? "over" : g.share >= 0.85 ? "near" : "";
@@ -1575,7 +1576,7 @@ function renderPerf() {
     <div class="chart-box"><canvas id="perf-chart" role="img" aria-label="VO2max shape and marathon shape over time"></canvas></div>
     <details class="more"><summary>How these are worked out</summary>
       <p><b>VO2max shape</b> is the average of each run's effective VO2max over 30 days, weighted by duration. For each run, your pace says how much oxygen it took, and your heart rate as a share of your max says what share of your maximum that was. Your watch's estimate is shown for comparison.</p>
-      <p><b>Marathon shape</b> asks whether your training has the endurance for long races: your weekly distance over 6 months (two thirds) and your long runs over 13 km in the last 10 weeks (one third), against targets that grow with your VO2max. A 10K needs 17 %, a half marathon 42 %, a marathon 100 %. The race predictor uses both.</p></details>`;
+      <p><b>Marathon shape</b> asks whether your training has the endurance for long races: your weekly distance over 6 months (two thirds) and your long runs over ${fmtNum(dist(13000), 1)} ${u} in the last 10 weeks (one third), against targets that grow with your VO2max. A 10K needs 17 %, a half marathon 42 %, a marathon 100 %. The race predictor uses both.</p></details>`;
   const h = p.history.filter((d) => inRange(d.date));
   const opts = chartBase();
   opts.interaction = { mode: "nearest", intersect: false };

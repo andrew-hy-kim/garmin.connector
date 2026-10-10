@@ -212,6 +212,8 @@ Everything else is a command in Terminal. The command is `garmin`; the original,
 | `garmin hr-check` | Your running heart rate year by year: heart rate at one fixed pace, highest heart rate, and signs of a misreading wrist sensor (`--km` for km paces) |
 | `garmin logout` | Forget the saved password and tokens |
 
+Add `--help` to any command (`garmin sync --help`) to see all of its options.
+
 ### Apple Watch history (optional)
 
 Ran with an Apple Watch before your Garmin? Bring those workouts in once:

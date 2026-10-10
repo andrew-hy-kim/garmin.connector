@@ -14,6 +14,14 @@ from xml.etree import ElementTree
 from . import apple, auth, config, db, export, hrcheck, processing, sync, weather
 
 
+def _day(text: str) -> date:
+    """A date typed as YYYY-MM-DD, with a plain message when it isn't one."""
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"'{text}' isn't a date; write it as YYYY-MM-DD, e.g. 2026-01-31")
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="garmin", description="Pull your Garmin Connect activities into a local database."
@@ -25,7 +33,7 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("logout", help="forget the saved password and tokens")
 
     p_sync = sub.add_parser("sync", help="pull new activities into the local database")
-    p_sync.add_argument("--since", type=date.fromisoformat, help="re-sync from this date (YYYY-MM-DD)")
+    p_sync.add_argument("--since", type=_day, help="re-sync from this date (YYYY-MM-DD)")
     p_sync.add_argument("--no-fit", action="store_true", help="skip downloading .fit files (summaries only)")
     p_sync.add_argument("--no-export", action="store_true", help="don't update the phone app's data file")
 
@@ -41,7 +49,7 @@ def main(argv: list[str] | None = None) -> None:
     p_hrc.add_argument("--km", action="store_true", help="paces per km (default: per mile)")
     p_apple = sub.add_parser("import-apple", help="import your Apple Watch workouts from an Apple Health export")
     p_apple.add_argument("path", help="export.zip from the Health app (or the unzipped folder)")
-    p_apple.add_argument("--before", type=date.fromisoformat,
+    p_apple.add_argument("--before", type=_day,
                          help="only workouts before this date (YYYY-MM-DD); default: your first Garmin activity")
     p_weather = sub.add_parser("weather", help="look up the weather for workouts that don't have it yet")
     p_weather.add_argument("--redo", action="store_true", help="look up every workout again")
@@ -104,6 +112,9 @@ def main(argv: list[str] | None = None) -> None:
             except ElementTree.ParseError as err:
                 raise SystemExit(f"The export.xml inside is cut short or damaged ({err}). Export it again from "
                                  "the Health app; if it was unzipped, use the original export.zip instead.")
+            except FileNotFoundError:
+                raise SystemExit(f"There's no file at {args.path}. Check the name; Finder can drag the file into "
+                                 "Terminal to type its full path for you.")
             except (ValueError, OSError) as err:
                 raise SystemExit(f"Couldn't read the export: {err}")
             print(f"Imported {r['imported']} workouts"

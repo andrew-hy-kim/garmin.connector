@@ -90,7 +90,11 @@ function fmtPace(mps, u = Units.get(), withUnit = true) {
 function fmtSpeed(mps, u = Units.get()) { return mps ? `${(mps * 3600 / M_PER[u]).toFixed(1)} ${u === "mi" ? "mph" : "km/h"}` : ""; }
 const PACE_TYPES = /run|walk|hik/;
 const fmtPaceOrSpeed = (mps, type, u) => (PACE_TYPES.test(type || "") ? fmtPace(mps, u) : fmtSpeed(mps, u));
-const fmtElev = (m, u = Units.get()) => (m == null ? "" : `${Math.round(u === "mi" ? m * 3.28084 : m).toLocaleString()} ${u === "mi" ? "ft" : "m"}`);
+// Numbers group thousands the local way, unless the local decimal mark is a comma: then "1.084 mi"
+// would sit next to "6.56 mi" (toFixed), so every number uses the dot style instead. Dates stay local.
+const NUM_LOCALE = (1.5).toLocaleString().includes(",") ? "en-US" : undefined;
+if (window.Chart) Chart.defaults.locale = NUM_LOCALE || Chart.defaults.locale;
+const fmtElev = (m, u = Units.get()) => (m == null ? "" : `${Math.round(u === "mi" ? m * 3.28084 : m).toLocaleString(NUM_LOCALE)} ${u === "mi" ? "ft" : "m"}`);
 const elevUnit = (m, u = Units.get()) => (u === "mi" ? m * 3.28084 : m);
 const prettyType = (t) => (t || "other").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const isRun = (t) => /run/.test(t || "");
@@ -101,7 +105,7 @@ const localDate = (s) => new Date(s.length === 10 ? `${s}T12:00:00` : s.replace(
 const fmtDate = (s, opts = { dateStyle: "medium" }) => localDate(s).toLocaleDateString(undefined, opts);
 // "Oct '25": month and year that can't be mistaken for a day of the month
 const fmtMonthYear = (d) => `${d.toLocaleDateString(undefined, { month: "short" })} '${String(d.getFullYear()).slice(2)}`;
-const fmtNum = (v, digits = 0) => Number(v).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const fmtNum = (v, digits = 0) => Number(v).toLocaleString(NUM_LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 // ---------- heart rate at a fixed pace ----------
 // Each run carries hr_by_speed, [[grade-adjusted speed m/s, heart rate, seconds], …], from its

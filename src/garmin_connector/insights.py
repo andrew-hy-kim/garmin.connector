@@ -244,7 +244,7 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int, perf: dict[str,
                            + (" On days like this, run early or slow down and drink more." if hot else "")))
     elif w.get("temp_c") is not None and w["temp_c"] <= -5:
         notes.append(_note("info", f"Cold run: {t(w['temp_c'])}",
-                           "Cold air makes the first kilometres feel harder; a longer, easier warm-up helps."))
+                           "Cold air makes the opening minutes feel harder; a longer, easier warm-up helps."))
     if (w.get("aqi") or 0) > 100:
         notes.append(_note("warn", f"Poor air quality (AQI {w['aqi']})",
                            f"Air was {weather.aqi_label(w['aqi'])}. Hard breathing in polluted air irritates "

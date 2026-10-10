@@ -344,3 +344,21 @@ def test_ios16_exports_with_totals_inside_workout_activity(conn, tmp_path):
     a = next(x for x in api.activities(conn) if apple.is_apple(x["activity_id"]))
     assert a["distance_m"] == pytest.approx(5400, abs=5) and a["calories"] == 330
     assert a["activity_type"] == "treadmill_running"  # HKIndoorWorkout read from inside
+
+
+def test_cli_explains_a_missing_file_and_a_bad_date(tmp_path, capsys):
+    from garmin_connector import cli
+
+    with pytest.raises(SystemExit) as missing:
+        cli.main(["import-apple", str(tmp_path / "nope.zip")])
+    assert "There's no file at" in str(missing.value)
+    (tmp_path / "unzipped").mkdir()
+    with pytest.raises(SystemExit) as empty:
+        cli.main(["import-apple", str(tmp_path / "unzipped")])
+    assert "No export.xml at" in str(empty.value)
+    with pytest.raises(SystemExit):
+        cli.main(["import-apple", "x.zip", "--before", "2020-13-01"])
+    assert "isn't a date; write it as YYYY-MM-DD" in capsys.readouterr().err
+    with pytest.raises(SystemExit):
+        cli.main(["sync", "--since", "yesterday"])
+    assert "'yesterday' isn't a date" in capsys.readouterr().err
