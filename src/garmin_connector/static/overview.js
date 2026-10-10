@@ -759,7 +759,7 @@ function renderRecordsByYear() {
     const e = list.find((x) => x.date.startsWith(y));  // fastest first, so the year's best
     if (!e) return `<td class="num dim">–</td>`;
     const t = fmtDuration(e.seconds);
-    return `<td class="num"><a href="${pageUrl("activity", { id: e.activity_id, t: span(e) })}" title="${esc(fmtDate(e.date))}">${e === list[0] ? `<b>${t}</b>` : t}</a></td>`;
+    return `<td class="num"><a href="${pageUrl("activity", { id: e.activity_id, t: span(e) })}" title="${esc(fmtDate(e.date))}">${e === list[0] ? `<b>${t}</b><span class="sr-only"> (all-time record)</span>` : t}</a></td>`;
   }).join("")}</tr>`).join("");
 }
 

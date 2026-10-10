@@ -42,7 +42,9 @@ PACE_ZONES = [
     ("marathon", "Marathon", 0.75, 0.84, "Marathon race pace; steady long-run segments."),
     ("threshold", "Threshold", 0.83, 0.88, "Comfortably hard; tempo runs and cruise intervals."),
     ("interval", "Interval", 0.95, 1.00, "3–5 minute reps with equal jog recoveries."),
-    ("repetition", "Repetition", 1.05, 1.10, "Short, fast reps (200–400 m) with full recovery."),
+    # Daniels' tables put R pace at about 100% of VO2max by the oxygen-cost formula (VDOT 50:
+    # 92 s per 400 m), just as their I pace sits at the slow end of 95-100%
+    ("repetition", "Repetition", 1.00, 1.05, "Short, fast reps (200–400 m) with full recovery."),
 ]
 
 

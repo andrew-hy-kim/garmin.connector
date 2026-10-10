@@ -327,7 +327,9 @@ the sync runs when it wakes. Logs: `~/.garmin-connector/sync.log`.
 Everything is in `~/.garmin-connector/` (set `GARMIN_CONNECTOR_HOME` to move it):
 
 - `garmin.db`: SQLite database. `activities` (summaries plus Garmin's full JSON), `streams`
-  (second-by-second data, compressed), `laps`, `activity_metrics`, `vo2max`, `weather`, `settings`
+  (second-by-second data, compressed), `laps`, `activity_metrics`, `vo2max`, `weather`, `settings`.
+  While the dashboard or a sync has it open, recent changes sit beside it in `garmin.db-wal`;
+  to back up, copy the whole folder, or run `garmin dashboard --stop` first and copy `garmin.db`
 - `fit/`: the original `.fit` file for every workout, so nothing is lost even if Garmin
   changes something
 - `tokens/`: login tokens (private to your user account)

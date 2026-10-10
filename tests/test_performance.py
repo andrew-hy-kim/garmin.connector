@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import date, timedelta
 
 import pytest
@@ -102,3 +103,29 @@ def test_races_marked_in_garmin_calibrate(conn, tmp_path):
     processing.refresh(conn, force=True)
     s = perf.summary(conn)
     assert s["calibrated_by"] == 900 and s["correction_factor"] != 1.0
+
+
+@pytest.mark.parametrize("vdot,meters,daniels", [
+    (40, 5000, "24:08"), (40, 42195, "3:49:45"), (50, 5000, "19:57"), (50, 10000, "41:21"),
+    (50, 21097.5, "1:31:35"), (60, 10000, "35:22"),
+])
+def test_race_times_match_daniels_tables(vdot, meters, daniels):
+    want = sum(int(v) * 60 ** i for i, v in enumerate(reversed(daniels.split(":"))))
+    assert abs(perf.race_seconds(vdot, meters) - want) <= 10
+
+
+def test_training_paces_contain_daniels_paces():
+    """VDOT 50 in Daniels' tables: M 4:31, T 4:15, I 4:00 and R 3:50 per km (92 s per 400 m)."""
+    zones = {k: (perf.speed_at_vo2(50 * hi), perf.speed_at_vo2(50 * lo))
+             for k, _, lo, hi, _ in perf.PACE_ZONES}
+    for key, per_km in (("marathon", 271), ("threshold", 255), ("interval", 240), ("repetition", 230)):
+        fast, slow = zones[key]
+        assert 60000 / fast - 2 <= per_km <= 60000 / slow + 2, key
+
+
+def test_trimp_uses_banisters_constants_for_women():
+    from garmin_connector import analysis
+    men, women = (analysis.trimp_from_summary(3600, 160, 50, 190, male=m) for m in (True, False))
+    x = (160 - 50) / (190 - 50)
+    assert men == pytest.approx(60 * x * 0.64 * math.exp(1.92 * x))
+    assert women == pytest.approx(60 * x * 0.86 * math.exp(1.67 * x))

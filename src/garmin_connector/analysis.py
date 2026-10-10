@@ -154,23 +154,29 @@ def time_in_zones(t: Sequence[int], hr: Sequence[float | None], zones: list[Zone
 def trimp(t: Sequence[int], hr: Sequence[float | None], resting_hr: float, max_hr: float, male: bool = True) -> float:
     """Banister TRIMP: training load from time spent at each heart rate.
 
-    Harder minutes count exponentially more than easy ones.
+    Harder minutes count exponentially more than easy ones. Banister's constants differ for men
+    (0.64 e^1.92x) and women (0.86 e^1.67x).
     """
-    k = 1.92 if male else 1.67
+    a, k = _banister(male)
     total = 0.0
     for dt, h in zip(sample_durations(t), hr):
         if h is None:
             continue
         reserve = min(max((h - resting_hr) / (max_hr - resting_hr), 0.0), 1.0)
-        total += dt / 60 * reserve * 0.64 * math.exp(k * reserve)
+        total += dt / 60 * reserve * a * math.exp(k * reserve)
     return total
+
+
+def _banister(male: bool) -> tuple[float, float]:
+    return (0.64, 1.92) if male else (0.86, 1.67)
 
 
 def trimp_from_summary(duration_s: float, avg_hr: float, resting_hr: float, max_hr: float,
                        male: bool = True) -> float:
     """TRIMP for activities without second-by-second data, assuming a steady average HR."""
     reserve = min(max((avg_hr - resting_hr) / (max_hr - resting_hr), 0.0), 1.0)
-    return duration_s / 60 * reserve * 0.64 * math.exp((1.92 if male else 1.67) * reserve)
+    a, k = _banister(male)
+    return duration_s / 60 * reserve * a * math.exp(k * reserve)
 
 
 # ---------------------------------------------------------------- pace

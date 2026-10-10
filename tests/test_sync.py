@@ -275,3 +275,30 @@ def test_dashboard_refuses_other_sites(tmp_path):
     # the dashboard's own page
     own = {"Origin": "http://localhost", "Sec-Fetch-Site": "same-origin"}
     assert client.post("/api/settings", json={"max_hr": 188}, headers=own).status_code == 200
+
+
+def test_dashboard_and_sync_can_write_at_once(tmp_path):
+    """A sync holding a write lock makes the dashboard wait its turn, not fail with "database is locked"."""
+    import threading
+    import time
+    path = tmp_path / "both.db"
+    db.connect(path).close()
+    held = threading.Event()
+
+    def sync_like():
+        c = db.connect(path)
+        c.execute("BEGIN IMMEDIATE")
+        c.execute("INSERT INTO settings (key, value) VALUES ('a', 1)")
+        held.set()
+        time.sleep(6)  # longer than SQLite's default 5 s wait
+        c.commit()
+        c.close()
+    t = threading.Thread(target=sync_like)
+    t.start()
+    held.wait()
+    other = db.connect(path)
+    assert other.execute("SELECT count(*) FROM activities").fetchone()[0] == 0  # reads go on meanwhile
+    other.execute("INSERT INTO settings (key, value) VALUES ('b', 2)")  # waits for the commit
+    other.commit()
+    t.join()
+    assert {r[0] for r in other.execute("SELECT key FROM settings")} >= {"a", "b"}

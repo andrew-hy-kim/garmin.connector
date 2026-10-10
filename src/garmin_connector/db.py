@@ -157,7 +157,12 @@ _ACTIVITY_FIELDS = [
 
 
 def connect(path: Path | str) -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
+    # The dashboard (often running in the background) and a sync can use the database at
+    # once: write-ahead logging lets reads carry on during a write, and a writer waits its
+    # turn for up to 30 s instead of failing with "database is locked".
+    conn = sqlite3.connect(path, timeout=30)
+    if str(path) != ":memory:":
+        conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA + gear.SCHEMA)
     return conn

@@ -20,7 +20,8 @@ DEFAULT_RESTING_HR = 60.0
 # Threshold HR is typically ~90% of max for runners; used only until a real value is known.
 LTHR_FROM_MAX = 0.90
 # Bump when the analysis changes, so every workout is re-analyzed once.
-ANALYSIS_VERSION = 10
+ANALYSIS_VERSION = 11
+COMMIT_EVERY = 25  # workouts analyzed between commits
 STREAM_KEYS = ("t", "hr", "speed", "distance", "cadence", "altitude", "power", "lat", "lon")
 
 
@@ -111,8 +112,10 @@ def refresh(conn: sqlite3.Connection, force: bool = False) -> int:
         "WHERE m.activity_id IS NULL"
     )]
     settings = effective_settings(conn)
-    for activity_id in pending:
+    for n, activity_id in enumerate(pending, 1):
         analyze_activity(conn, activity_id, settings)
+        if n % COMMIT_EVERY == 0:
+            conn.commit()  # let the dashboard write in between, and keep the progress if interrupted
     conn.commit()
 
     # New activities can change the estimated max HR, which moves the zones.
@@ -123,8 +126,10 @@ def refresh(conn: sqlite3.Connection, force: bool = False) -> int:
         log.info("Analyzed %d new workouts", len(pending))
     if force or previous is None or previous[0] != _signature(settings):
         ids = [r[0] for r in conn.execute("SELECT activity_id FROM streams")]
-        for activity_id in ids:
+        for n, activity_id in enumerate(ids, 1):
             analyze_activity(conn, activity_id, settings)
+            if n % COMMIT_EVERY == 0:
+                conn.commit()  # the settings stamp is written last, so an interrupted run starts over
         count = len(ids)
         conn.execute(
             "INSERT OR REPLACE INTO settings (key, value) VALUES ('_analyzed_with', ?)", (_signature(settings),)
