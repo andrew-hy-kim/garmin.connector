@@ -41,7 +41,8 @@ def main(argv: list[str] | None = None) -> None:
     p_hrc.add_argument("--km", action="store_true", help="paces per km (default: per mile)")
     p_apple = sub.add_parser("import-apple", help="import your Apple Watch workouts from an Apple Health export")
     p_apple.add_argument("path", help="export.zip from the Health app (or the unzipped folder)")
-    p_apple.add_argument("--before", help="only workouts before this date (YYYY-MM-DD); default: your first Garmin activity")
+    p_apple.add_argument("--before", type=date.fromisoformat,
+                         help="only workouts before this date (YYYY-MM-DD); default: your first Garmin activity")
     p_weather = sub.add_parser("weather", help="look up the weather for workouts that don't have it yet")
     p_weather.add_argument("--redo", action="store_true", help="look up every workout again")
     sub.add_parser("set-api-key", help="save an Anthropic API key for 'Ask Claude' reviews (macOS Keychain)")
@@ -96,7 +97,7 @@ def main(argv: list[str] | None = None) -> None:
         with closing(db.connect(config.db_path())) as conn:
             print("Reading your Apple Health export (a big one takes a minute or two)…")
             try:
-                r = apple.import_export(conn, args.path, before=args.before)
+                r = apple.import_export(conn, args.path, before=args.before.isoformat() if args.before else None)
             except zipfile.BadZipFile:
                 raise SystemExit("That file isn't a zip, or it's damaged. Export it again from the Health app "
                                  "(your picture → Export All Health Data) and use the export.zip it makes.")
