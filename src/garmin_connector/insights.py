@@ -186,7 +186,7 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int, perf: dict[str,
         mins, prev = back["week_minutes"], back["prev_week_minutes"]
         n = back["runs_back"]
         detail = (f"{n} run{'s' if n != 1 else ''} since returning on {_day(back['back_on'])}. "
-                  f"{round(mins)} min of running in the last 7 days")
+                  f"{round(mins)} min of running in the 7 days up to this run")
         # a real jump, not running 4 days one week and 3 the next
         if prev >= 10 and mins > prev * 1.3 and mins - prev >= 30:
             notes.append(_note("warn", "Comeback: building quickly",
@@ -414,7 +414,7 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
                 notes.append(_note("warn", f"Training base ramping fast (+{ramp:.0%} this week)",
                                    "Load is climbing faster than most bodies adapt to. Hold this week's "
                                    "volume steady before adding more."))
-            elif ramp < -0.08:
+            elif ramp < -0.08 and not back:  # after a break, the rebuilding note explains the drop
                 notes.append(_note("info", f"Training base dropping ({ramp:.0%} this week)",
                                    "Normal during a taper, illness or a break. Otherwise, it's time to "
                                    "rebuild consistency."))

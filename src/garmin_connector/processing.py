@@ -20,7 +20,7 @@ DEFAULT_RESTING_HR = 60.0
 # Threshold HR is typically ~90% of max for runners; used only until a real value is known.
 LTHR_FROM_MAX = 0.90
 # Bump when the analysis changes, so every workout is re-analyzed once.
-ANALYSIS_VERSION = 9
+ANALYSIS_VERSION = 10
 STREAM_KEYS = ("t", "hr", "speed", "distance", "cadence", "altitude", "power", "lat", "lon")
 
 

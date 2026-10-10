@@ -224,11 +224,14 @@ Runs, rides, walks and hikes from before your first Garmin activity come in with
 route, heart rate, cadence and power, and are analysed like any other workout: zones,
 load, efficiency, records, the map, weather. Apple's VO2 max (Cardio Fitness) readings from
 then fill in the VO2 max chart. Anything that overlaps an activity already in the dashboard
-is skipped, so nothing shows up twice, and running it again just updates them. To pick the
-cut-off yourself: `--before 2023-06-01`. Workouts from the watch are marked
-"Apple Watch" in the activity list (which can show just one watch) and on their page.
-Runs without GPS get the weather where your other runs that month started. The import
-lists any outdoor runs that came without a GPS route, and why.
+is skipped, so nothing shows up twice; so is a run two apps recorded at once (say the
+Workout app on the watch and a running app on the phone), keeping the better-recorded copy.
+Running it again just updates them. To pick the cut-off yourself: `--before 2023-06-01`.
+Workouts from the watch are marked "Apple Watch" in the activity list (which can show just
+one watch) and on their page, and count on the map with the place you usually ran. Runs
+without GPS get the weather where your other runs that month started, but no best efforts
+or records: their distance comes from the step counter, too rough to time a fast mile. The
+import lists any outdoor runs that came without a GPS route, and why.
 
 ### Ask Claude (optional)
 

@@ -271,7 +271,8 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
   .zone-row > div:first-child { white-space: nowrap; }
   .card .filters { gap: 6px; }
   .card .filters input[type="search"] { flex: 1 1 100%; }
-  .card .filters select { flex: 1 1 0; min-width: 0; font-size: 14px; padding-left: 10px; padding-right: 24px; background-position: right 8px center; }
+  /* two menus a row, so none is cut short ("All typ…") */
+  .card .filters select { flex: 1 1 calc(50% - 3px); min-width: 0; font-size: 14px; padding-left: 10px; padding-right: 24px; background-position: right 8px center; }
   .day .what .badge { display: none; }
   .zone-row .range { display: none; }
 }

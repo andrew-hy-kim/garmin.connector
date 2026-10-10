@@ -101,6 +101,7 @@ def main(argv: list[str] | None = None) -> None:
                   + (f" ({r['with_route']} with a GPS map" + (f", {r['no_route']} outdoors without one" if r["no_route"] else "") + ")"
                      if r["with_route"] or r["no_route"] else "")
                   + (f"; skipped {r['skipped']} already in the dashboard" if r["skipped"] else "")
+                  + (f"; {r['duplicates']} recorded twice (by two apps), kept once" if r["duplicates"] else "")
                   + (f"; {r['vo2max']} VO2 max readings" if r["vo2max"] else "") + ".")
             if r["no_route"]:
                 why = {"none": "the export has no route for them", "missing": "their route file isn't in the zip",

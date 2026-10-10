@@ -239,3 +239,47 @@ def test_gaps_in_the_data_are_not_stops(conn, tmp_path):
     apple.import_export(conn, export_zip(tmp_path / "e.zip", [(xml, keep, None)]))
     a = next(x for x in api.activities(conn) if apple.is_apple(x["activity_id"]))
     assert a["moving_duration_s"] > 0.95 * 2400
+
+
+def _phone_copy(xml, start, new_start):
+    """The same run as a phone app would write it: its own name, a few seconds off, no route."""
+    import re
+    x = re.sub(r"<WorkoutRoute.*?</WorkoutRoute>", "", xml).replace("Andrew’s Apple Watch", "Nike Run Club")
+    return x.replace(f'startDate="{start}', f'startDate="{new_start}', 1)
+
+
+def test_a_run_recorded_by_two_apps_is_kept_once(conn, tmp_path):
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    xml, recs, gpx = run(d(2021, 6, 5, 7, 0), minutes=30)
+    phone = _phone_copy(xml, "2021-06-05 07:00:00", "2021-06-05 07:00:20")
+    # first, as an import from before duplicates were caught would have left it: the phone copy alone
+    apple.import_export(conn, export_zip(tmp_path / "a.zip", [(phone, [], None)]))
+    assert len([a for a in api.activities(conn) if apple.is_apple(a["activity_id"])]) == 1
+    # the full export has both: the watch's copy (with its route) stays, the phone's goes
+    r = apple.import_export(conn, export_zip(tmp_path / "b.zip", [(xml, recs, gpx), (phone, [], None)]))
+    assert r["imported"] == 1 and r["duplicates"] == 1
+    mine = [a for a in api.activities(conn) if apple.is_apple(a["activity_id"])]
+    assert len(mine) == 1 and mine[0]["start_time_local"] == "2021-06-05 07:00:00"
+    s, _ = db.load_streams(conn, mine[0]["activity_id"])
+    assert s["lat"][600] is not None
+
+
+def test_back_to_back_runs_are_not_duplicates():
+    a = (0.0, 1800.0)
+    assert not apple._same_run(a, (1700.0, 3600.0))  # a short overlap: a second run straight after
+    assert apple._same_run(a, (20.0, 1810.0))
+
+
+def test_no_best_efforts_without_gps(conn, tmp_path):
+    """Step-counter distance (no GPS) is too coarse to time a fast 400 m: no records from it."""
+    import re
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    with_gps = run(d(2021, 3, 4, 7, 0), minutes=30)
+    no_gps = run(d(2021, 3, 6, 7, 0), minutes=30)
+    apple.import_export(conn, export_zip(tmp_path / "e.zip", [
+        with_gps, (re.sub(r"<WorkoutRoute.*?</WorkoutRoute>", "", no_gps[0]), no_gps[1], None)]))
+    processing.refresh(conn)
+    acts = {a["start_time_local"][:10]: a for a in api.activities(conn)}
+    assert "1 km" in api.activity_detail(conn, acts["2021-03-04"]["activity_id"])["metrics"]["best_efforts"]
+    assert not api.activity_detail(conn, acts["2021-03-06"]["activity_id"])["metrics"]["best_efforts"]
+    assert all(e["activity_id"] != acts["2021-03-06"]["activity_id"] for es in api.records(conn).values() for e in es)

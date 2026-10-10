@@ -6,7 +6,9 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
-from garmin_connector import api, db, weather
+from garmin_connector import api, apple, db, weather
+
+APPLE = apple.APPLE_ID_BASE  # Apple Watch workouts have IDs from here up
 
 
 @pytest.fixture(autouse=True)
@@ -110,11 +112,12 @@ def test_backfill_groups_requests_and_stores(tmp_path):
     _add(conn, 2, "2025-05-11 08:15:00", lat=40.72, lon=-74.00)
     _add(conn, 3, "2026-09-20 18:00:00", kind="treadmill_running", lat=None)
     _add(conn, 4, "2026-10-03 07:00:00")
-    _add(conn, 5, "2026-09-21 07:00:00", lat=None)  # outdoors, no GPS: placed where the runs around it were
-    _add(conn, 6, "2019-06-01 07:00:00", lat=None)  # no GPS, and no runs for months either side
+    _add(conn, APPLE + 5, "2026-09-21 07:00:00", lat=None)  # Apple, outdoors, no GPS: placed where the runs around it were
+    _add(conn, APPLE + 6, "2019-06-01 07:00:00", lat=None)  # no GPS, and no runs for months either side
+    _add(conn, 7, "2026-09-22 07:00:00", lat=None)  # Garmin "run" without GPS: indoors with GPS off, not placed
     fake = FakeOpenMeteo()
     r = weather.update(conn, today=today, session=fake)
-    assert r["indoor"] == 1 and r["no_gps"] == 1 and r["weather"] == n + 4 and r["missing"] == 0
+    assert r["indoor"] == 1 and r["no_gps"] == 2 and r["weather"] == n + 4 and r["missing"] == 0
     weather_calls = [c for c in fake.calls if "air-quality" not in c[0]]
     assert len(weather_calls) <= 25, len(weather_calls)   # five years of runs: a couple of dozen requests
     for url, p in fake.calls:  # only rounded coordinates leave the Mac
@@ -126,8 +129,9 @@ def test_backfill_groups_requests_and_stores(tmp_path):
     w = weather.for_activity(conn, 4)
     assert w["temp_c"] is not None and w["aqi"] is not None and w["heat_pct"] is not None
     assert weather.for_activity(conn, 3) == {"indoor": True}
-    assert weather.for_activity(conn, 5)["place_assumed"] and weather.for_activity(conn, 5)["temp_c"] is not None
-    assert weather.for_activity(conn, 6) == {"no_gps": True}  # not called indoor
+    assert weather.for_activity(conn, APPLE + 5)["place_assumed"] and weather.for_activity(conn, APPLE + 5)["temp_c"] is not None
+    assert weather.for_activity(conn, APPLE + 6) == {"no_gps": True}  # not called indoor
+    assert weather.for_activity(conn, 7) == {"no_gps": True}
     assert weather.for_activity(conn, 4).get("place_assumed") is None
     old = weather.for_activity(conn, 1000)
     assert old["aqi"] is None and old["temp_c"] is not None   # before air-quality history
@@ -192,13 +196,13 @@ def test_chunks(days, expected):
 def test_runs_filed_without_a_place_are_placed_later(tmp_path):
     """A run stored as indoor or no-GPS by an older version gets weather once a run nearby has GPS."""
     conn = db.connect(tmp_path / "w.db")
-    _add(conn, 1, "2021-05-01 07:00:00", lat=None)
-    _add(conn, 2, "2021-05-02 07:00:00", kind="treadmill_running", lat=None)
+    _add(conn, APPLE + 1, "2021-05-01 07:00:00", lat=None)
+    _add(conn, APPLE + 2, "2021-05-02 07:00:00", kind="treadmill_running", lat=None)
     today = date(2026, 10, 5)
     r = weather.update(conn, today=today, session=FakeOpenMeteo())
     assert r["no_gps"] == 1 and r["indoor"] == 1
-    conn.execute("UPDATE weather SET data = '{\"indoor\": true}' WHERE activity_id = 1")  # how older versions filed it
+    conn.execute("UPDATE weather SET data = '{\"indoor\": true}' WHERE activity_id = ?", (APPLE + 1,))  # how older versions filed it
     _add(conn, 3, "2021-05-08 07:00:00")
     r = weather.update(conn, today=today, session=FakeOpenMeteo())
-    assert r["weather"] == 2 and weather.for_activity(conn, 1)["place_assumed"]
-    assert weather.for_activity(conn, 2) == {"indoor": True}  # the treadmill stays indoors
+    assert r["weather"] == 2 and weather.for_activity(conn, APPLE + 1)["place_assumed"]
+    assert weather.for_activity(conn, APPLE + 2) == {"indoor": True}  # the treadmill stays indoors

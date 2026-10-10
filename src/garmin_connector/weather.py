@@ -32,6 +32,8 @@ from typing import Any
 
 import requests
 
+from . import apple
+
 log = logging.getLogger(__name__)
 
 ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
@@ -158,8 +160,8 @@ def _wanted(conn: sqlite3.Connection, today: date, redo: bool = False) -> list[d
     out = []
     for activity_id, kind, start, duration, raw_json, fetched_at, placeless in rows:
         day = date.fromisoformat(start[:10])
-        # an outdoor workout filed with no place: look again, nearby runs may tell where it was
-        if placeless and not _indoor(kind):
+        # an Apple Watch workout filed with no place: look again, nearby runs may tell where it was
+        if placeless and not _indoor(kind) and apple.is_apple(activity_id):
             fetched_at = None
         if fetched_at and not redo:
             got = date.fromisoformat(fetched_at[:10])
@@ -295,16 +297,20 @@ def conditions(hours: dict[str, dict], start: datetime, duration_s: float) -> di
 def update(conn: sqlite3.Connection, today: date | None = None, redo: bool = False,
            session: requests.Session | None = None) -> dict[str, int]:
     """Look up the weather for every workout that needs it. Never raises for network trouble."""
-    today = today or date.today()
+    now = datetime.now()
+    today = today or now.date()
     session = session or requests.Session()
-    stamp = datetime.now().isoformat(timespec="seconds")
+    stamp = datetime.combine(today, now.time()).isoformat(timespec="seconds")  # "today" as given
     done = {"weather": 0, "indoor": 0, "no_gps": 0, "missing": 0}
     areas: dict[tuple[float, float], list[dict[str, Any]]] = defaultdict(list)
     nearby = None
     for w in _wanted(conn, today, redo):
         indoor = _indoor(w["type"])
         point = None if indoor else _start_point(conn, w["id"], w["raw"])
-        if point is None and not indoor:  # no GPS: where your other runs around then started
+        # An Apple Watch run without a route was outdoors (Apple marks indoor ones) with no GPS:
+        # use where your other runs around then started. Not for Garmin: an outdoor-type Garmin
+        # activity without GPS was nearly always indoors with GPS off.
+        if point is None and not indoor and apple.is_apple(w["id"]):
             nearby = nearby if nearby is not None else _known_places(conn)
             point = _nearby_place(nearby, w["day"])
             w["assumed"] = point is not None

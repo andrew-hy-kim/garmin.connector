@@ -236,11 +236,29 @@ function runsNear(latlng) {
 }
 
 // ---------- places ----------
+// A run without a place name (Apple Watch runs have none) takes the name of the nearest
+// named run that started within 5 km, so it counts with the place you usually run.
+const PLACE_KM = 5;
+function placeOf(t) {
+  if (t.place !== undefined) return t.place;
+  const a = M.acts.get(t.id);
+  if (a.location) return (t.place = a.location);
+  if (!M.named) M.named = M.tracks.filter((x) => M.acts.get(x.id)?.location && x.track.length);
+  const [lat, lon] = t.track[0] || [];
+  let best = null, bestKm = PLACE_KM;
+  for (const x of lat == null ? [] : M.named) {
+    const [la, lo] = x.track[0];
+    const km = 111.2 * Math.hypot(la - lat, (lo - lon) * Math.cos((lat * Math.PI) / 180));
+    if (km < bestKm) { bestKm = km; best = M.acts.get(x.id).location; }
+  }
+  return (t.place = best || "Unnamed place");
+}
+
 function renderPlaces() {
   const byPlace = new Map();
   for (const t of M.shown) {
     const a = M.acts.get(t.id);
-    const name = a.location || "Unnamed place";
+    const name = placeOf(t);
     const p = byPlace.get(name) || { name, runs: 0, meters: 0, last: "", tracks: [] };
     p.runs += 1; p.meters += a.distance_m || 0; p.tracks.push(t);
     if (a.start_time_local > p.last) p.last = a.start_time_local;

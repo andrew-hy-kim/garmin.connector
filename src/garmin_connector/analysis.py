@@ -640,6 +640,8 @@ def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[
         # nor when the wrist sensor locked onto cadence
         metrics["hr_by_speed"] = [] if run_walk or not has_hr or (metrics.get("cadence_lock") or 0) > 0.2 \
             else hr_by_speed(t, gap, hr)
-    if is_outdoor_run(activity_type):
+    # Best efforts need GPS distance: without it (GPS off, or an Apple Watch run with no route)
+    # distance comes from the step counter in coarse chunks, too rough to time a fast 400 m
+    if is_outdoor_run(activity_type) and any(v is not None for v in streams.get("lat") or []):
         metrics["best_efforts"] = best_efforts(t, streams["distance"])
     return metrics

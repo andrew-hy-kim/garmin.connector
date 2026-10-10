@@ -50,6 +50,10 @@ const chartObserver = "IntersectionObserver" in window ? new IntersectionObserve
 }, { rootMargin: "600px 0px" }) : null;
 addEventListener("beforeprint", () => { for (const id of Object.keys(pendingCharts)) { const job = pendingCharts[id]; delete pendingCharts[id]; job(); } });
 
+// Lines over time break where you didn't run for over five weeks, rather than drawing a
+// straight line across months without data (Chart.js: a number for spanGaps is the longest gap bridged).
+const GAP_MS = 35 * 864e5, WATCH_GAP_MS = 120 * 864e5;
+
 function drawChart(key, canvasId, config) {
   const canvas = $(canvasId);
   const draw = () => { charts[key]?.destroy(); charts[key] = new Chart(canvas, config); };
@@ -417,8 +421,9 @@ function renderLongRuns() {
   }
   const u = Units.get();
   const threshold = dist(13000);
-  $("longruns-hint").textContent = `Your longest run each week. Runs over ${fmtNum(threshold, u === "mi" ? 1 : 0)} ${u} build the endurance long races need.`;
   const target = state.perf?.marathon_shape ? dist(state.perf.marathon_shape.long_target_km * 1000) : null;
+  $("longruns-hint").textContent = `Your longest run each ${b.monthly ? "month" : "week"}. Runs over ${fmtNum(threshold, u === "mi" ? 1 : 0)} ${u} (dashed line) build the endurance long races need${
+    target ? `; the solid line is the long run a marathon at your fitness calls for (${fmtNum(target, 0)} ${u})` : ""}.`;
   const recent = longest.slice(-10).filter((v) => v > threshold).length;
   $("longruns-head").innerHTML = `<span class="big">${fmtNum(Math.max(...longest.slice(-4), 0), 1)}<small>${u}</small></span><span class="dim">longest in the last 4 ${b.monthly ? "months" : "weeks"}${b.monthly ? "" : ` · ${recent} long run${recent === 1 ? "" : "s"} in 10 weeks`}</span>`;
   const opts = chartBase();
@@ -545,7 +550,7 @@ function renderEfficiency() {
     type: "scatter",
     data: { datasets: [
       { data: pts, ...dotStyle(pts, cssVar("--pace")) },
-      { type: "line", data: trend, borderColor: cssVar("--pace"), borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
+      { type: "line", data: trend, borderColor: cssVar("--pace"), borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: GAP_MS },
     ] },
     options: opts,
   });
@@ -600,7 +605,7 @@ function renderHrPace() {
     type: "scatter",
     data: { datasets: [
       { data: pts, ...dotStyle(pts, cssVar("--hr")) },
-      { type: "line", data: trend, borderColor: cssVar("--hr"), borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true },
+      { type: "line", data: trend, borderColor: cssVar("--hr"), borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: GAP_MS },
     ] },
     options: opts,
   });
@@ -674,7 +679,7 @@ function renderForm() {
     type: "scatter",
     data: { datasets: [
       { data: pts, backgroundColor: cssVar("--cadence") + "66", pointRadius: 3, pointHoverRadius: 5 },
-      { type: "line", data: trend, borderColor: cssVar("--cadence"), borderWidth: 2, pointRadius: 0, tension: 0.3 },
+      { type: "line", data: trend, borderColor: cssVar("--cadence"), borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: GAP_MS },
     ] },
     options: opts,
   });
@@ -706,7 +711,7 @@ function renderVo2() {
   drawChart("vo2", "vo2", {
     type: "line",
     data: { datasets: sports.map(([k, label, c]) => ({
-      label, borderColor: cssVar(c), backgroundColor: cssVar(c), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.2,
+      label, borderColor: cssVar(c), backgroundColor: cssVar(c), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.2, spanGaps: WATCH_GAP_MS,
       data: state.vo2.filter((r) => r.sport === k && inRange(r.date)).map((r) => ({ x: new Date(r.date + "T12:00").getTime(), y: r.value })),
     })) },
     options: opts,
@@ -1585,11 +1590,11 @@ function renderPerf() {
     type: "line",
     data: { datasets: [
       { label: "VO2max shape", data: h.map((d) => ({ x: new Date(d.date + "T12:00").getTime(), y: d.vo2max })),
-        borderColor: cssVar("--pace"), borderWidth: 2.5, pointRadius: 0, tension: 0.25 },
+        borderColor: cssVar("--pace"), borderWidth: 2.5, pointRadius: 0, tension: 0.25, spanGaps: GAP_MS },
       { label: "Watch VO2max", data: state.vo2.filter((r) => r.sport === "running" && inRange(r.date)).map((r) => ({ x: new Date(r.date + "T12:00").getTime(), y: r.value })),
-        borderColor: cssVar("--gap"), borderWidth: 1.5, pointRadius: 0, borderDash: [4, 3], tension: 0.2 },
+        borderColor: cssVar("--gap"), borderWidth: 1.5, pointRadius: 0, borderDash: [4, 3], tension: 0.2, spanGaps: WATCH_GAP_MS },
       { label: "Marathon shape", yAxisID: "y2", data: h.map((d) => ({ x: new Date(d.date + "T12:00").getTime(), y: d.marathon_shape })),
-        borderColor: cssVar("--elev"), backgroundColor: cssVar("--elev") + "22", fill: "origin", borderWidth: 1.5, pointRadius: 0, tension: 0.25 },
+        borderColor: cssVar("--elev"), backgroundColor: cssVar("--elev") + "22", fill: "origin", borderWidth: 1.5, pointRadius: 0, tension: 0.25, spanGaps: GAP_MS },
     ] },
     options: opts,
   });

@@ -489,6 +489,34 @@ def climb_m(altitude: list[float | None], threshold: float = 3.0) -> float | Non
     return round(total, 1) if have else None
 
 
+def _same_run(a: tuple[float, float], b: tuple[float, float]) -> bool:
+    """Two workouts overlapping for more than half of the shorter one: one run recorded twice."""
+    overlap = min(a[1], b[1]) - max(a[0], b[0])
+    return overlap > 0.5 * max(1.0, min(a[1] - a[0], b[1] - b[0]))
+
+
+def dedupe(workouts: list[dict[str, Any]], series: dict[str, tuple]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """One workout per run. Two apps can record the same run and both write it to Apple Health
+    (the Workout app on the watch and a running app on the phone, say); the best-recorded copy
+    stays: with a GPS route, then with heart rate, then from a watch, then the longest."""
+    hr_times = series.get("hr", (array("d"),))[0]
+
+    def score(w: dict[str, Any]) -> tuple:
+        t0, t1 = _epoch(w["start"]), _epoch(w["end"])
+        hr = bisect_right(hr_times, t1) - bisect_left(hr_times, t0)
+        return (bool(w["route"]), hr > 0, "watch" in (w["source"] or "").lower(), w["distance_m"] or 0)
+
+    kept: list[tuple[tuple[float, float], dict[str, Any]]] = []
+    dropped = []
+    for w in sorted(workouts, key=score, reverse=True):
+        span = (_epoch(w["start"]), _epoch(w["end"]))
+        if any(_same_run(span, s) for s, _ in kept):
+            dropped.append(w)
+        else:
+            kept.append((span, w))
+    return sorted((w for _, w in kept), key=lambda w: _epoch(w["start"])), dropped
+
+
 def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None = None) -> dict[str, int]:
     """Import an Apple Health export. Returns counts: imported, with_route (outdoor workouts
     with a GPS route), no_route (outdoor workouts whose route was missing), skipped
@@ -504,6 +532,10 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
     log.info("Reading %s%s…", export.path.name, f" (workouts before {datetime.fromtimestamp(limit, tz=timezone.utc):%b %-d, %Y})" if limit else "")
     workouts, series, vo2 = read(export, limit)
     index = RouteIndex(export, {w["route"] for w in workouts if w["route"]})
+    workouts, dropped = dedupe(workouts, series)
+    # a copy an earlier import brought in before duplicates were caught
+    db.delete_activities(conn, [APPLE_ID_BASE + int(_epoch(w["start"])) for w in dropped])
+    duplicates = len(dropped)
     # what's already there, as (start, end) in Unix seconds, so nothing is imported twice
     taken = []
     for start, dur, aid in conn.execute("SELECT start_time_gmt, duration_s, activity_id FROM activities WHERE start_time_gmt IS NOT NULL"):
@@ -512,7 +544,7 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
         s = timegm(datetime.fromisoformat(start.replace(" ", "T")[:19]).timetuple())
         taken.append((s, s + (dur or 0)))
     counts: dict[str, Any] = {"imported": 0, "with_route": 0, "no_route": 0, "skipped": 0, "vo2max": 0,
-                              "matched": 0, "why_no_route": {}, "no_route_days": []}
+                              "duplicates": duplicates, "matched": 0, "why_no_route": {}, "no_route_days": []}
     for w in workouts:
         t0, t1 = _epoch(w["start"]), _epoch(w["end"])
         if any(a < t1 and t0 < b for a, b in taken):
