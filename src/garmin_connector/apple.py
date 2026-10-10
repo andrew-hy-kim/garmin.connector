@@ -235,7 +235,8 @@ def read(export: Export, before: float | None = None) -> tuple[list[dict[str, An
 
 
 def _workout(el, kind: tuple[str, str]) -> dict[str, Any]:
-    meta = _meta(el)
+    # the workout's own metadata, then any its WorkoutActivity segments carry (iOS 16 on)
+    meta = {k: v for act in el.findall("WorkoutActivity") for k, v in _meta(act).items()} | _meta(el)
     indoor = meta.get("HKIndoorWorkout") == "1"
     w = {"start": el.get("startDate"), "end": el.get("endDate"), "type": kind[1] if indoor else kind[0],
          "indoor": indoor, "source": el.get("sourceName"),
@@ -244,12 +245,18 @@ def _workout(el, kind: tuple[str, str]) -> dict[str, Any]:
          "calories": float(el.get("totalEnergyBurned")) if el.get("totalEnergyBurned") else None,
          "elevation_gain_m": _quantity(meta.get("HKElevationAscended"), "m"),
          "route": None, "pauses": []}
-    for s in el.findall("WorkoutStatistics"):  # newer exports put the totals here
-        t = s.get("type") or ""
-        if "Distance" in t and w["distance_m"] is None:
-            w["distance_m"] = _distance_m(s.get("sum"), s.get("unit"))
-        elif t == "HKQuantityTypeIdentifierActiveEnergyBurned" and w["calories"] is None and s.get("sum"):
-            w["calories"] = float(s.get("sum"))
+    # Newer exports put the totals in WorkoutStatistics: under the workout, or (iOS 16 on) only
+    # inside each of its WorkoutActivity segments, which then add up
+    stats = el.findall("WorkoutStatistics")
+    nested = [s for act in el.findall("WorkoutActivity") for s in act.findall("WorkoutStatistics")]
+    for group in (stats, nested):
+        dist = [_distance_m(s.get("sum"), s.get("unit")) for s in group if "Distance" in (s.get("type") or "") and s.get("sum")]
+        kcal = [float(s.get("sum")) for s in group
+                if s.get("type") == "HKQuantityTypeIdentifierActiveEnergyBurned" and s.get("sum")]
+        if w["distance_m"] is None and dist:
+            w["distance_m"] = dist[0] if group is stats else sum(dist)
+        if w["calories"] is None and kcal:
+            w["calories"] = kcal[0] if group is stats else sum(kcal)
     for ev in el.findall("WorkoutEvent"):  # pauses, to know when the watch wasn't recording
         if ev.get("type") in ("HKWorkoutEventTypePause", "HKWorkoutEventTypeMotionPaused"):
             w["pauses"].append(["pause", _epoch(ev.get("date"))])

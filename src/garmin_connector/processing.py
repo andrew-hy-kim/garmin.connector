@@ -144,7 +144,7 @@ def training_load_series(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     daily: dict[str, float] = {}
     rows = conn.execute(
         "SELECT substr(a.start_time_local, 1, 10), m.trimp, a.duration_s, a.avg_hr "
-        "FROM activities a LEFT JOIN activity_metrics m USING (activity_id)"
+        "FROM activities a LEFT JOIN activity_metrics m USING (activity_id) WHERE a.start_time_local IS NOT NULL"
     ).fetchall()
     for day, trimp, duration, avg_hr in rows:
         if trimp is None and duration and avg_hr:

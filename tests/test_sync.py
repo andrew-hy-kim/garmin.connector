@@ -302,3 +302,22 @@ def test_dashboard_and_sync_can_write_at_once(tmp_path):
     other.commit()
     t.join()
     assert {r[0] for r in other.execute("SELECT key FROM settings")} >= {"a", "b"}
+
+
+def test_an_activity_without_a_start_time_never_breaks_the_dashboard(tmp_path):
+    from garmin_connector import api
+    from garmin_connector.web import create_app
+    path = tmp_path / "odd.db"
+    conn = db.connect(path)
+    db.upsert_activities(conn, [
+        {"activityId": 1, "activityName": "Run", "activityType": {"typeKey": "running"}, "startTimeLocal": "2026-09-01 07:00:00",
+         "distance": 5000, "duration": 1500, "averageHR": 140},
+        {"activityId": 2, "activityName": "No local time", "activityType": {"typeKey": "running"},
+         "startTimeGMT": "2026-09-02 14:00:00", "distance": 5000, "duration": 1500},
+        {"activityId": 3, "activityName": "No time at all", "activityType": {"typeKey": "running"}, "distance": 5000},
+    ])
+    ids = {a["activity_id"] for a in api.activities(conn)}
+    assert ids == {1, 2}  # the second takes its GMT time; the third is skipped
+    client = create_app(path).test_client()
+    for url in ("/api/activities", "/api/training-load", "/api/insights", "/api/performance"):
+        assert client.get(url).status_code == 200, url

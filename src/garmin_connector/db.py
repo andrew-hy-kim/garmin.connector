@@ -7,12 +7,15 @@ Garmin returned (``raw_json``) so nothing is lost if we want another field later
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import zlib
 from pathlib import Path
 from typing import Any, Iterable
 
 from . import gear
+
+log = logging.getLogger(__name__)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS activities (
@@ -178,7 +181,15 @@ def activity_row(activity: dict[str, Any]) -> dict[str, Any]:
 
 
 def upsert_activities(conn: sqlite3.Connection, activities: Iterable[dict[str, Any]]) -> int:
-    rows = [activity_row(a) for a in activities]
+    rows = []
+    for a in activities:
+        row = activity_row(a)
+        # every page sorts and buckets by start time: one without it would break them all
+        row["start_time_local"] = row["start_time_local"] or row["start_time_gmt"]
+        if not row["start_time_local"]:
+            log.warning("Skipped activity %s: it has no start time", row["activity_id"])
+            continue
+        rows.append(row)
     if not rows:
         return 0
     cols = list(rows[0].keys())

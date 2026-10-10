@@ -328,3 +328,19 @@ def test_reimport_rebuilds_map_track_and_phone_copy(conn, tmp_path):
     apple.import_export(conn, export_zip(tmp_path / "b.zip", [(xml, recs, gpx)]))  # the route turns up
     assert heatmap.track(conn, aid)
     assert any(v is not None for v in export.phone_streams(conn, aid)[0]["lat"])
+
+
+def test_ios16_exports_with_totals_inside_workout_activity(conn, tmp_path):
+    """Newer exports can carry the totals and metadata only inside WorkoutActivity, in miles."""
+    import re
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    xml, recs, _ = run(d(2021, 3, 4, 7, 0), minutes=30, speed=3.0, indoor=True)
+    stats = "".join(re.findall(r"<WorkoutStatistics[^>]*/>", xml))
+    meta = "".join(re.findall(r"<MetadataEntry[^>]*/>", xml))
+    xml = xml.replace(stats, "").replace(meta, "")
+    stats = stats.replace('sum="5.400" unit="km"', 'sum="3.3554" unit="mi"')
+    xml = xml.replace("</Workout>", f'<WorkoutActivity uuid="a">{meta}{stats}</WorkoutActivity></Workout>')
+    apple.import_export(conn, export_zip(tmp_path / "e.zip", [(xml, [r for r in recs if "HeartRate" in r], None)]))
+    a = next(x for x in api.activities(conn) if apple.is_apple(x["activity_id"]))
+    assert a["distance_m"] == pytest.approx(5400, abs=5) and a["calories"] == 330
+    assert a["activity_type"] == "treadmill_running"  # HKIndoorWorkout read from inside
