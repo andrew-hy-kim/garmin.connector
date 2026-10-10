@@ -489,7 +489,7 @@ def climb_m(altitude: list[float | None], threshold: float = 3.0) -> float | Non
     return round(total, 1) if have else None
 
 
-def _same_run(a: tuple[float, float], b: tuple[float, float]) -> bool:
+def same_run(a: tuple[float, float], b: tuple[float, float]) -> bool:
     """Two workouts overlapping for more than half of the shorter one: one run recorded twice."""
     overlap = min(a[1], b[1]) - max(a[0], b[0])
     return overlap > 0.5 * max(1.0, min(a[1] - a[0], b[1] - b[0]))
@@ -510,7 +510,7 @@ def dedupe(workouts: list[dict[str, Any]], series: dict[str, tuple]) -> tuple[li
     dropped = []
     for w in sorted(workouts, key=score, reverse=True):
         span = (_epoch(w["start"]), _epoch(w["end"]))
-        if any(_same_run(span, s) for s, _ in kept):
+        if any(same_run(span, s) for s, _ in kept):
             dropped.append(w)
         else:
             kept.append((span, w))
@@ -569,8 +569,10 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
         start_point = next(((la, lo) for la, lo in zip(streams["lat"], streams["lon"]) if la is not None), None)
         db.upsert_activities(conn, [_activity(w, streams, aid, start_point)])
         db.save_streams(conn, aid, streams, external_hr=False)
-        conn.execute("DELETE FROM activity_metrics WHERE activity_id = ?", (aid,))  # analyzed afresh
-        conn.execute("DELETE FROM weather WHERE activity_id = ?", (aid,))  # looked up again, now with the route
+        # what was worked out from the old streams goes: analyzed afresh, weather looked up again
+        # (now perhaps with a route), and the map track and phone copy rebuilt
+        for table in ("activity_metrics", "weather", "heatmap_tracks", "export_streams"):
+            conn.execute(f"DELETE FROM {table} WHERE activity_id = ?", (aid,))
         counts["imported"] += 1
         if counts["imported"] % 50 == 0:
             conn.commit()

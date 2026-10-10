@@ -13,6 +13,7 @@ workout charts look the same at phone size.
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 import zlib
 import logging
@@ -149,7 +150,11 @@ def write(conn: sqlite3.Connection, folder: Path | str | None = None) -> Path:
     """Write the export file (atomically, so iCloud never syncs a half-written file)."""
     folder = Path(folder).expanduser() if folder else default_dir()
     folder.mkdir(parents=True, exist_ok=True)
-    data = json.dumps(snapshot(conn), separators=(",", ":"), default=str).encode()
+    snap = snapshot(conn)
+    data = json.dumps(snap, separators=(",", ":"), default=str).encode()
+    # what the phone shows, without the time of writing: unchanged data needn't be uploaded again
+    content = json.dumps({**snap, "generated_at": None}, separators=(",", ":"), default=str).encode()
+    db.set_text_setting(conn, "export_content", hashlib.sha256(content).hexdigest()[:32])
     path = folder / FILENAME
     tmp = folder / (FILENAME + ".tmp")
     tmp.write_bytes(gzip.compress(data, compresslevel=6, mtime=0))

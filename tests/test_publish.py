@@ -100,3 +100,27 @@ def test_repo_and_phone_url(tmp_path):
     assert publish.repo_from_git(tmp_path) == "andrew-hy-kim/garmin.connector"
     assert publish.phone_url("andrew-hy-kim/garmin.connector") == "https://andrew-hy-kim.github.io/garmin.connector/"
     assert publish.phone_url("me/me.github.io") == "https://me.github.io/"
+
+
+def test_no_upload_when_only_the_time_of_writing_changed(tmp_path, monkeypatch):
+    """Each export is stamped with when it was written; a sync with nothing new uploads nothing."""
+    from garmin_connector import export
+    conn = db.connect(tmp_path / "p.db")
+    db.upsert_activities(conn, [{"activityId": 1, "activityName": "Run", "activityType": {"typeKey": "running"},
+                                 "startTimeLocal": "2026-09-01 07:00:00", "distance": 5000, "duration": 1500}])
+    monkeypatch.setattr(publish, "_secret", {publish.TOKEN_USER: "tok", publish.PASSPHRASE_USER: "pass phrase"}.get)
+    db.set_text_setting(conn, "phone_repo", "me/app")
+    db.set_text_setting(conn, "phone_salt", "00" * 16)
+    monkeypatch.setattr(publish, "ROUNDS", 1000)
+    sent = []
+    monkeypatch.setattr(publish, "upload", lambda repo, token, files: sent.append(files))
+    stamps = iter(["2026-10-10T10:00:00", "2026-10-10T11:00:00", "2026-10-10T12:00:00"])
+    real = export.snapshot
+    monkeypatch.setattr(export, "snapshot", lambda c: {**real(c), "generated_at": next(stamps)})
+    assert publish.publish(conn, export.write(conn, tmp_path)) is True
+    assert publish.publish(conn, export.write(conn, tmp_path)) is False and len(sent) == 1  # nothing new
+    db.upsert_activities(conn, [{"activityId": 2, "activityName": "Run 2", "activityType": {"typeKey": "running"},
+                                 "startTimeLocal": "2026-09-03 07:00:00", "distance": 6000, "duration": 1800}])
+    assert publish.publish(conn, export.write(conn, tmp_path)) is True and len(sent) == 2
+    # the stamp is still the uploaded file's own fingerprint, which the phone checks its download against
+    assert sent[-1]["stamp.txt"].decode() == publish.stamp((tmp_path / export.FILENAME).read_bytes())

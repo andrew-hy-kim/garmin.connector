@@ -54,7 +54,8 @@ def test_workout_insights(conn):
 
 def test_overview_insights_and_form_state(conn):
     titles = [n["title"] for n in insights.overview_insights(conn)]
-    assert any(t.startswith("Form: ") for t in titles)
+    # under six weeks of history: base and fatigue (42- and 7-day averages) don't mean anything yet
+    assert not any(t.startswith("Form: ") for t in titles)
     assert any("easy" in t for t in titles)  # intensity distribution note
     assert insights.form_state(100, 15)["key"] == "fresh"
     assert insights.form_state(100, 0)["key"] == "neutral"
@@ -115,3 +116,34 @@ def test_comeback_after_injury(tmp_path):
     form = next(n for t, n in overview.items() if t.startswith("Form: "))
     if form["title"] == "Form: Fresh":
         assert "not a sign to race" in form["detail"]
+
+
+def test_form_note_once_there_are_six_weeks_of_history(tmp_path):
+    conn = db.connect(tmp_path / "f.db")
+    today = date.today()
+    db.upsert_activities(conn, [{
+        "activityId": n, "activityName": f"Run {n}", "activityType": {"typeKey": "running"},
+        "startTimeLocal": f"{today - timedelta(days=n * 2)} 07:00:00", "distance": 8000, "duration": 2700,
+        "averageHR": 140} for n in range(1, 30)])  # every other day for eight weeks, summaries only
+    titles = [n["title"] for n in insights.overview_insights(conn)]
+    assert any(t.startswith("Form: ") for t in titles)
+
+
+def _with_bests(conn, aid, day, bests):
+    db.upsert_activities(conn, [{"activityId": aid, "activityName": f"Run {aid}", "activityType": {"typeKey": "running"},
+                                 "startTimeLocal": f"{day} 07:00:00", "distance": 10000, "duration": 3000}])
+    db.save_metrics(conn, aid, {"trimp": 50, "best_efforts": {k: {"seconds": s, "meters": m} for k, (s, m) in bests.items()}})
+
+
+def test_new_bests_need_runs_to_beat_and_come_as_one_note(tmp_path):
+    conn = db.connect(tmp_path / "b.db")
+    slow = {"1 km": (300, 1000), "5 km": (1600, 5000)}
+    _with_bests(conn, 1, "2026-09-01", slow)
+    _with_bests(conn, 2, "2026-09-03", {"1 km": (280, 1000), "5 km": (1500, 5000)})
+    # one run to beat: not yet a "best" worth a note
+    assert not [n for n in insights.workout_insights(conn, 2) if n["title"].startswith("New best")]
+    _with_bests(conn, 3, "2026-09-05", slow)
+    _with_bests(conn, 4, "2026-09-07", slow)
+    _with_bests(conn, 5, "2026-09-09", {"1 km": (270, 1000), "5 km": (1450, 5000)})
+    titles = [n["title"] for n in insights.workout_insights(conn, 5)]
+    assert "New bests at 2 distances" in titles and not any(t.startswith("New best 1 km") for t in titles)

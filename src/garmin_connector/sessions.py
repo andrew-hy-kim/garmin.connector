@@ -35,7 +35,7 @@ def _fmt_reps(reps: int, minutes: float, jog: float) -> str:
 # ---------------------------------------------------------------- your current training
 
 def context(conn: sqlite3.Connection, today: date | None = None) -> dict[str, Any]:
-    """What the plan is based on."""
+    """What the suggested workouts are based on: your recent running, form, paces and any comeback."""
     today = today or date.today()
     runs = insights._runs(conn, (today - timedelta(days=400)).isoformat())
 
@@ -108,6 +108,3 @@ def _paces(runs, today: date, easy_mps: float | None) -> dict[str, Any]:
             "tempo_mps": 10000 / best["t10"] / 1.08,
         })
     return out
-
-
-# ---------------------------------------------------------------- the plan

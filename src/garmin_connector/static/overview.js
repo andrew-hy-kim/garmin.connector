@@ -16,13 +16,18 @@ const FORM_STATES = [
   { key: "overreaching", min: -Infinity, label: "Overreaching", color: "--hr", text: "Fatigue far above your base; recover before more hard work." },
 ];
 // Orange is too light for text on white; its numbers use the darker warning orange
-const textColor = (st) => (st.key === "productive" ? "--warn-c" : st.color);
+// (while history is still building, form means nothing yet: no alarm colors)
+const textColor = (st) => (warmingUp() ? "--text-primary" : st.key === "productive" ? "--warn-c" : st.color);
 // "+3", "-2" or "0" (rounded first, so a small negative never shows as "-0")
 const fmtSigned = (v) => { const r = Math.round(v) || 0; return `${r > 0 ? "+" : ""}${r}`; };
 // After a break, low fatigue reads as "fresh"; that's the break talking, not a good time to race
 const rebuildingNote = (st) => ((st.key === "fresh" || st.key === "neutral") && (state.insights || []).some((n) => n.title.startsWith("Rebuilding after"))
   ? "Low fatigue after your break, not real freshness. Keep building gradually with easy running." : "");
 const formState = (d) => FORM_STATES.find((s) => (d.fitness > 1 ? d.form / d.fitness : 0) >= s.min);
+// Base and fatigue are 42- and 7-day averages: with under six weeks of history, form says nothing yet
+const WARMUP_DAYS = 42;
+const warmingUp = () => state.load.length > 0 && state.load.length < WARMUP_DAYS;
+const WARMUP_TEXT = "Form needs about six weeks of training behind it to mean something. Until then, build up gradually with easy running.";
 const charts = {};
 
 const filtered = () => state.activities.filter((a) =>
@@ -141,7 +146,7 @@ function renderTiles() {
   const load = today && !$("readiness") ? [
     `<div class="tile"><div class="label">Base</div><div class="value">${today.fitness.toFixed(0)}</div><div class="sub">${delta("fitness", true)}</div></div>`,
     `<div class="tile"><div class="label">Fatigue</div><div class="value">${today.fatigue.toFixed(0)}</div><div class="sub">${delta("fatigue")}</div></div>`,
-    `<div class="tile state" style="--c:var(${textColor(st)})"><div class="label">Form</div><div class="value">${fmtSigned(today.form)}</div><div class="sub">${st.label}</div></div>`,
+    `<div class="tile state" style="--c:var(${textColor(st)})"><div class="label">Form</div><div class="value">${fmtSigned(today.form)}</div><div class="sub">${warmingUp() ? "Getting started" : st.label}</div></div>`,
   ] : [];
   $("tiles").innerHTML = [...volume, ...load].join("");
   $("tiles").classList.toggle("six", volume.length + load.length === 6);
@@ -195,7 +200,7 @@ function renderLoad() {
   });
 
   // Fitness needs about 6 weeks of history before form means anything; grey out that stretch.
-  const warmupEnd = state.load.length ? isoDay(new Date(new Date(state.load[0].date + "T12:00").getTime() + 42 * 864e5)) : "";
+  const warmupEnd = state.load.length ? isoDay(new Date(new Date(state.load[0].date + "T12:00").getTime() + WARMUP_DAYS * 864e5)) : "";
   // Daily form bars, or weekly averages over long ranges so bars stay readable.
   let bars = days.map((d) => ({ ...d, warmup: d.date < warmupEnd }));
   if (long) {
@@ -249,12 +254,12 @@ function renderExplain() {
     s.key === "fresh" ? "above +10%" : s.key === "neutral" ? "−10% to +10%" : s.key === "productive" ? "−30% to −10%" : "below −30%"} of base</div>`).join("");
   $("explain").innerHTML = `
     <div class="verdict" style="--c:var(${textColor(st)})"><span class="big">${sign(today.form)}</span>
-      <div><b>${st.label}</b><span>${rebuildingNote(st) || st.text}</span></div></div>
+      <div><b>${warmingUp() ? "Getting started" : st.label}</b><span>${warmingUp() ? WARMUP_TEXT : rebuildingNote(st) || st.text}</span></div></div>
     <div>Base is <b>${today.fitness.toFixed(0)}</b>${trend == null ? "" : Math.abs(trend) < 1 ? ", about the same as 6 weeks ago"
       : `, ${trend > 0 ? "up" : "down"} ${Math.abs(trend).toFixed(0)} from 6 weeks ago`}. Fatigue is <b>${today.fatigue.toFixed(0)}</b>.
-      If you rested completely, form would be <b>${sign(proj[3].form)}</b> in 3 days and <b>${sign(proj[7].form)}</b> in 7${
-      freshDay && st.key !== "fresh" ? ` (fresh after about ${freshDay} day${freshDay > 1 ? "s" : ""})` : ""}, while base would slip to ${proj[7].fitness.toFixed(0)}.</div>
-    ${loadExtrasHtml()}
+      ${warmingUp() ? "" : `If you rested completely, form would be <b>${sign(proj[3].form)}</b> in 3 days and <b>${sign(proj[7].form)}</b> in 7${
+      freshDay && st.key !== "fresh" ? ` (fresh after about ${freshDay} day${freshDay > 1 ? "s" : ""})` : ""}, while base would slip to ${proj[7].fitness.toFixed(0)}.`}</div>
+    ${warmingUp() ? "" : loadExtrasHtml()}
     <details class="more"><summary>What do base, fatigue and form mean?</summary>
       <div class="scale">${scale}</div>
       <p><b>Base</b> is the average training load you've carried per day over about 6 weeks: the training you've banked
@@ -1289,11 +1294,13 @@ function renderReadiness() {
   let [word, advice] = READY[st.key];
   // after a break, low fatigue reads as "fresh"; that's the break talking, not readiness to race
   const rebuilding = (state.insights || []).some((n) => n.title.startsWith("Rebuilding after"));
-  if (rebuilding && (st.key === "fresh" || st.key === "neutral")) {
+  if (warmingUp()) {
+    [word, advice] = ["Getting started", WARMUP_TEXT];
+  } else if (rebuilding && (st.key === "fresh" || st.key === "neutral")) {
     word = "Rebuilding";
     advice = "Your training load is low after the break, so the numbers look fresh. Keep building gradually with easy running.";
   }
-  const x = loadExtras(state.load);
+  const x = warmingUp() ? null : loadExtras(state.load);  // days to fresh, balanced load: not this early
   const t = todaysSession();
   const sign = fmtSigned;
   const facts = [
@@ -1590,7 +1597,7 @@ function renderPerf() {
     type: "line",
     data: { datasets: [
       { label: "VO2max shape", data: h.map((d) => ({ x: new Date(d.date + "T12:00").getTime(), y: d.vo2max })),
-        borderColor: cssVar("--pace"), borderWidth: 2.5, pointRadius: 0, tension: 0.25, spanGaps: GAP_MS },
+        borderColor: cssVar("--pace"), borderWidth: 2.5, pointRadius: h.length < 3 ? 4 : 0, tension: 0.25, spanGaps: GAP_MS },
       { label: "Watch VO2max", data: state.vo2.filter((r) => r.sport === "running" && inRange(r.date)).map((r) => ({ x: new Date(r.date + "T12:00").getTime(), y: r.value })),
         borderColor: cssVar("--gap"), borderWidth: 1.5, pointRadius: 0, borderDash: [4, 3], tension: 0.2, spanGaps: WATCH_GAP_MS },
       { label: "Marathon shape", yAxisID: "y2", data: h.map((d) => ({ x: new Date(d.date + "T12:00").getTime(), y: d.marathon_shape })),

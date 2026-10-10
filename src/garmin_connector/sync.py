@@ -40,7 +40,10 @@ def sync(
     fetch_hr_profile(client, conn)
 
     if since is None:
-        latest = db.latest_activity_date(conn)
+        # the newest Garmin activity (Apple Health imports don't count: an import made before the
+        # first sync would otherwise make it skip your Garmin history)
+        latest = conn.execute("SELECT max(substr(start_time_local, 1, 10)) FROM activities WHERE activity_id < ?",
+                              (apple.APPLE_ID_BASE,)).fetchone()[0]
         since = date.fromisoformat(latest) - timedelta(days=OVERLAP_DAYS) if latest else EARLIEST
     today = date.today()
 
@@ -48,6 +51,7 @@ def sync(
     activities = client.get_activities_by_date(since.isoformat(), today.isoformat())
     n_activities = db.upsert_activities(conn, activities)
     log.info("Found %d activities", n_activities)
+    drop_apple_copies(conn)
     # Activities deleted in Garmin Connect since the last sync: gone here too. Only within the
     # re-checked days, and only when Garmin did list that stretch (an empty reply could be a hiccup).
     if activities and since != EARLIEST:
@@ -94,6 +98,25 @@ def sync(
 
     return {"activities": n_activities, "vo2max_readings": n_vo2, "fit_files": n_fit, "analyzed": n_analyzed,
             "weather": w.get("weather", 0)}
+
+
+def drop_apple_copies(conn: sqlite3.Connection) -> int:
+    """Remove Apple Health workouts that a Garmin activity also recorded (worn together, or an
+    import made before the first sync): the Garmin one, with its .fit file, wins."""
+    def spans(where: str) -> list[tuple[float, float, int]]:
+        return [(s, s + (d or 0), aid) for aid, s, d in conn.execute(
+            "SELECT activity_id, CAST(strftime('%s', start_time_gmt) AS REAL), duration_s FROM activities "
+            f"WHERE start_time_gmt IS NOT NULL AND {where}", (apple.APPLE_ID_BASE,))]
+    apples = spans("activity_id >= ?")
+    if not apples:
+        return 0
+    garmin = sorted(spans("activity_id < ?"))
+    gone = [aid for s, e, aid in apples
+            if any(apple.same_run((s, e), (gs, ge)) for gs, ge, _ in garmin if gs < e and s < ge)]
+    if gone:
+        db.delete_activities(conn, gone)
+        log.info("Removed %d Apple Health workout%s also recorded by Garmin", len(gone), "" if len(gone) == 1 else "s")
+    return len(gone)
 
 
 def fetch_hr_profile(client: Garmin, conn: sqlite3.Connection) -> dict:

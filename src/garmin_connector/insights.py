@@ -22,6 +22,7 @@ from . import analysis, gear, performance, processing, weather
 EASY_TYPES = {"easy", "recovery", "long", "easy_strides"}
 BREAK_DAYS = 21       # this long without running counts as a break (injury, illness, off-season)
 COMEBACK_DAYS = 56    # comeback notes for 8 weeks after returning
+MIN_EFFORTS_FOR_BEST = 3  # a "new best" needs at least this many other runs at that distance to beat
 
 
 def _note(level: str, title: str, detail: str) -> dict[str, str]:
@@ -352,15 +353,21 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int, perf: dict[str,
                            f"Training load {round(m['trimp'])}, above anything since {_day(since)}. Plan an easy "
                            f"day or two after it."))
 
-    # Personal bests within this run
+    # Personal bests within this run: once there are a few other runs to beat (on your first
+    # runs everything is a "best"), and in one note when it's several distances at once
     all_runs = _runs(conn) if m.get("best_efforts") else []
+    bests = []
     for label, effort in (m.get("best_efforts") or {}).items():
         others = [r["metrics"].get("best_efforts", {}).get(label, {}).get("seconds")
                   for r in all_runs if r["activity_id"] != activity_id]
         others = [o for o in others if o]
-        if others and effort["seconds"] < min(others):
-            notes.append(_note("good", f"New best {label}: {analysis._fmt_s(effort['seconds'])}",
-                               "Your fastest on record."))
+        if len(others) >= MIN_EFFORTS_FOR_BEST and effort["seconds"] < min(others):
+            bests.append(f"{label}: {analysis._fmt_s(effort['seconds'])}")
+    if len(bests) == 1:
+        notes.append(_note("good", f"New best {bests[0]}", "Your fastest on record."))
+    elif bests:
+        notes.append(_note("good", f"New bests at {len(bests)} distances",
+                           f"Your fastest on record: {', '.join(bests)}."))
     return notes
 
 
@@ -393,7 +400,8 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
     today = date.today()
 
     back = comeback(_runs(conn, (today - timedelta(days=COMEBACK_DAYS + 120)).isoformat()), today.isoformat())
-    if len(load) >= 8:
+    # base and fatigue are 42- and 7-day averages: until six weeks of history, form says nothing
+    if len(load) >= 42:
         now, week_ago = load[-1], load[-8]
         state = form_state(now["fitness"], now["form"])
         level = {"overreaching": "warn", "fresh": "info"}.get(state["key"], "good")

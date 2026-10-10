@@ -252,11 +252,6 @@ def delete_activities(conn: sqlite3.Connection, ids: Iterable[int]) -> int:
     return len(ids)
 
 
-def latest_activity_date(conn: sqlite3.Connection) -> str | None:
-    row = conn.execute("SELECT max(substr(start_time_local, 1, 10)) FROM activities").fetchone()
-    return row[0]
-
-
 def set_fit_path(conn: sqlite3.Connection, activity_id: int, path: str) -> None:
     conn.execute("UPDATE activities SET fit_path = ? WHERE activity_id = ?", (path, activity_id))
     conn.commit()

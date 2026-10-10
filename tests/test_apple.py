@@ -266,8 +266,8 @@ def test_a_run_recorded_by_two_apps_is_kept_once(conn, tmp_path):
 
 def test_back_to_back_runs_are_not_duplicates():
     a = (0.0, 1800.0)
-    assert not apple._same_run(a, (1700.0, 3600.0))  # a short overlap: a second run straight after
-    assert apple._same_run(a, (20.0, 1810.0))
+    assert not apple.same_run(a, (1700.0, 3600.0))  # a short overlap: a second run straight after
+    assert apple.same_run(a, (20.0, 1810.0))
 
 
 def test_no_best_efforts_without_gps(conn, tmp_path):
@@ -283,3 +283,48 @@ def test_no_best_efforts_without_gps(conn, tmp_path):
     assert "1 km" in api.activity_detail(conn, acts["2021-03-04"]["activity_id"])["metrics"]["best_efforts"]
     assert not api.activity_detail(conn, acts["2021-03-06"]["activity_id"])["metrics"]["best_efforts"]
     assert all(e["activity_id"] != acts["2021-03-06"]["activity_id"] for es in api.records(conn).values() for e in es)
+
+
+def test_garmin_sync_wins_over_an_apple_copy(tmp_path, monkeypatch):
+    """Imported before the first sync (so nothing to cut off at), then Garmin brings the same run."""
+    conn = db.connect(tmp_path / "fresh.db")
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    apple.import_export(conn, export_zip(tmp_path / "e.zip", [run(d(2023, 7, 1, 7, 0), minutes=30),
+                                                              run(d(2023, 7, 3, 7, 0), minutes=30)]))
+    assert len(api.activities(conn)) == 2  # no Garmin history yet: everything came in
+    asked = []
+
+    class Client:
+        def get_activities_by_date(self, start, end):
+            asked.append(start)
+            # the July 1 run, as Garmin recorded it (started a few seconds later)
+            return [{"activityId": 12_000_000_000, "activityName": "Run", "activityType": {"typeKey": "running"},
+                     "startTimeLocal": "2023-07-01 07:00:05", "startTimeGMT": "2023-07-01 14:00:05",
+                     "distance": 5400, "duration": 1795}]
+
+        def __getattr__(self, name):  # everything else Garmin offers: unavailable here
+            def unavailable(*a, **k):
+                raise RuntimeError("offline")
+            return unavailable
+    monkeypatch.setattr(sync.weather, "update_quietly", lambda conn: {})
+    monkeypatch.setattr(sync, "REQUEST_PAUSE_S", 0)
+    sync.sync(Client(), conn, download_fit=False)
+    assert asked == [sync.EARLIEST.isoformat()]  # the Apple runs didn't make it skip the Garmin history
+    days = sorted((a["start_time_local"][:10], apple.is_apple(a["activity_id"])) for a in api.activities(conn))
+    assert days == [("2023-07-01", False), ("2023-07-03", True)]
+
+
+def test_reimport_rebuilds_map_track_and_phone_copy(conn, tmp_path):
+    """A run that gains its route on a later import shows it on the map and the phone too."""
+    import re
+    from garmin_connector import export, heatmap
+    d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
+    xml, recs, gpx = run(d(2021, 3, 4, 7, 0), minutes=30)
+    bare = re.sub(r"<WorkoutRoute.*?</WorkoutRoute>", "", xml)
+    apple.import_export(conn, export_zip(tmp_path / "a.zip", [(bare, recs, None)]))
+    aid = next(a["activity_id"] for a in api.activities(conn) if apple.is_apple(a["activity_id"]))
+    assert not heatmap.track(conn, aid)
+    assert all(v is None for v in export.phone_streams(conn, aid)[0]["lat"])
+    apple.import_export(conn, export_zip(tmp_path / "b.zip", [(xml, recs, gpx)]))  # the route turns up
+    assert heatmap.track(conn, aid)
+    assert any(v is not None for v in export.phone_streams(conn, aid)[0]["lat"])

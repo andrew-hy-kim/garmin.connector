@@ -1,7 +1,6 @@
 """Suggested next workouts, for the coach notes.
 
-With a training plan running, these are simply its next sessions. Without one,
-they come from your own history: the days you usually run, your usual long-run
+They come from your own history: the days you usually run, your usual long-run
 day and lengths, the kinds of hard sessions you do (rotated and progressed),
 your current form and any comeback from a break. The same rules as the session recipes
 apply: mostly easy running, hard days at least 48 hours apart, never the day

@@ -16,7 +16,8 @@ from typing import Any
 from . import db
 
 TOLERANCE_M = 6.0
-CACHE_KEY = f"dp{TOLERANCE_M:g}"
+# "-2": rebuilt once, for Apple Health runs whose route arrived on a later import
+CACHE_KEY = f"dp{TOLERANCE_M:g}-2"
 _M_PER_DEG = 111_320.0
 
 

@@ -96,6 +96,7 @@ def save_settings(conn: sqlite3.Connection, repo: str, token: str, passphrase: s
     db.set_text_setting(conn, "phone_repo", repo)
     db.set_text_setting(conn, "phone_salt", os.urandom(16).hex())  # new passphrase, new salt
     db.set_text_setting(conn, "phone_stamp", None)
+    db.set_text_setting(conn, "phone_content", None)
 
 
 def clear_settings(conn: sqlite3.Connection) -> None:
@@ -104,7 +105,7 @@ def clear_settings(conn: sqlite3.Connection) -> None:
             keyring.delete_password(KEYCHAIN_SERVICE, user)
         except keyring.errors.KeyringError:
             pass
-    for key in ("phone_repo", "phone_salt", "phone_stamp"):
+    for key in ("phone_repo", "phone_salt", "phone_stamp", "phone_content"):
         db.set_text_setting(conn, key, None)
 
 
@@ -187,12 +188,18 @@ def publish(conn: sqlite3.Connection, path: Path, force: bool = False) -> bool:
     if not cfg:
         return False
     data = Path(path).read_bytes()
-    new = stamp(data)
+    # The file changes at every export (it says when it was written); its content, which the
+    # export records without that time, only when there's something new to show.
+    content = db.get_text_setting(conn, "export_content")
+    if not force and content and db.get_text_setting(conn, "phone_content") == content:
+        return False
+    new = stamp(data)  # the phone checks what it downloads against this
     if not force and db.get_text_setting(conn, "phone_stamp") == new:
         return False
     blob = encrypt(data, cfg["passphrase"], cfg["salt"])
     upload(cfg["repo"], cfg["token"], {DATA_FILE: blob, STAMP_FILE: new.encode()})
     db.set_text_setting(conn, "phone_stamp", new)
+    db.set_text_setting(conn, "phone_content", content)
     log.info("Phone app data uploaded (encrypted, %.1f MB)", len(blob) / 1e6)
     return True
 
