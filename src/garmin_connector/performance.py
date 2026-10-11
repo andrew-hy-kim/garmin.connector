@@ -20,9 +20,11 @@ The formulas follow RUNALYZE's open-source implementation.
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import sqlite3
+import threading
 from datetime import date, timedelta
 from typing import Any
 
@@ -234,8 +236,42 @@ def load_extras(series: list[dict[str, Any]]) -> dict[str, Any] | None:
 
 # ---------------------------------------------------------------- everything
 
+_summary_lock = threading.Lock()
+_summary_cache: dict[str, Any] = {}
+
+
+def _fingerprint(conn: sqlite3.Connection) -> tuple | None:
+    """Changes whenever anything summary() reads does: the runs, their analysis, the settings."""
+    path = conn.execute("PRAGMA database_list").fetchone()[2]
+    if not path:  # an in-memory database: nothing to tell its versions apart by
+        return None
+    runs = tuple(conn.execute(
+        "SELECT count(*), total(a.activity_id), total(julianday(a.start_time_local)), total(a.distance_m), "
+        "total(a.duration_s), total(a.moving_duration_s), total(a.avg_hr), total(a.elevation_gain_m), "
+        "total(length(a.raw_json)), count(m.data), total(length(m.data)) "
+        "FROM activities a LEFT JOIN activity_metrics m USING (activity_id)").fetchone())
+    settings = tuple(conn.execute("SELECT key, value FROM settings ORDER BY key").fetchall())
+    return path, runs, settings
+
+
 def summary(conn: sqlite3.Connection, today: date | None = None) -> dict[str, Any]:
+    """The performance model (see _summary), worked out once and reused until the data changes.
+
+    A dashboard page asks half a dozen endpoints at once and most of them need this; with years
+    of history, working it out for each made every page take seconds.
+    """
     today = today or date.today()
+    key = _fingerprint(conn)
+    if key is None:
+        return _summary(conn, today)
+    key = (today, key)
+    with _summary_lock:  # the other requests wait for this one instead of all doing the same work
+        if _summary_cache.get("key") != key:
+            _summary_cache.update(key=key, value=_summary(conn, today))
+        return copy.deepcopy(_summary_cache["value"])
+
+
+def _summary(conn: sqlite3.Connection, today: date) -> dict[str, Any]:
     settings = processing.effective_settings(conn)
     runs = _runs(conn, settings["max_hr"])
     factor, calibrated_by = correction_factor(runs)

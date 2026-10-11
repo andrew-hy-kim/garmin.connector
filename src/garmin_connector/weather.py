@@ -49,7 +49,8 @@ FINAL_AFTER_DAYS = 7            # recent data is model output; fetch once more a
 CHUNK_DAYS = 92                 # one request covers at most this many days for one place
 TIMEOUT_S = 30
 PAUSE_S = 0.25                  # be gentle with a free service
-INDOOR = ("indoor", "treadmill", "virtual", "pool", "strength", "yoga", "elliptical", "stair")
+INDOOR = ("indoor", "treadmill", "virtual", "pool", "lap_swim", "strength", "yoga", "pilates", "hiit", "cardio",
+          "elliptical", "stair", "floor_climbing", "breathwork")
 
 
 class Busy(RuntimeError):
@@ -322,16 +323,23 @@ def update(conn: sqlite3.Connection, today: date | None = None, redo: bool = Fal
         w["point"] = point
         areas[(round(point[0], 1), round(point[1], 1))].append(w)
     conn.commit()
+    failed_in_a_row = 0
     for key, runs in sorted(areas.items(), key=lambda kv: -len(kv[1])):
         # the request uses the area's first start point, rounded to about a kilometre
         lat, lon = round(runs[0]["point"][0], 2), round(runs[0]["point"][1], 2)
         try:
             hours = fetch_area(session, lat, lon, [r["day"] for r in runs], today)
+            failed_in_a_row = 0
         except Busy as err:
             log.warning("Weather: %s; the rest will be filled in at the next sync.", err)
             break
         except Exception as err:  # offline, or the service is down: try again next time
             log.warning("Couldn't get weather for the area around %.1f, %.1f: %s", key[0], key[1], err)
+            failed_in_a_row += 1
+            if failed_in_a_row >= 3:  # no point waiting out a timeout for every other place too
+                log.warning("Weather: stopped after %d failures in a row; the rest will be filled in at the next sync.",
+                            failed_in_a_row)
+                break
             continue
         for r in runs:
             c = conditions(hours, datetime.fromisoformat(r["start"].replace(" ", "T")[:19]), r["duration"])

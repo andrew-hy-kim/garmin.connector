@@ -33,10 +33,10 @@ const charts = {};
 const filtered = () => state.activities.filter((a) =>
   state.type === "all" ? true : state.type === "run" ? isRun(a.activity_type) : a.activity_type === state.type);
 
+// Built from the calendar date in one step: where a clock change skips midnight (e.g. Chile),
+// moving a 1 a.m. date back with setDate would keep the 1 a.m. and miss the week's key.
 function startOfWeek(d) { // Monday
-  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
-  return x;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
 }
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -1432,7 +1432,6 @@ async function renderLatest() {
   const a = state.activities.find((x) => isRun(x.activity_type)) || state.activities[0];
   if (!a) { el.hidden = true; return; }
   el.hidden = false;
-  const u = Units.get();
   const color = a.workout_type ? typeColor(a.workout_type) : "var(--z2)";
   const stats = [
     ["Distance", fmtDist(a.distance_m)], ["Time", fmtDuration(a.moving_duration_s || a.duration_s)],

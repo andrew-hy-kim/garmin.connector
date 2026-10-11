@@ -162,6 +162,9 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "settings":
         with closing(db.connect(config.db_path())) as conn:
             changes = {"max_hr": args.max_hr, "resting_hr": args.resting_hr, "lthr": args.lthr}
+            error = processing.check_hr_settings(conn, {k: v or None for k, v in changes.items() if v is not None})
+            if error:
+                raise SystemExit(error + " Nothing was changed.")
             for key, value in changes.items():
                 if value is not None:
                     db.set_setting(conn, key, value or None)

@@ -837,3 +837,18 @@ details.more-inline > summary { cursor: pointer; color: var(--link); font-size: 
 details.more-inline[open] > summary { margin-bottom: 8px; }
 .fold-wide { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 28px; }
 @media (max-width: 900px) { .fold-wide { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+
+/* ---------- very narrow screens (an iPhone with Safari's page zoom at 150% or more) ---------- */
+@media (max-width: 340px) {
+  .latest { grid-template-columns: minmax(0, 1fr); }
+  .latest-route { width: 96px; }
+  .latest-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seg { max-width: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .controls { min-width: 0; max-width: 100%; }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { flex: none; }
+  .tiles, .tiles:has(> .tile:nth-child(3):last-child) { grid-template-columns: minmax(0, 1fr); }
+  .tiles.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  table.compare { display: block; max-width: 100%; overflow-x: auto; }
+}

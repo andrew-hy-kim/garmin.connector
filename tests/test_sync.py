@@ -240,6 +240,26 @@ def test_settings_reject_impossible_heart_rates(tmp_path):
     res = client.post("/api/settings", json={"lthr": 195})
     assert res.status_code == 400 and "188" in res.get_json()["error"]
 
+    # "nan" parses as a number but is no heart rate
+    assert client.post("/api/settings", json={"max_hr": "nan"}).status_code == 400
+
+
+def test_cli_settings_refuse_impossible_heart_rates(capsys):
+    from garmin_connector import analysis, cli, config
+
+    db.connect(config.db_path()).close()
+    for args in (["--max-hr", "50"], ["--max-hr", "-5"], ["--resting-hr", "250"], ["--max-hr", "nan"],
+                 ["--max-hr", "150", "--lthr", "160"]):
+        with pytest.raises(SystemExit) as refused:
+            cli.main(["settings", *args])
+        assert "Nothing was changed" in str(refused.value), args
+    with closing(db.connect(config.db_path())) as c:
+        assert db.get_settings(c) == {}
+    cli.main(["settings", "--max-hr", "190"])
+    assert "Max HR: 190 (set by you)" in capsys.readouterr().out
+    # a range of zero (from a value saved before these checks) gives no load instead of a crash
+    assert analysis.trimp_from_summary(1800, 150, 60, 60) == 0.0
+    assert analysis.trimp([0, 1, 2], [150, 150, 150], 60, 60) == 0.0
 
 def test_activities_deleted_in_garmin_are_removed(conn):
     client = FakeGarmin([make_activity(1, days_ago(5)), make_activity(2, days_ago(1)), make_activity(3, days_ago(1))])
@@ -321,3 +341,23 @@ def test_an_activity_without_a_start_time_never_breaks_the_dashboard(tmp_path):
     client = create_app(path).test_client()
     for url in ("/api/activities", "/api/training-load", "/api/insights", "/api/performance"):
         assert client.get(url).status_code == 200, url
+
+
+def test_downloads_stop_when_garmin_keeps_refusing(conn, tmp_path, caplog):
+    class Limited(FakeGarmin):
+        calls = 0
+
+        def download_activity(self, activity_id, dl_fmt=None):
+            Limited.calls += 1
+            if Limited.calls <= 2:  # a couple succeed, then Garmin starts limiting requests
+                return super().download_activity(activity_id, dl_fmt)
+            raise RuntimeError("429 Too Many Requests")
+
+    client = Limited([make_activity(i, days_ago(i)) for i in range(1, 41)])
+    db.upsert_activities(conn, client.activities)
+    assert sync.download_missing_fit(client, conn, tmp_path) == 2
+    assert Limited.calls == 2 + sync.MAX_FAILURES_IN_A_ROW  # not 40
+    assert "will be downloaded at the next sync" in caplog.text
+    # the next sync picks up where this one stopped
+    left = conn.execute("SELECT count(*) FROM activities WHERE fit_path IS NULL").fetchone()[0]
+    assert left == 38

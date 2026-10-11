@@ -1029,4 +1029,9 @@ getJSON(`/api/activities/${activityId}`)
     const m = location.hash.match(/t=(\d+)-(\d+)/);
     if (m && S) selectRange(idxAtT(Number(m[1])), idxAtT(Number(m[2])));
   })
-  .catch((err) => { ready(); $("title").textContent = "Couldn't load this activity"; setStatus(err.message, true); });
+  .catch((err) => {
+    ready(); $("title").textContent = "Couldn't load this activity";
+    $("subtitle").textContent = "It may have been deleted in Garmin Connect, or the link is out of date.";
+    document.querySelectorAll("main > section").forEach((s) => (s.hidden = true)); // empty cards would only confuse
+    setStatus(err.message, true);
+  });

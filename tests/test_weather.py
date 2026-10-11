@@ -206,3 +206,26 @@ def test_runs_filed_without_a_place_are_placed_later(tmp_path):
     r = weather.update(conn, today=today, session=FakeOpenMeteo())
     assert r["weather"] == 2 and weather.for_activity(conn, APPLE + 1)["place_assumed"]
     assert weather.for_activity(conn, APPLE + 2) == {"indoor": True}  # the treadmill stays indoors
+
+
+def test_indoor_garmin_types():
+    for t in ("treadmill_running", "indoor_cycling", "virtual_ride", "lap_swimming", "strength_training", "hiit",
+              "pilates", "indoor_cardio", "floor_climbing", "yoga", "elliptical", "indoor_rowing"):
+        assert weather._indoor(t), t
+    for t in ("running", "trail_running", "track_running", "open_water_swimming", "cycling", "hiking", "walking"):
+        assert not weather._indoor(t), t
+
+
+def test_offline_stops_after_a_few_places(tmp_path):
+    conn = db.connect(tmp_path / "w.db")
+    for i in range(8):  # eight different places
+        _add(conn, i + 1, "2025-05-10 08:15:00", lat=10 + i, lon=20 + i)
+
+    class Offline:
+        calls = 0
+
+        def get(self, *a, **k):
+            Offline.calls += 1
+            raise ConnectionError("no network")
+    assert weather.update(conn, today=date(2026, 10, 5), session=Offline())["weather"] == 0
+    assert Offline.calls == 3

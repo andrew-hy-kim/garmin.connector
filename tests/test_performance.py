@@ -129,3 +129,23 @@ def test_trimp_uses_banisters_constants_for_women():
     x = (160 - 50) / (190 - 50)
     assert men == pytest.approx(60 * x * 0.64 * math.exp(1.92 * x))
     assert women == pytest.approx(60 * x * 0.86 * math.exp(1.67 * x))
+
+
+def test_summary_is_reused_until_the_data_changes(conn, tmp_path, monkeypatch):
+    calls = []
+    real = perf._summary
+    monkeypatch.setattr(perf, "_summary", lambda c, today: calls.append(1) or real(c, today))
+    first = perf.summary(conn)
+    first["vo2max"] = -1  # a caller changing its copy doesn't change the cached one
+    assert perf.summary(conn)["vo2max"] > 0 and len(calls) == 1
+    # a new run, a re-analysis with other settings, or another day all work it out again
+    _add(conn, tmp_path, 999, (date.today() - timedelta(days=1)).isoformat(),
+         *steady_run(minutes=50, pace_mps=3.6, start_hr=150, drift_bpm=6))
+    processing.refresh(conn)
+    assert len(perf.summary(conn)["per_activity"]) == 31 and len(calls) == 2
+    db.set_setting(conn, "max_hr", 200)
+    processing.refresh(conn)
+    perf.summary(conn)
+    assert len(calls) == 3
+    perf.summary(conn, date.today() + timedelta(days=1))
+    assert len(calls) == 4

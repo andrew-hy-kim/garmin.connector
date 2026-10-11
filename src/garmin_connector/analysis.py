@@ -157,6 +157,8 @@ def trimp(t: Sequence[int], hr: Sequence[float | None], resting_hr: float, max_h
     Harder minutes count exponentially more than easy ones. Banister's constants differ for men
     (0.64 e^1.92x) and women (0.86 e^1.67x).
     """
+    if max_hr <= resting_hr:
+        return 0.0  # no heart-rate range to measure effort against
     a, k = _banister(male)
     total = 0.0
     for dt, h in zip(sample_durations(t), hr):
@@ -174,6 +176,8 @@ def _banister(male: bool) -> tuple[float, float]:
 def trimp_from_summary(duration_s: float, avg_hr: float, resting_hr: float, max_hr: float,
                        male: bool = True) -> float:
     """TRIMP for activities without second-by-second data, assuming a steady average HR."""
+    if max_hr <= resting_hr:
+        return 0.0
     reserve = min(max((avg_hr - resting_hr) / (max_hr - resting_hr), 0.0), 1.0)
     a, k = _banister(male)
     return duration_s / 60 * reserve * a * math.exp(k * reserve)

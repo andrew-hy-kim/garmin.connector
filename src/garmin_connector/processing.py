@@ -85,6 +85,32 @@ def effective_settings(conn: sqlite3.Connection) -> dict[str, Any]:
     return settings
 
 
+# What a person can set, and the range that makes sense for each.
+HR_LIMITS = [("max_hr", "Max HR", 120, 230), ("resting_hr", "Resting HR", 30, 100), ("lthr", "Threshold HR", 100, 220)]
+
+
+def check_hr_settings(conn: sqlite3.Connection, values: dict[str, float | None]) -> str | None:
+    """Why these heart-rate changes can't be saved, or None if they can.
+
+    ``values`` maps max_hr / resting_hr / lthr to a number, or to None to go back to Garmin's
+    value (or the estimate). Resting and threshold HR have to stay below the max HR in effect.
+    """
+    for key, label, lo, hi in HR_LIMITS:
+        value = values.get(key)
+        if value is not None and not lo <= value <= hi:  # also refuses nan and infinity
+            return f"{label} should be between {lo} and {hi} bpm."
+    current = effective_settings(conn)
+    # the max HR in effect: the one entered now, else the current one (yours, Garmin's or the
+    # estimate), unless you just cleared yours and the fallback isn't known until saved
+    cleared_mine = "max_hr" in values and values["max_hr"] is None and current["sources"]["max_hr"] == "you"
+    max_hr = values.get("max_hr") or (None if cleared_mine else current["max_hr"])
+    for key, label in (("resting_hr", "Resting HR"), ("lthr", "Threshold HR")):
+        value = values[key] if key in values else current[key]
+        if value and max_hr and value >= max_hr:
+            return f"{label} has to be below your max HR ({round(max_hr)})."
+    return None
+
+
 def _signature(settings: dict[str, Any]) -> str:
     return json.dumps([ANALYSIS_VERSION, settings["max_hr"], settings["resting_hr"], settings["lthr"],
                        settings["zone_floors"], settings.get("garmin_zone_floors"), settings["male"]])

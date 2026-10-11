@@ -23,6 +23,8 @@ OVERLAP_DAYS = 2
 # Small pause between per-day requests so a big first sync doesn't hammer Garmin.
 REQUEST_PAUSE_S = 0.5
 
+MAX_FAILURES_IN_A_ROW = 5  # requests in a row (workout files, VO2 max days) before leaving the rest for the next sync
+
 
 def sync(
     client: Garmin,
@@ -70,14 +72,20 @@ def sync(
     days = vo2max_days_to_check(conn)
     if days:
         log.info("Fetching VO2 max for %d workout days", len(days))
-    n_vo2 = 0
+    n_vo2 = failed_in_a_row = 0
     for n, day in enumerate(days, 1):
         try:
             n_vo2 += db.upsert_vo2max(conn, db.vo2max_rows(client.get_max_metrics(day)))
             conn.execute("INSERT OR IGNORE INTO vo2max_checked (date) VALUES (?)", (day,))
             conn.commit()
+            failed_in_a_row = 0
         except Exception as err:  # one bad day shouldn't stop the whole sync
             log.warning("Couldn't fetch VO2 max for %s: %s", day, err)
+            failed_in_a_row += 1
+            if failed_in_a_row >= MAX_FAILURES_IN_A_ROW:
+                log.warning("Stopped fetching VO2 max after %d failures in a row; the other %d days "
+                            "will be checked at the next sync.", failed_in_a_row, len(days) - n)
+                break
         if n % 25 == 0:
             log.info("VO2 max: checked %d of %d days", n, len(days))
         time.sleep(REQUEST_PAUSE_S)
@@ -218,7 +226,7 @@ def download_missing_fit(client: Garmin, conn: sqlite3.Connection, fit_dir: Path
         "AND coalesce(json_extract(raw_json, '$.manualActivity'), 0) = 0 "
         f"AND activity_id < {apple.APPLE_ID_BASE}"  # Apple Health workouts have no Garmin file
     )]
-    count = 0
+    count = failed_in_a_row = 0
     if missing:
         log.info("Downloading %d workout files", len(missing))
     for n, activity_id in enumerate(missing, 1):
@@ -229,8 +237,15 @@ def download_missing_fit(client: Garmin, conn: sqlite3.Connection, fit_dir: Path
             path = _save_fit(data, activity_id, fit_dir)
             db.set_fit_path(conn, activity_id, str(path))
             count += 1
+            failed_in_a_row = 0
         except Exception as err:
             log.warning("Couldn't download FIT for activity %s: %s", activity_id, err)
+            failed_in_a_row += 1
+            # Garmin limiting requests, or the connection gone: asking for hundreds more won't help
+            if failed_in_a_row >= MAX_FAILURES_IN_A_ROW:
+                log.warning("Stopped downloading after %d failures in a row; the other %d workout files "
+                            "will be downloaded at the next sync.", failed_in_a_row, len(missing) - n)
+                break
         time.sleep(REQUEST_PAUSE_S)
     return count
 
