@@ -221,9 +221,11 @@ Ran with an Apple Watch before your Garmin? Bring those workouts in once:
 1. On your iPhone: **Health** app → your picture (top right) → **Export All Health Data**.
    It takes a few minutes; AirDrop or save the `export.zip` it makes to your Mac.
 2. On the Mac: run the setup line (see [Setup](#setup-once)). It finds the newest
-   `export.zip` in Downloads and imports it, once: running it again later skips an export
-   it has already imported, and picks up a newer one. Or import it yourself:
-   `garmin import-apple ~/Downloads/export.zip`
+   `export.zip` in Downloads and imports it. The app remembers what it imported, so running
+   the setup line again skips it; it reads the file again only for a newer export, or once
+   after an update that improves how exports are read. Or import it yourself:
+   `garmin import-apple ~/Downloads/export.zip` (add `--if-needed` to skip it when it's
+   already in). Once imported, the workouts live in the dashboard, so you can delete the zip.
 
 Runs, rides, walks and hikes from before your first Garmin activity come in with their GPS
 route, heart rate, cadence and power, and are analysed like any other workout: zones,

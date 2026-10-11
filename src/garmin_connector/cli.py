@@ -9,6 +9,7 @@ import webbrowser
 import zipfile
 from contextlib import closing
 from datetime import date
+from pathlib import Path
 from xml.etree import ElementTree
 
 from . import apple, auth, config, db, export, hrcheck, processing, sync, weather
@@ -51,6 +52,8 @@ def main(argv: list[str] | None = None) -> None:
     p_apple.add_argument("path", help="export.zip from the Health app (or the unzipped folder)")
     p_apple.add_argument("--before", type=_day,
                          help="only workouts before this date (YYYY-MM-DD); default: your first Garmin activity")
+    p_apple.add_argument("--if-needed", action="store_true",
+                         help="skip it if this export was already imported (and nothing about reading it changed)")
     p_weather = sub.add_parser("weather", help="look up the weather for workouts that don't have it yet")
     p_weather.add_argument("--redo", action="store_true", help="look up every workout again")
     sub.add_parser("set-api-key", help="save an Anthropic API key for 'Ask Claude' reviews (macOS Keychain)")
@@ -103,9 +106,17 @@ def main(argv: list[str] | None = None) -> None:
             hrcheck.print_report(conn, "km" if args.km else "mi")
     elif args.command == "import-apple":
         with closing(db.connect(config.db_path())) as conn:
+            before = args.before.isoformat() if args.before else None
+            try:
+                signature = apple.export_signature(args.path, before)
+            except OSError:
+                signature = None  # the import below explains what's wrong with the path
+            if args.if_needed and signature and db.get_text_setting(conn, "apple_import") == signature:
+                print(f"Apple Health export already imported ({Path(args.path).name}); nothing new to bring in.")
+                return
             print("Reading your Apple Health export (a big one takes a minute or two)…")
             try:
-                r = apple.import_export(conn, args.path, before=args.before.isoformat() if args.before else None)
+                r = apple.import_export(conn, args.path, before=before)
             except zipfile.BadZipFile:
                 raise SystemExit("That file isn't a zip, or it's damaged. Export it again from the Health app "
                                  "(your picture → Export All Health Data) and use the export.zip it makes.")
@@ -134,6 +145,8 @@ def main(argv: list[str] | None = None) -> None:
             processing.refresh(conn)
             weather.update_quietly(conn)
             export.write_quietly(conn)
+            if signature:
+                db.set_text_setting(conn, "apple_import", signature)
             print("Done. They're in the dashboard alongside your Garmin runs.")
     elif args.command == "weather":
         with closing(db.connect(config.db_path())) as conn:

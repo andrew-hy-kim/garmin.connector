@@ -362,3 +362,28 @@ def test_cli_explains_a_missing_file_and_a_bad_date(tmp_path, capsys):
     with pytest.raises(SystemExit):
         cli.main(["sync", "--since", "yesterday"])
     assert "'yesterday' isn't a date" in capsys.readouterr().err
+
+
+def test_if_needed_imports_an_export_once(tmp_path, capsys, monkeypatch):
+    import os
+
+    from garmin_connector import cli
+
+    path = export_zip(tmp_path / "export.zip", [run(datetime(2021, 5, 1, 7, 0, tzinfo=TZ))])
+    cli.main(["import-apple", "--if-needed", str(path)])
+    assert "Imported 1 workouts" in capsys.readouterr().out
+    cli.main(["import-apple", "--if-needed", str(path)])
+    assert "already imported" in capsys.readouterr().out
+    # a plain import counts too: the setup line won't redo it afterwards
+    cli.main(["import-apple", str(path)])
+    cli.main(["import-apple", "--if-needed", str(path)])
+    assert "already imported" in capsys.readouterr().out
+    # a newer export is read
+    export_zip(path, [run(datetime(2021, 5, 1, 7, 0, tzinfo=TZ)), run(datetime(2021, 5, 3, 7, 0, tzinfo=TZ))])
+    os.utime(path, (path.stat().st_atime, path.stat().st_mtime + 60))
+    cli.main(["import-apple", "--if-needed", str(path)])
+    assert "Imported" in capsys.readouterr().out
+    # and so is the same one once more after an update changes how exports are read
+    monkeypatch.setattr(apple, "READER_VERSION", apple.READER_VERSION + 1)
+    cli.main(["import-apple", "--if-needed", str(path)])
+    assert "Reading your Apple Health export" in capsys.readouterr().out

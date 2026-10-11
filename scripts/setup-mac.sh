@@ -9,7 +9,7 @@
 # history if there's a Health export (export.zip) in Downloads, makes the Garmin Dashboard
 # app (Applications, plus a Desktop shortcut) and opens the dashboard. Safe to run again:
 # it updates the app, skips the login if you're already logged in and skips an Apple export
-# it has already imported, so it doubles as the update command.
+# that's already in the dashboard, so it doubles as the update command.
 set -euo pipefail
 
 REPO_URL="https://github.com/andrew-hy-kim/garmin.connector.git"
@@ -62,28 +62,18 @@ step "Syncing your workouts (first time: about a second per workout)"
 garmin sync
 
 # Apple Watch history: the newest Health export in Downloads (export.zip, or "export 2.zip" when
-# there are several), imported once. It's imported again only when a newer export turns up, so
-# running this script again to update the app doesn't redo it.
-DATA_DIR="${GARMIN_CONNECTOR_HOME:-$HOME/.garmin-connector}"
-APPLE_STAMP="$DATA_DIR/apple-import.done"
+# there are several). The app remembers what it imported, so this reads the file only the first
+# time, when a newer export turns up, or when an update improved how exports are read.
 newest=""
 for f in "$HOME"/Downloads/export*.zip; do
   [[ -f "$f" ]] || continue
   if [[ -z "$newest" || "$f" -nt "$newest" ]]; then newest="$f"; fi
 done
 if [[ -n "$newest" ]]; then
-  if [[ "$(uname)" == Darwin ]]; then size_time=$(stat -f '%z %m' "$newest"); else size_time=$(stat -c '%s %Y' "$newest"); fi
-  stamp="$newest $size_time"
-  if [[ "$(cat "$APPLE_STAMP" 2>/dev/null)" == "$stamp" ]]; then
-    echo "Apple Health export already imported ($(basename "$newest"))."
-  else
-    step "Importing your Apple Watch history from $(basename "$newest")"
-    if garmin import-apple "$newest"; then
-      mkdir -p "$DATA_DIR" && echo "$stamp" > "$APPLE_STAMP"
-    else
-      echo "The Apple import didn't work (details above). Everything else is set up; to try again:"
-      echo "  garmin import-apple \"$newest\""
-    fi
+  step "Apple Watch history ($(basename "$newest"))"
+  if ! garmin import-apple --if-needed "$newest"; then
+    echo "The Apple import didn't work (details above). Everything else is set up; to try again:"
+    echo "  garmin import-apple \"$newest\""
   fi
 fi
 

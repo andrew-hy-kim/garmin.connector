@@ -41,6 +41,9 @@ from . import db
 log = logging.getLogger(__name__)
 
 APPLE_ID_BASE = 8_000_000_000_000_000  # + start time (Unix seconds); Garmin's IDs are ~1e10
+# Bump when reading the export changes (not the analysis: that re-runs from the database), so
+# `garmin import-apple --if-needed` reads an export it has already imported once more.
+READER_VERSION = 2
 KINDS = {  # Apple's workout type -> (outdoor type, indoor type), in Garmin's names
     "HKWorkoutActivityTypeRunning": ("running", "treadmill_running"),
     "HKWorkoutActivityTypeCycling": ("cycling", "indoor_cycling"),
@@ -597,3 +600,11 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
     counts["vo2max"] = len(rows)
     conn.commit()
     return counts
+
+
+def export_signature(path: str | Path, before: str | None = None) -> str:
+    """Which export (by size and time saved), read how: the same one means nothing new to import."""
+    p = Path(path)
+    f = p / "export.xml" if p.is_dir() else p
+    st = f.stat()
+    return json.dumps({"size": st.st_size, "mtime": int(st.st_mtime), "before": before, "reader": READER_VERSION})
