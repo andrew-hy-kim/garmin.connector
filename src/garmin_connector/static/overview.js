@@ -1098,47 +1098,6 @@ function renderRaces() {
   $("races-foot").hidden = !$("races-foot").innerHTML;
 }
 
-// ---------- suggested next workouts (in Coach notes) ----------
-const NEXT_COUNTS = [3, 5, 7];
-const nextCount = () => { try { return Number(localStorage.getItem("nextCount")) || 3; } catch { return 3; } };
-
-function renderNextUp() {
-  if (!$("next-up")) return;
-  const el = $("next-up");
-  const sg = state.suggestions;
-  if (!sg || !sg.workouts.length) {
-    el.innerHTML = sg && sg.basis ? `<h3 class="sub-h" style="margin-top:4px">Your next workouts</h3><p class="hint">${esc(sg.basis)}</p>` : "";
-    return;
-  }
-  // the first one is already in the Readiness card on Today; don't show it twice
-  const skip = $("readiness") && todaysSession() ? 1 : 0;
-  const list = sg.workouts.slice(skip);
-  if (!list.length) { el.innerHTML = ""; return; }
-  const n = Math.min(nextCount(), list.length);
-  const today = isoDay(new Date());
-  const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return isoDay(d); })();
-  const when = (w) => (w.date === today ? "Today" : w.date === tomorrow ? "Tomorrow"
-    : new Date(w.date + "T12:00").toLocaleDateString(undefined, { weekday: "short" }));
-
-  el.innerHTML = `<div class="toolbar" style="margin:4px 0 2px">
-      <h3 class="sub-h" style="margin:0">${skip ? "After that" : `Your next ${n === 1 ? "workout" : `${n} workouts`}`}</h3><span class="spacer"></span>
-      <div class="seg" role="group" aria-label="How many workouts to suggest">${NEXT_COUNTS.map((c) =>
-        `<button data-n="${c}" aria-pressed="${c === nextCount()}">${c}</button>`).join("")}</div></div>
-    <div class="nx-list">${list.slice(0, n).map((w, k) => `<div class="nx" style="--c:${typeColor(w.type)}">
-      <div class="when"><b>${when(w)}</b><span>${new Date(w.date + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span></div>
-      <div class="what"><b>${esc(w.title)}</b>${sessionDetails(w) ? `<div class="d">${esc(sessionDetails(w))}</div>` : ""}
-        ${sessionTarget(w) ? `<div class="tgt">${esc(sessionTarget(w))}</div>` : ""}${
-        k && list[k - 1].why === w.why ? "" : `<div class="why">${esc(w.why)}</div>`}</div>
-      <div class="mins">${w.minutes} min</div></div>`).join("")}</div>
-    <details class="more-inline"><summary>How these are picked</summary><p class="hint" style="margin:0">${esc(sg.basis)}</p></details>`;
-}
-$("next-up")?.addEventListener("click", (e) => {
-  const n = Number(e.target.dataset.n);
-  if (!n) return;
-  try { localStorage.setItem("nextCount", n); } catch {}
-  renderNextUp();
-});
-
 // ---------- statistics: totals by year, month or week ----------
 let statsBy = (() => { try { return localStorage.getItem("statsBy") || "year"; } catch { return "year"; } })();
 // Distance so far this year, day by day, against last year and your best year
@@ -1269,14 +1228,6 @@ function loadExtras(series) {
   return { monotony, strain: avg * 7 * monotony, weekLoad: avg * 7, restDays, balanced };
 }
 
-// Today's session: the first suggested workout, if it's for today, else the next one
-function todaysSession() {
-  const w = state.suggestions?.workouts?.[0];
-  if (w && w.date === isoDay(new Date())) return { session: w, from: "suggestion", done: false };
-  if (w) return { session: w, from: "next", done: false };
-  return null;
-}
-
 const READY = {
   fresh: ["Fresh", "A good day for a hard session or a race."],
   neutral: ["Balanced", "Train normally: an easy run or your next workout."],
@@ -1301,30 +1252,18 @@ function renderReadiness() {
     advice = "Your training load is low after the break, so the numbers look fresh. Keep building gradually with easy running.";
   }
   const x = warmingUp() ? null : loadExtras(state.load);  // days to fresh, balanced load: not this early
-  const t = todaysSession();
   const sign = fmtSigned;
   const facts = [
     `Base <b>${today.fitness.toFixed(0)}</b>`, `Fatigue <b>${today.fatigue.toFixed(0)}</b>`,
     x && x.restDays ? `<b>${x.restDays}</b> easy day${x.restDays > 1 ? "s" : ""} to fresh` : "",
     x ? `Up to <b>${Math.round(x.balanced)}</b> load today stays balanced` : "",
   ].filter(Boolean);
-  let session = "";
-  if (t) {
-    const d = t.session;
-    session = d.type === "rest"
-      ? `<div class="rd-session"><span class="eyebrow">Today</span><b>Rest or cross-train</b><span class="dim">Recovery is when the training sinks in.</span></div>`
-      : `<div class="rd-session" style="--c:${typeColor(d.type)}"><span class="eyebrow">${t.from === "next"
-          ? `Next up · ${esc(new Date(d.date + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }))}`
-          : "Today · suggested"}${t.done ? ` · <span class="tick">✓ Done</span>` : ""}</span>
-        <b>${esc(d.title)}${d.minutes ? ` · ${d.minutes} min` : ""}</b>${sessionDetails(d) ? `<span>${esc(sessionDetails(d))}</span>` : ""}
-        ${sessionTarget(d) ? `<span class="dim">${esc(sessionTarget(d))}</span>` : ""}</div>`;
-  }
   el.innerHTML = `<div class="rd-main" style="--c:var(${textColor(st)})">
       <span class="eyebrow">Readiness</span>
       <div class="rd-word"><b>${word}</b><span class="rd-form" title="Form: base minus fatigue">Form ${sign(today.form)}</span></div>
       <p>${advice}</p>
       <div class="rd-facts">${facts.map((f) => `<span>${f}</span>`).join("")}</div>
-    </div>${session}`;
+    </div>`;
 }
 
 // ---------- Progress: are you getting fitter? ----------
@@ -1659,16 +1598,16 @@ function render() {
   if ($("welcome")) $("welcome").hidden = !empty || PHONE;
   renderToday();
   renderReadiness(); renderLatest(); renderConsistency();
-  renderTiles(); renderNextUp(); renderRaces(); renderExplain(); renderCompare();
+  renderTiles(); renderRaces(); renderExplain(); renderCompare();
   if ($("notes")) renderNotes($("notes"), $("readiness") ? state.insights.filter((n) => !n.title.startsWith("Form:")) : state.insights);
   renderRecent(); renderCharts(); renderStats(); renderSettings(); renderTable(); updateJump();
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes, suggestions, races, perf, gear, focus] = await Promise.all(
+  const [acts, vo2, loadSeries, records, settings, notes, races, perf, gear, focus] = await Promise.all(
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights"].map((u) => getJSON(u))
-      .concat(["/api/suggestions", "/api/race-predictions", "/api/performance", "/api/gear", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, suggestions, races, perf, gear, focus });
+      .concat(["/api/race-predictions", "/api/performance", "/api/gear", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, races, perf, gear, focus });
   populateTypes(); render(); ready();
   // Phone: confirm a data import that just happened
   try {

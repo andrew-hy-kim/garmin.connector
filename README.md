@@ -11,13 +11,7 @@ intervals, Speed session, Fartlek, Race. Each tag comes with the reason. Effort 
 not structure: surges that never lift heart rate out of the easy zone (run/walk, relaxed
 pickups) are an easy run. Runs with more than 15% walking are left out of effective VO2max,
 aerobic efficiency and HR drift, since walk breaks would read as lost fitness; after a break,
-the coach eases off workout suggestions and mileage warnings while you rebuild.
-
-**Your next workouts:** at the top of the coach notes, your next 3, 5 or 7 sessions, each with
-a date, length, how to run it, HR/pace target and why it was picked. They're built from your last 8 weeks:
-the days you usually run, your usual long-run day and lengths, and the hard sessions you do
-(on your usual days, rotated and gently progressed), with hard days 48 hours apart, never the
-day before the long run, and none while you're overreaching or early in a comeback.
+the coach eases off mileage warnings while you rebuild.
 
 **Coach notes:** feedback on each workout and on your training overall (easy days drifting
 too hard, HR drift, rep pacing, efficiency vs. your usual, 80/20 balance, mileage jumps,
@@ -32,7 +26,7 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
 **Today**: how you're doing and what to do now
 - **Readiness:** fresh / balanced / building / tired from your form, with base and fatigue,
   how many easy days until you're fresh, and the most training load you can do today and stay
-  balanced, next to today's suggested session (or the next one). It's all
+  balanced. It's all
   worked out from your workouts, so it doesn't need the watch worn day and night.
 - **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
   its coach notes
@@ -261,7 +255,7 @@ opens the dashboard.
 
 ## On your iPhone
 
-The phone app is the same dashboard (overview, workouts, suggested workouts, coach notes and
+The phone app is the same dashboard (overview, workouts, coach notes and
 saved Claude reviews) as a home-screen app. It's **view-only**: syncing, changing settings
 and asking Claude happen on the Mac. It works offline; only the route map's
 background needs a connection.

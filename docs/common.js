@@ -371,7 +371,7 @@ async function setupAiBox(el, scope, activityId) {
   try { show(await getJSON(`/api/ai/review?${params()}`)); } catch (err) { el.innerHTML = ""; }
 }
 
-// Workout type -> the HR zone it mostly trains, so tags, suggested sessions and charts share one color language.
+// Workout type -> the HR zone it mostly trains, so tags and charts share one color language.
 const TYPE_ZONE = {
   recovery: 1, easy: 2, easy_strides: 2, long: 2, progression: 3, tempo: 3, threshold: 4, intervals_threshold: 4,
   fartlek: 4, intervals_vo2: 5, speed: 5, race: 5, vo2: 5, hills: 5,
@@ -379,15 +379,6 @@ const TYPE_ZONE = {
 const typeColor = (type) => (TYPE_ZONE[type] ? `var(--z${TYPE_ZONE[type]})` : "var(--z1)");
 const tagHtml = (label, quality, type) => (label
   ? `<span class="tag ${quality ? "q" : ""}" style="--c:${typeColor(type)}">${esc(label)}</span>` : "");
-// A suggested session, said once: "Easy run" already means easy and conversational,
-// so that sentence isn't repeated on every easy day.
-function sessionDetails(d) {
-  if (!d.details) return "";
-  return ["easy", "long"].includes(d.type)
-    ? d.details.replace(/^Easy and conversational( the whole way)?\.\s*/, "") : d.details;
-}
-// "HR under 153 bpm · about 8:42 /mi"
-const sessionTarget = (d) => [d.hr ? `HR ${d.hr}` : "", d.speed ? `about ${fmtPace(d.speed)}` : ""].filter(Boolean).join(" · ");
 const QUALITY = new Set(["race", "progression", "tempo", "threshold", "intervals_threshold", "intervals_vo2", "speed", "fartlek"]);
 
 // A link to a section that's folded away opens it

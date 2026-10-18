@@ -6,7 +6,7 @@ import pytest
 
 from fitgen import steady_run
 from garmin_connector import db, processing, races, sync
-from test_sessions import _add
+from runhelp import _add
 
 
 def test_riegel():
