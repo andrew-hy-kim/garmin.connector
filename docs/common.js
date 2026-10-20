@@ -294,7 +294,7 @@ function weatherShort(w, u = Units.get()) {
   return `${s ? s[2] + " " : ""}${fmtTemp(w.temp_c, u)}`;
 }
 
-// ---------- coach notes & Claude reviews ----------
+// ---------- coach notes ----------
 const LEVEL_LABEL = { good: "Good", info: "Note", warn: "Watch" };
 const LEVEL_ICON = { good: "✓", info: "i", warn: "!" };
 function renderNotes(el, notes, emptyText = "Nothing to flag yet. Notes appear as more runs are analyzed.") {
@@ -306,69 +306,6 @@ function renderNotes(el, notes, emptyText = "Nothing to flag yet. Notes appear a
       <div class="t">${esc(unitText(n.title))}</div>
       ${n.detail ? `<div class="d">${esc(unitText(n.detail))}</div>` : ""}</div>`).join("")
     : `<p class="hint" style="margin:0">${esc(emptyText)}</p>`;
-}
-
-// Minimal Markdown (headings, lists, bold/italic, paragraphs) for Claude's reviews. Escapes first.
-function markdown(src) {
-  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>");
-  const out = []; let list = null, para = [];
-  const flushPara = () => { if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; } };
-  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map((i) => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`); list = null; } };
-  for (const raw of src.split("\n")) {
-    const line = raw.trim();
-    let m;
-    if (!line) { flushPara(); flushList(); }
-    else if ((m = line.match(/^#{1,6}\s+(.*)/))) { flushPara(); flushList(); out.push(`<h4>${inline(m[1])}</h4>`); }
-    else if ((m = line.match(/^[-*]\s+(.*)/)) || (m = line.match(/^\d+[.)]\s+(.*)/))) {
-      flushPara();
-      const tag = /^\d/.test(line) ? "ol" : "ul";
-      if (!list || list.tag !== tag) { flushList(); list = { tag, items: [] }; }
-      list.items.push(m[1]);
-    } else { flushList(); para.push(line); }
-  }
-  flushPara(); flushList();
-  return out.join("");
-}
-
-// Reviews are stamped in UTC ("2026-10-03 14:22:11"); show them in your own time
-function reviewDate(utc) {
-  const d = new Date(String(utc).replace(" ", "T") + "Z");
-  return isNaN(d) ? `on ${utc}` : `on ${d.toLocaleDateString(undefined, { dateStyle: "medium" })} at ${d.toLocaleTimeString(undefined, { timeStyle: "short" })}`;
-}
-
-// "Ask Claude" box: shows a saved review, or a button to request one.
-async function setupAiBox(el, scope, activityId) {
-  const params = () => new URLSearchParams({ scope, units: Units.get(), ...(activityId ? { activity_id: activityId } : {}) });
-  const show = (data) => {
-    if (PHONE) {
-      // Reviews are written on the Mac; the phone shows the saved one, if any.
-      const r = data.review;
-      el.innerHTML = r
-        ? `<div class="md">${markdown(r.text)}</div><div class="meta">Written by Claude ${esc(reviewDate(r.created_at))}. AI can make mistakes; it only sees the numbers here.</div>`
-        : "";
-      return;
-    }
-    if (!data.configured) {
-      el.innerHTML = `<details><summary>Get a written coach's review from Claude</summary><p class="hint">Add an Anthropic API key once with
-        <code>garmin set-api-key</code>, then reload. Your workout summaries (no GPS) are only sent when you click the button, and each review costs a few cents.</p></details>`;
-      return;
-    }
-    const r = data.review;
-    el.innerHTML = (r ? `<div class="md">${markdown(r.text)}</div><div class="meta">Written by Claude ${esc(reviewDate(r.created_at))}. AI can make mistakes; it only sees the numbers here.</div>` : "") +
-      `<button class="ai-btn" style="margin-top:10px">${r ? "Get a fresh review" : "Ask Claude for a coach's review"}</button>`;
-    el.querySelector(".ai-btn").onclick = async (e) => {
-      e.target.disabled = true; e.target.textContent = "Claude is reviewing… (about 20–60 seconds)";
-      try {
-        show(await getJSON("/api/ai/review", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scope, activity_id: activityId, units: Units.get() }) }));
-      } catch (err) {
-        e.target.disabled = false; e.target.textContent = "Try again";
-        el.querySelector(":scope > .warn")?.remove(); // one message, not a stack of them
-        el.insertAdjacentHTML("afterbegin", `<div class="warn">${esc(err.message)}</div>`);
-      }
-    };
-  };
-  try { show(await getJSON(`/api/ai/review?${params()}`)); } catch (err) { el.innerHTML = ""; }
 }
 
 // Workout type -> the HR zone it mostly trains, so tags and charts share one color language.

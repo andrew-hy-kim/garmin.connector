@@ -124,7 +124,6 @@ function renderHeader() {
     timeRange(a),
     prettyType(a.activity_type), a.location,
     D.source === "apple" ? "Apple Watch" : D.streams && hasHr() ? (D.external_hr ? "HR: arm band / strap" : "HR: wrist") : null,
-    ...(D.gear || []).map((g) => `${(g.type || "").toLowerCase() === "shoes" ? "Shoes" : g.type || "Gear"}: ${g.name}`),
   ].filter(Boolean).join(" · ");
 }
 
@@ -836,7 +835,6 @@ function renderAll() {
   renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderConditions(); renderZones(); if (S) renderPaceZones(); else $("pace-zones-card").hidden = true;
   renderLaps(); renderSplits(); renderEfforts(); drawSameRoute(); if (allActivities) renderKind(allActivities);
   renderNotes($("notes"), (D.insights || []).filter((n) => !n.title.startsWith("Tagged:")), "Nothing stands out in this workout.");
-  setupAiBox($("ai"), "activity", activityId);
   $("charts-card").style.display = D.streams ? "" : "none";
   if (D.streams) { buildPanels(); drawAll(); renderSelection(); }
 }

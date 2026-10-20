@@ -56,8 +56,6 @@ def main(argv: list[str] | None = None) -> None:
                          help="skip it if this export was already imported (and nothing about reading it changed)")
     p_weather = sub.add_parser("weather", help="look up the weather for workouts that don't have it yet")
     p_weather.add_argument("--redo", action="store_true", help="look up every workout again")
-    sub.add_parser("set-api-key", help="save an Anthropic API key for 'Ask Claude' reviews (macOS Keychain)")
-    sub.add_parser("remove-api-key", help="forget the saved Anthropic API key")
 
     p_set = sub.add_parser("settings", help="show or change heart-rate settings used for zones and load")
     p_set.add_argument("--max-hr", type=float, help="your max heart rate (0 = use Garmin's / estimate)")
@@ -157,21 +155,6 @@ def main(argv: list[str] | None = None) -> None:
                   + (f"; {r['no_gps']} without GPS" if r["no_gps"] else "")
                   + (f"; {r['missing']} not available yet" if r["missing"] else "") + ".")
             export.write_quietly(conn)
-    elif args.command == "set-api-key":
-        import getpass
-
-        from . import ai
-
-        key = getpass.getpass("Anthropic API key (input hidden): ").strip()
-        if not key:
-            raise SystemExit("No key entered.")
-        ai.set_api_key(key)
-        print("Saved to your macOS Keychain. 'Ask Claude' is now available in the dashboard.")
-    elif args.command == "remove-api-key":
-        from . import ai
-
-        ai.remove_api_key()
-        print("Anthropic API key removed.")
     elif args.command == "settings":
         with closing(db.connect(config.db_path())) as conn:
             changes = {"max_hr": args.max_hr, "resting_hr": args.resting_hr, "lthr": args.lthr}

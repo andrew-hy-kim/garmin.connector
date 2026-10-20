@@ -13,7 +13,6 @@ import zlib
 from pathlib import Path
 from typing import Any, Iterable
 
-from . import gear
 
 log = logging.getLogger(__name__)
 
@@ -91,12 +90,6 @@ CREATE TABLE IF NOT EXISTS vo2max_checked (
     date  TEXT PRIMARY KEY
 );
 
--- Saved Claude reviews (see ai.py), so each one is only paid for once.
-CREATE TABLE IF NOT EXISTS ai_reviews (
-    key         TEXT PRIMARY KEY,
-    created_at  TEXT NOT NULL,
-    text        TEXT NOT NULL
-);
 
 -- Phone-sized copies of each workout's streams (see export.py), so exports only
 -- process new workouts. ``key`` changes whenever the export format does.
@@ -136,6 +129,11 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- Daily resting HR / HRV / sleep, fetched by an earlier version; no longer used.
 DROP TABLE IF EXISTS daily_health;
+-- Saved Claude reviews, from a feature that has since been removed.
+DROP TABLE IF EXISTS ai_reviews;
+-- Shoes from Garmin Connect, from a feature that has since been removed.
+DROP TABLE IF EXISTS gear_activity;
+DROP TABLE IF EXISTS gear;
 """
 
 # (column, key in Garmin's activity JSON)
@@ -167,7 +165,7 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if str(path) != ":memory:":
         conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA + gear.SCHEMA)
+    conn.executescript(SCHEMA)
     return conn
 
 
@@ -259,11 +257,9 @@ def upsert_race_predictions(conn: sqlite3.Connection, rows: list[dict[str, Any]]
 def delete_activities(conn: sqlite3.Connection, ids: Iterable[int]) -> int:
     """Remove activities and everything derived from them (the .fit files on disk are left alone)."""
     ids = list(ids)
-    for table in ("streams", "laps", "activity_metrics", "export_streams", "heatmap_tracks", "gear_activity",
-                  "weather", "activities"):
+    for table in ("streams", "laps", "activity_metrics", "export_streams", "heatmap_tracks", "weather",
+                  "activities"):
         conn.executemany(f"DELETE FROM {table} WHERE activity_id = ?", [(i,) for i in ids])
-    conn.executemany("DELETE FROM ai_reviews WHERE key = ? OR key = ?",
-                     [(f"activity:{i}:mi", f"activity:{i}:km") for i in ids])
     conn.commit()
     return len(ids)
 

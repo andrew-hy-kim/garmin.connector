@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import json
 from datetime import date, datetime, timedelta, timezone
-from types import SimpleNamespace
 
 import pytest
 
 from fitgen import intervals, steady_run, write_fit
-from garmin_connector import ai, db, insights, processing
+from garmin_connector import db, insights, processing
 
 
 def _add_run(conn, tmp_path, activity_id, day, samples, laps, **extra):
@@ -61,35 +59,6 @@ def test_overview_insights_and_form_state(conn):
     assert insights.form_state(100, 0)["key"] == "neutral"
     assert insights.form_state(100, -20)["key"] == "productive"
     assert insights.form_state(100, -40)["key"] == "overreaching"
-
-
-def test_ai_review_request_and_cache(conn, monkeypatch):
-    calls = []
-
-    class FakeMessages:
-        def create(self, **kwargs):
-            calls.append(kwargs)
-            return SimpleNamespace(stop_reason="end_turn",
-                                   content=[SimpleNamespace(type="text", text="### Summary\nNice work.")])
-
-    monkeypatch.setattr(ai, "_client", lambda: SimpleNamespace(beta=SimpleNamespace(messages=FakeMessages())))
-    result = ai.review(conn, "activity", 200, "mi")
-    assert result["text"].startswith("### Summary")
-
-    sent = calls[0]
-    assert sent["model"] == "claude-opus-5-5" and sent["fallbacks"] == "default"
-    assert sent["betas"] == ["server-side-fallback-2026-07-01"]
-    payload = sent["messages"][0]["content"]
-    data = json.loads(payload.split("<training_data>\n")[1].split("\n</training_data>")[0])
-    assert data["workout"]["tag"] == "VO2 max intervals" and len(data["workout"]["reps"]) == 6
-    assert '"lat"' not in payload and '"lon"' not in payload and "position" not in payload  # no GPS sent
-
-    # Saved locally, so reopening the page doesn't call the API again
-    assert ai.cached_review(conn, "activity", 200, "mi")["text"] == result["text"]
-    assert ai.cached_review(conn, "activity", 200, "km") is None
-
-    ai.review(conn, "overview", None, "km")
-    assert "activities_last_8_weeks" in calls[1]["messages"][0]["content"]
 
 
 def test_comeback_after_injury(tmp_path):

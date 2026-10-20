@@ -23,7 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import api, config, db, focus, gear, heatmap, insights, performance, processing, races
+from . import api, config, db, focus, heatmap, insights, performance, processing, races
 
 log = logging.getLogger(__name__)
 
@@ -120,8 +120,6 @@ def snapshot(conn: sqlite3.Connection) -> dict[str, Any]:
                 d["streams"], d["external_hr"] = phone_streams(conn, a["activity_id"])
                 d["sample_step_s"] = STEP_S
             details[str(a["activity_id"])] = d
-    reviews = {r[0]: {"created_at": r[1], "text": r[2]}
-               for r in conn.execute("SELECT key, created_at, text FROM ai_reviews")}
     return {
         "format": "garmin-dashboard",
         "version": FORMAT_VERSION,
@@ -135,9 +133,7 @@ def snapshot(conn: sqlite3.Connection) -> dict[str, Any]:
             "insights": insights.overview_insights(conn),
             "race_predictions": races.predictions(conn, perf=perf),
             "performance": {k: v for k, v in perf.items() if k != "per_activity"},
-            "gear": gear.summary(conn),
             "focus": focus.areas(conn, perf),
-            "ai_reviews": reviews,
         },
         "details": details,
         # stored on the phone apart from the overview, so pages that don't show it load as fast as before

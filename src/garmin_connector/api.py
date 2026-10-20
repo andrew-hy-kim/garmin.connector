@@ -11,7 +11,7 @@ import sqlite3
 from dataclasses import asdict
 from typing import Any
 
-from . import analysis, apple, db, gear, insights, performance, processing, weather
+from . import analysis, apple, db, insights, performance, processing, weather
 
 
 def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -120,7 +120,6 @@ def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bo
     result["vo2max_shape"] = perf["vo2max"]
     result["paces"] = perf.get("paces") or []
     result["pace_bounds_mps"] = perf.get("pace_bounds_mps")
-    result["gear"] = gear.for_activity(conn, activity_id)
     result["weather"] = weather.for_activity(conn, activity_id)
     raw = conn.execute("SELECT raw_json FROM activities WHERE activity_id = ?", (activity_id,)).fetchone()
     result["watch"] = watch_extras(raw[0] if raw else None)

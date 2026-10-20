@@ -7,10 +7,9 @@ import threading
 from contextlib import closing
 from pathlib import Path
 
-import anthropic
 from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 
-from . import ai, api, auth, config, db, export, focus, gear, heatmap, insights, performance, processing, races, sync
+from . import api, auth, config, db, export, focus, heatmap, insights, performance, processing, races, sync
 
 log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
@@ -31,7 +30,7 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     def only_this_mac():
         """The dashboard answers only to itself. Any website you visit can send requests to
         127.0.0.1: a page addressed through another name (DNS rebinding, to read your runs and
-        where you live) is refused, and so is a change (settings, sync, a paid Claude review)
+        where you live) is refused, and so is a change (settings, sync)
         sent from another site's page."""
         host = (request.host or "").rsplit(":", 1)[0].strip("[]")
         if host not in LOCAL_HOSTS:
@@ -107,11 +106,6 @@ def create_app(db_path: Path | str | None = None) -> Flask:
         with conn() as c:
             return jsonify(insights.overview_insights(c))
 
-    @app.get("/api/gear")
-    def gear_summary():
-        with conn() as c:
-            return jsonify(gear.summary(c))
-
     @app.get("/api/heatmap")
     def heatmap_tracks():
         with conn() as c:
@@ -131,33 +125,6 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     def race_predictions():
         with conn() as c:
             return jsonify(races.predictions(c))
-
-    @app.get("/api/ai/review")
-    def get_ai_review():
-        scope, activity_id, units = _review_args(request.args)
-        with conn() as c:
-            return jsonify({"configured": ai.is_configured(),
-                            "review": ai.cached_review(c, scope, activity_id, units)})
-
-    @app.post("/api/ai/review")
-    def make_ai_review():
-        scope, activity_id, units = _review_args(request.get_json(force=True) or {})
-        try:
-            with conn() as c:
-                result = {"configured": True, "review": ai.review(c, scope, activity_id, units)}
-            export_in_background()  # so the review also shows on the phone
-            return jsonify(result)
-        except ai.NotConfigured as err:
-            return jsonify({"error": str(err)}), 400
-        except anthropic.AuthenticationError:
-            return jsonify({"error": "Anthropic rejected the API key. Set a new one with: garmin set-api-key"}), 400
-        except anthropic.RateLimitError:
-            return jsonify({"error": "Anthropic rate limit hit. Try again in a minute."}), 429
-        except anthropic.APIConnectionError:
-            return jsonify({"error": "Couldn't reach Anthropic. Check your internet connection."}), 502
-        except (anthropic.APIStatusError, RuntimeError) as err:
-            log.exception("AI review failed")
-            return jsonify({"error": f"Review failed: {err}"}), 500
 
     @app.get("/api/records")
     def records():
@@ -211,10 +178,3 @@ def create_app(db_path: Path | str | None = None) -> Flask:
             sync_lock.release()
 
     return app
-
-
-def _review_args(args) -> tuple[str, int | None, str]:
-    scope = args.get("scope") if args.get("scope") == "activity" else "overview"
-    activity_id = int(args["activity_id"]) if scope == "activity" else None
-    units = "km" if args.get("units") == "km" else "mi"
-    return scope, activity_id, units

@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from statistics import median
 from typing import Any
 
-from . import analysis, gear, performance, processing, weather
+from . import analysis, performance, processing, weather
 
 EASY_TYPES = {"easy", "recovery", "long", "easy_strides"}
 BREAK_DAYS = 21       # this long without running counts as a break (injury, illness, off-season)
@@ -509,14 +509,6 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
         notes.append(_note("warn", f"Monotony {extras['monotony']:.1f}: every day looks the same",
                            "Your training load was very similar day after day this week. Varying it, with real easy "
                            "or rest days between the hard ones, lowers the risk of illness and overtraining."))
-
-    # Shoes you're still running in, close to their limit
-    for g in gear.summary(conn, today):
-        if g["retired"] or not g["share"] or g["share"] < 0.85 or not g["month_m"]:
-            continue
-        notes.append(_note("info", f"{g['name']}: {g['share']:.0%} of their distance",
-                           f"{{{{d:{round(g['total_m'])}}}}} of {{{{d:{round(g['limit_m'])}}}}}. Cushioning wears out "
-                           f"before the upper does; a new pair rotated in now spreads the change."))
 
     vo2 = conn.execute("SELECT date, value FROM vo2max WHERE sport = 'running' ORDER BY date").fetchall()
     if len(vo2) >= 2:

@@ -17,8 +17,7 @@ the coach eases off mileage warnings while you rebuild.
 too hard, HR drift, rep pacing, efficiency vs. your usual, 80/20 balance, mileage jumps,
 ramp rate, new bests, interval reps against the pace they're meant for, heat and air quality,
 and how you're building back after a break of 3+ weeks), worked out
-on your Mac. Optionally, **Ask Claude** for a written
-coach's review (see below).
+on your Mac.
 
 The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
 (the same tabs sit at the bottom of the screen on a phone).
@@ -47,21 +46,10 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
   - **Marathon shape:** whether your training has the endurance long races need. Weekly
     distance over 6 months counts two thirds, long runs over 13 km in the last 10 weeks one
     third, against targets that grow with your VO2max.
-- **Where to improve:** your last three months area by area (consistency, endurance, easy vs.
-  hard, workouts, aerobic efficiency), each marked *work on*, *fine* or *strength*,
-  with what to work on first and a concrete next step using your own paces and distances
 - **Base, fatigue & form** in plain language: *base* is your training load built up over about
   6 weeks (what other apps call "fitness"; your actual running fitness is VO2max shape), plus
   **monotony** and **training strain** (Foster) for the last 7 days, what resting would do, and
   your base now vs. earlier
-- **Race predictor** at the record distances (400 m to marathon), from VO2max shape, with
-  Garmin's prediction (saved at each sync) and the change over three months. Long races that
-  your endurance doesn't support yet show two times: what you'd run today, and what your speed
-  supports once weekly distance and long runs catch up. Click a row for your fastest recent
-  stretch at that distance.
-- **Training paces** (easy, marathon, threshold, interval, repetition) from your VO2max shape,
-  folded away under one summary line; marathon pace is your potential, with today's marathon
-  pace noted when endurance holds it back
 - Weekly distance, easy vs. hard running, **aerobic efficiency** (distance per heartbeat on
   easy runs) and **long runs** (your longest each week against the long-run threshold and your
   marathon target). Each chart leads with its headline number, and a click on a week opens its
@@ -75,15 +63,23 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
 - **Running form:** cadence, stride length, ground contact time and vertical ratio on easy runs
   (whichever your watch records), each run plus a 30-day average, so you see your form change
   over months
+- **Where to improve:** your last three months area by area (consistency, endurance, easy vs.
+  hard, workouts, aerobic efficiency), each marked *work on*, *fine* or *strength*,
+  with what to work on first and a concrete next step using your own paces and distances
 - **Statistics** by year, month or week: runs, distance, time, pace, heart rate, climb, longest
   run and VO2max. Click a row to list its runs. Above it, a year-to-date chart of this year's
   distance against last year and your best year: ahead or behind by this date, and what
   you're on pace for.
+- **Race predictor** at the record distances (400 m to marathon), from VO2max shape, with
+  Garmin's prediction (saved at each sync) and the change over three months. Long races that
+  your endurance doesn't support yet show two times: what you'd run today, and what your speed
+  supports once weekly distance and long runs catch up. Click a row for your fastest recent
+  stretch at that distance.
 - **Personal records** from the fastest stretch of any outdoor run (all-time and within the
   range) and milestones (longest run, biggest week and month)
-- **Shoes:** distance on each pair from your gear in Garmin Connect, against its limit (or
-  500 miles), with how much you've run in it this month. A coach note warns when a pair you're
-  still using passes 85%. Each workout shows the shoes it was run in.
+- **Training paces** (easy, marathon, threshold, interval, repetition) from your VO2max shape,
+  folded away under one summary line; marathon pace is your potential, with today's marathon
+  pace noted when endurance holds it back
 - Heart-rate settings (folded away, with a summary line), max, resting and threshold HR and **zones pulled from your Garmin account**
   on every sync, so zones match your watch. You can override any value, and anything Garmin
   doesn't have is estimated from your data.
@@ -108,7 +104,7 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
   feels-like, dew point and humidity, wind, rain or snow, and air quality (US AQI), with what
   it cost you: heat and humidity together give an expected slowdown at the same effort
   ("Warm and humid: about 3% slower"). Coach notes connect it to your numbers (heart-rate
-  drift on a hot day, a hard run in poor air), and Claude reviews get it too
+  drift on a hot day, a hard run in poor air).
 - **Your recent sessions of the same kind** (intervals, tempo, threshold, long runs…): for interval
   sessions the reps (6 × 3:00), rep pace and rep heart rate; for steady ones distance, pace and
   heart rate, with how this session compares with your previous three
@@ -234,20 +230,6 @@ without GPS get the weather where your other runs that month started, but no bes
 or records: their distance comes from the step counter, too rough to time a fast mile. The
 import lists any outdoor runs that came without a GPS route, and why.
 
-### Ask Claude (optional)
-
-The coach notes work without this. For a written coach's review of a workout or of your
-recent training, add an [Anthropic API key](https://console.anthropic.com/) once:
-
-```bash
-garmin set-api-key     # stored in your macOS Keychain
-```
-
-Then click **Ask Claude** in the dashboard. Only then is a summary of your training sent to
-Anthropic: workout tags, distances, paces, heart rate, load and the coach notes. No GPS
-data is sent. Each review costs a few cents and is saved, so reopening it is free.
-`garmin remove-api-key` turns it off.
-
 ### Updating
 
 Rerun the setup line. It updates the app, skips the login if you're logged in, syncs, and
@@ -255,9 +237,8 @@ opens the dashboard.
 
 ## On your iPhone
 
-The phone app is the same dashboard (overview, workouts, coach notes and
-saved Claude reviews) as a home-screen app. It's **view-only**: syncing, changing settings
-and asking Claude happen on the Mac. It works offline; only the route map's
+The phone app is the same dashboard (overview, workouts and coach notes) as a home-screen
+app. It's **view-only**: syncing and changing settings happen on the Mac. It works offline; only the route map's
 background needs a connection.
 
 **How it works:** after every sync (including the daily automatic one), your Mac writes
@@ -337,14 +318,13 @@ Everything is in `~/.garmin-connector/` (set `GARMIN_CONNECTOR_HOME` to move it)
 - The phone app's copy: `iCloud Drive/Garmin Dashboard/garmin-dashboard.data` (summaries,
   analysis and 5-second workout data, about 10–15 MB for several years of running)
 
-Your data is only sent to Garmin, to fetch it, with four exceptions: the route map loads
+Your data is only sent to Garmin, to fetch it, with three exceptions: the route map loads
 map tiles from OpenStreetMap, so OpenStreetMap sees roughly which area you ran in; the
 weather lookup sends Open-Meteo each workout's start point rounded to about a kilometre and
-its date (no account, nothing else about you or the run); if you
-set up **Ask Claude**, a training summary goes to Anthropic each time you click it; and the
+its date (no account, nothing else about you or the run); and the
 phone app's data file is stored in your own iCloud Drive. The dashboard only listens on `127.0.0.1`, so it's reachable only from your Mac, and it
 refuses requests that other websites open in your browser could send it (changing settings,
-starting a sync or a Claude review, or reading your runs through another web address).
+starting a sync, or reading your runs through another web address).
 
 ## Development
 

@@ -264,7 +264,6 @@ def test_cli_settings_refuse_impossible_heart_rates(capsys):
 def test_activities_deleted_in_garmin_are_removed(conn):
     client = FakeGarmin([make_activity(1, days_ago(5)), make_activity(2, days_ago(1)), make_activity(3, days_ago(1))])
     sync.sync(client, conn)
-    conn.execute("INSERT INTO ai_reviews (key, created_at, text) VALUES ('activity:3:mi', 'now', 'x')")
     # run 3 was a duplicate, deleted in Garmin Connect; run 1 is older than the re-checked days
     client.activities = [make_activity(1, days_ago(5)), make_activity(2, days_ago(1))]
     sync.sync(client, conn)
@@ -272,7 +271,6 @@ def test_activities_deleted_in_garmin_are_removed(conn):
     assert ids == [1, 2]
     for table in ("streams", "activity_metrics", "laps"):
         assert conn.execute(f"SELECT count(*) FROM {table} WHERE activity_id = 3").fetchone()[0] == 0
-    assert conn.execute("SELECT count(*) FROM ai_reviews").fetchone()[0] == 0
     # an empty reply (a Garmin hiccup) never deletes anything
     client.activities = []
     sync.sync(client, conn)
@@ -291,7 +289,6 @@ def test_dashboard_refuses_other_sites(tmp_path):
     hostile = {"Origin": "https://evil.example", "Content-Type": "text/plain"}
     assert client.post("/api/settings", data='{"max_hr": 230}', headers=hostile).status_code == 403
     assert client.post("/api/sync", headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
-    assert client.post("/api/ai/review", data="{}", headers=hostile).status_code == 403
     # the dashboard's own page
     own = {"Origin": "http://localhost", "Sec-Fetch-Site": "same-origin"}
     assert client.post("/api/settings", json={"max_hr": 188}, headers=own).status_code == 200

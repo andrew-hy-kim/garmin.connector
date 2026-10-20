@@ -12,7 +12,7 @@ from pathlib import Path
 
 from garminconnect import Garmin
 
-from . import apple, config, db, gear, processing, weather
+from . import apple, config, db, processing, weather
 
 log = logging.getLogger(__name__)
 
@@ -91,10 +91,6 @@ def sync(
         time.sleep(REQUEST_PAUSE_S)
 
     fetch_race_predictions(client, conn, today)
-    try:
-        gear.fetch(client, conn)
-    except Exception as err:  # never let gear stop a sync
-        log.warning("Couldn't fetch gear: %s", err)
 
     n_fit = 0
     if download_fit:

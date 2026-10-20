@@ -29,7 +29,6 @@ def conn(tmp_path_factory):
     db.upsert_activities(conn, [{"activityId": 999, "activityName": "Manual ride", "startTimeLocal": f"{today} 09:00:00",
                                  "activityType": {"typeKey": "cycling"}, "duration": 3600, "manualActivity": True}])
     processing.refresh(conn)
-    conn.execute("INSERT INTO ai_reviews (key, created_at, text) VALUES ('overview::mi', '2026-10-01 20:00:00', 'Nice.')")
     conn.commit()
     yield conn
     conn.close()
@@ -56,7 +55,7 @@ def test_snapshot_matches_the_dashboard(conn):
     assert "plan" not in ov  # the training plan was removed
     assert ov["settings"]["lthr"] == 170 and len(ov["settings"]["zones"]) == 5
     assert ov["training_load"][-1]["state"]["key"]
-    assert ov["ai_reviews"]["overview::mi"]["text"] == "Nice."
+    assert "ai_reviews" not in ov  # the Claude review feature was removed
     assert "suggestions" not in ov  # suggested workouts were removed
     assert [r["race"] for r in ov["race_predictions"]["races"]] == ["400 m", "1 km", "1 mile", "5 km", "10 km", "Half marathon", "Marathon"]
 

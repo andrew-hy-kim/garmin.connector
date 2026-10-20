@@ -1054,7 +1054,7 @@ function populateTypes() {
 function renderCharts() {
   renderMilestones();
   renderRecordsByYear();
-  renderTrend(); renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus(); renderGear();
+  renderTrend(); renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus();
 }
 
 // ---------- race predictor ----------
@@ -1445,30 +1445,6 @@ function renderFocus() {
       </div></div>`).join("");
 }
 
-// ---------- Progress: shoes ----------
-function renderGear() {
-  const card = $("gear-card");
-  if (!card) return;
-  const list = state.gear || [];
-  card.hidden = !list.length;
-  if (!list.length) return;
-  const u = Units.get();
-  $("gear-default").textContent = u === "mi" ? "500 miles" : "800 km";
-  const row = (g) => {
-    const share = g.share == null ? null : Math.min(1, g.share);
-    const level = g.share >= 1 ? "over" : g.share >= 0.85 ? "near" : "";
-    return `<div class="gear-row ${g.retired ? "retired" : ""}">
-      <div class="g-name"><b>${esc(g.name)}</b><span class="dim">${[g.type, g.since ? `since ${fmtDate(g.since, { month: "short", year: "numeric" })}` : "", g.retired ? "retired" : ""].filter(Boolean).join(" · ")}</span></div>
-      <div class="g-bar ${level}">${share == null ? "" : `<i style="width:${(share * 100).toFixed(0)}%"></i>`}</div>
-      <div class="g-num"><b>${fmtNum(dist(g.total_m, u), 0)} ${u}</b>${g.limit_m ? `<span class="dim"> of ${fmtNum(dist(g.limit_m, u), 0)}</span>` : ""}
-        <span class="dim">${g.activities ? `${fmtNum(g.activities)} runs` : ""}${g.month_m ? ` · ${fmtNum(dist(g.month_m, u), 0)} ${u} this month` : g.last_used ? ` · last ${fmtDate(g.last_used, { month: "short", day: "numeric" })}` : ""}</span></div>
-    </div>`;
-  };
-  const active = list.filter((g) => !g.retired), retired = list.filter((g) => g.retired);
-  $("gear").innerHTML = active.map(row).join("") +
-    (retired.length ? `<details class="more"><summary>${retired.length} retired</summary>${retired.map(row).join("")}</details>` : "");
-}
-
 // ---------- Progress: VO2max shape, marathon shape, training paces ----------
 function renderPerf() {
   const el = $("perf");
@@ -1604,10 +1580,10 @@ function render() {
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes, races, perf, gear, focus] = await Promise.all(
+  const [acts, vo2, loadSeries, records, settings, notes, races, perf, focus] = await Promise.all(
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights"].map((u) => getJSON(u))
-      .concat(["/api/race-predictions", "/api/performance", "/api/gear", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, races, perf, gear, focus });
+      .concat(["/api/race-predictions", "/api/performance", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, races, perf, focus });
   populateTypes(); render(); ready();
   // Phone: confirm a data import that just happened
   try {
@@ -1616,7 +1592,6 @@ async function load() {
     if (imp) setStatus(imp.added == null ? `Imported ${fmtNum(imp.total)} activities.`
       : imp.added ? `Updated: ${imp.added} new ${imp.added === 1 ? "activity" : "activities"}.` : "Updated. You were already up to date.");
   } catch {}
-  if ($("ai")) setupAiBox($("ai"), "overview");
 }
 
 $("welcome-sync")?.addEventListener("click", () => $("sync").click());

@@ -293,7 +293,6 @@
     "/api/insights": () => overview.insights,
     "/api/race-predictions": () => overview.race_predictions || null,
     "/api/performance": () => overview.performance || null,
-    "/api/gear": () => overview.gear || [],
     "/api/focus": () => overview.focus || [],
   };
 
@@ -312,11 +311,6 @@
       return applyZonesToDetail(detail);
     }
     if (u.pathname === "/api/heatmap") return (await idbGet(await dbPromise, "meta", "heatmap")) ?? null; // null: re-import needed
-    if (u.pathname === "/api/ai/review") {
-      const p = u.searchParams;
-      const key = `${p.get("scope")}:${p.get("scope") === "activity" ? p.get("activity_id") : ""}:${p.get("units")}`;
-      return { configured: false, review: (overview.ai_reviews || {})[key] || null };
-    }
     throw new Error(`Not available on the phone: ${u.pathname}`);
   }
 
