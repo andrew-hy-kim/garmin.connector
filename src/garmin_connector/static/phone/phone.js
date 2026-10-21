@@ -52,9 +52,6 @@
     const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
     let text;
     if (head[0] === 0x1f && head[1] === 0x8b) {
-      if (typeof DecompressionStream === "undefined") {
-        throw new Error("This iPhone's Safari is too old to open the file. Update to iOS 16.4 or later.");
-      }
       text = await new Response(file.stream().pipeThrough(new DecompressionStream("gzip"))).text();
     } else {
       text = await file.text(); // already uncompressed (e.g. iOS unzipped it)
