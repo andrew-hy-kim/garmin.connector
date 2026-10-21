@@ -6,7 +6,9 @@ Garmin watch does.
 
 from __future__ import annotations
 
+import hashlib
 import math
+import pickle
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -71,9 +73,22 @@ def run_walk(reps: int = 4, run_s: int = 300, walk_s: int = 120, run_mps: float 
     return samples, [(0, t, "active")]
 
 
+_written: dict[str, bytes] = {}  # the same run written again (tests add dozens): copy it, don't rebuild
+
+
 def write_fit(path: Path, samples, laps, start: datetime | None = None, external_hr: bool = False,
               wrist_spikes: bool = False) -> Path:
     start = start or datetime(2026, 9, 1, 14, 0, tzinfo=timezone.utc)
+    key = hashlib.sha1(pickle.dumps((samples, laps, start, external_hr, wrist_spikes))).hexdigest()
+    if key in _written:
+        Path(path).write_bytes(_written[key])
+        return Path(path)
+    _write_fit(path, samples, laps, start, external_hr, wrist_spikes)
+    _written[key] = Path(path).read_bytes()
+    return Path(path)
+
+
+def _write_fit(path: Path, samples, laps, start: datetime, external_hr: bool, wrist_spikes: bool) -> Path:
     start_ms = round(start.timestamp() * 1000)
     builder = FitFileBuilder(auto_define=True, min_string_size=50)
 

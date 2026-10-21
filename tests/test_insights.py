@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 import pytest
 
@@ -15,8 +15,7 @@ def _add_run(conn, tmp_path, activity_id, day, samples, laps, **extra):
         "averageHR": sum(s["hr"] for s in samples) / len(samples), "averageSpeed": samples[-1]["distance"] / len(samples),
         **extra,
     }])
-    start = datetime.fromisoformat(f"{day}T14:00:00").replace(tzinfo=timezone.utc)
-    processing.import_fit(conn, activity_id, write_fit(tmp_path / f"{activity_id}.fit", samples, laps, start=start))
+    processing.import_fit(conn, activity_id, write_fit(tmp_path / f"{activity_id}.fit", samples, laps))  # date: from the summary
 
 
 @pytest.fixture(scope="module")

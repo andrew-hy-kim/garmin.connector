@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import gzip
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 import pytest
 
@@ -24,8 +24,7 @@ def conn(tmp_path_factory):
             "activityId": 900 + n, "activityName": f"Run {n}", "startTimeLocal": f"{day} 07:00:00",
             "activityType": {"typeKey": "running"}, "distance": samples[-1]["distance"], "duration": len(samples),
         }])
-        start = datetime.fromisoformat(f"{day}T14:00:00").replace(tzinfo=timezone.utc)
-        processing.import_fit(conn, 900 + n, write_fit(tmp / f"{n}.fit", samples, laps, start=start))
+        processing.import_fit(conn, 900 + n, write_fit(tmp / f"{n}.fit", samples, laps))  # date: from the summary
     db.upsert_activities(conn, [{"activityId": 999, "activityName": "Manual ride", "startTimeLocal": f"{today} 09:00:00",
                                  "activityType": {"typeKey": "cycling"}, "duration": 3600, "manualActivity": True}])
     processing.refresh(conn)

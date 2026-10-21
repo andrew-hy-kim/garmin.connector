@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import shutil
 from datetime import date, timedelta
 
 import pytest
@@ -59,17 +60,28 @@ def test_load_extras():
     assert perf.load_extras(flat[:3]) is None
 
 
-@pytest.fixture
-def conn(tmp_path):
-    c = db.connect(tmp_path / "p.db")
+@pytest.fixture(scope="module")
+def _two_months(tmp_path_factory):
+    """Built once per file; each test gets its own copy (some add runs or change settings)."""
+    tmp = tmp_path_factory.mktemp("perf")
+    c = db.connect(tmp / "p.db")
     db.set_setting(c, "max_hr", 190)
     db.set_setting(c, "lthr", 172)
     db.set_setting(c, "resting_hr", 50)
     today = date.today()
     for n in range(30):  # every other day for two months, easy runs at 3.2 m/s
-        _add(c, tmp_path, 100 + n, (today - timedelta(days=1 + 2 * n)).isoformat(),
+        _add(c, tmp, 100 + n, (today - timedelta(days=1 + 2 * n)).isoformat(),
              *steady_run(minutes=50, pace_mps=3.2, start_hr=140, drift_bpm=6))
     processing.refresh(c)
+    c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    c.close()
+    return tmp / "p.db"
+
+
+@pytest.fixture
+def conn(_two_months, tmp_path):
+    shutil.copy(_two_months, tmp_path / "p.db")
+    c = db.connect(tmp_path / "p.db")
     yield c
     c.close()
 
