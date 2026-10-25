@@ -39,3 +39,13 @@ def test_docs_folder_is_up_to_date(tmp_path):
     assert not cmp.left_only and not cmp.right_only, (cmp.left_only, cmp.right_only)
     _, mismatch, errors = filecmp.cmpfiles(fresh, committed, [p.name for p in fresh.iterdir()], shallow=False)
     assert not mismatch and not errors, mismatch
+
+
+def test_every_page_script_exists_and_reaches_the_phone():
+    """The pages load their code from several files; each must exist and be in the phone build."""
+    import re
+    for page in phone_build.PAGES:
+        html = (phone_build.STATIC / page).read_text()
+        for src in re.findall(r'<script src="/static/([^"]+)"', html):
+            assert (phone_build.STATIC / src).is_file(), f"{page} loads missing {src}"
+            assert src in phone_build.ASSETS, f"{page} loads {src}, which the phone build leaves out"

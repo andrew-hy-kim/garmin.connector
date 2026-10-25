@@ -347,6 +347,12 @@ pytest
 Tests use a fake Garmin client and synthetic `.fit` files (written with `fit-tool`),
 and never touch a real account.
 
+The pages' code is split by part: Today, Progress and Activities share `overview.js` (state and
+helpers), then `today.js`, `charts.js`, `table.js` and `progress.js`, with `start.js` loaded last
+to run the page; the workout page is `activity.js` plus `activity-panels.js`, `activity-tables.js`,
+`activity-map.js`, `activity-compare.js` and `activity-start.js`. A new file goes in the page's
+script tags (before the `start` file) and in `ASSETS` in `phone_build.py`; a test checks both.
+
 The phone app in `docs/` is built from `src/garmin_connector/static/`. After changing the
 pages, rebuild it (a test checks that `docs/` is up to date):
 

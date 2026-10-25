@@ -21,7 +21,10 @@ STATIC = Path(__file__).parent / "static"
 PHONE = STATIC / "phone"
 
 PAGES = ["index.html", "progress.html", "activities.html", "map.html", "activity.html"]
-ASSETS = ["app.css", "common.js", "overview.js", "activity.js", "map.js",
+ASSETS = ["app.css", "common.js", "map.js",
+          "overview.js", "today.js", "charts.js", "table.js", "progress.js", "start.js",
+          "activity.js", "activity-panels.js", "activity-tables.js", "activity-map.js", "activity-compare.js",
+          "activity-start.js",
           "chart.umd.min.js", "leaflet.js", "leaflet.css"]
 PHONE_ASSETS = ["phone.js", "icon-180.png", "icon-192.png", "icon-512.png"]
 
