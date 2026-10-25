@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
 import sqlite3
 import time
 import zipfile
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from garminconnect import Garmin
+from garminconnect import Garmin, GarminConnectAuthenticationError, GarminConnectTooManyRequestsError
 
-from . import apple, config, db, processing, weather
+from . import apple, auth, backup, config, db, processing, weather
 
 log = logging.getLogger(__name__)
 
@@ -24,6 +25,48 @@ OVERLAP_DAYS = 2
 REQUEST_PAUSE_S = 0.5
 
 MAX_FAILURES_IN_A_ROW = 5  # requests in a row (workout files, VO2 max days) before leaving the rest for the next sync
+
+
+def run(conn: sqlite3.Connection, since: date | None = None, download_fit: bool = True) -> dict[str, int]:
+    """Log in and sync, the way the CLI and the dashboard do it: a weekly backup first, and
+    how it went is saved so the dashboard can warn when syncs keep failing."""
+    backup.backup_if_due(conn)
+    try:
+        result = sync(auth.get_client(), conn, since=since, download_fit=download_fit)
+    except (Exception, SystemExit) as err:  # SystemExit: "Not logged in yet"
+        status = get_status(conn)
+        status.update(error_at=_now(), error=explain_failure(err))
+        db.set_text_setting(conn, "sync_status", json.dumps(status))
+        raise
+    db.set_text_setting(conn, "sync_status", json.dumps({"ok_at": _now()}))
+    return result
+
+
+def _now() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def get_status(conn: sqlite3.Connection) -> dict[str, str]:
+    """{"ok_at": last good sync, "error_at" and "error": a failure since then}, each only if there is one."""
+    try:
+        return json.loads(db.get_text_setting(conn, "sync_status") or "{}")
+    except ValueError:
+        return {}
+
+
+def explain_failure(err: BaseException) -> str:
+    """What went wrong, in words that say what to do about it."""
+    text = str(err)
+    if isinstance(err, SystemExit):
+        return text
+    if isinstance(err, GarminConnectTooManyRequestsError) or "429" in text:
+        return "Garmin is limiting requests right now. Try again in an hour or so."
+    if isinstance(err, GarminConnectAuthenticationError) or any(k in text for k in ("401", "403", "Unauthorized")):
+        return ("Garmin didn't accept the saved login. Run `garmin login` in Terminal; if that fails too, "
+                "Garmin changed their login and `pip install -U garminconnect` usually fixes it.")
+    if any(k in text for k in ("Connection", "resolve", "timed out", "Max retries")):
+        return "Couldn't reach Garmin Connect. Check the internet connection and try again."
+    return f"{text or type(err).__name__}. If this keeps happening, `pip install -U garminconnect` often fixes it."
 
 
 def sync(

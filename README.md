@@ -195,6 +195,7 @@ Everything else is a command in Terminal. The command is `garmin`; the original,
 | `garmin settings` | Show heart-rate settings and where each came from (Garmin, you, estimated) |
 | `garmin settings --max-hr 192` | Override a Garmin value (0 = go back to Garmin's) |
 | `garmin analyze` | Re-run the analysis on every downloaded workout |
+| `garmin backup` | Copy your database to `~/.garmin-connector/backups` now (syncs already do it once a week) |
 | `garmin export` | Write the phone app's data file now (also happens after every sync) |
 | `garmin weather` | Look up the weather for workouts that don't have it yet (also happens at every sync; the first time it fills in your whole history) |
 | `garmin weather --redo` | Look up every workout's weather again |
@@ -311,7 +312,12 @@ Everything is in `~/.garmin-connector/` (set `GARMIN_CONNECTOR_HOME` to move it)
 - `garmin.db`: SQLite database. `activities` (summaries plus Garmin's full JSON), `streams`
   (second-by-second data, compressed), `laps`, `activity_metrics`, `vo2max`, `weather`, `settings`.
   While the dashboard or a sync has it open, recent changes sit beside it in `garmin.db-wal`;
-  to back up, copy the whole folder, or run `garmin dashboard --stop` first and copy `garmin.db`
+  to copy it by hand, copy the whole folder, or run `garmin dashboard --stop` first and copy `garmin.db`
+- `backups/`: copies of `garmin.db`, one per day at most, the last 4 kept. A sync makes one
+  when the newest is a week old, and `garmin analyze`, `garmin weather --redo` and
+  `garmin import-apple` make one before they rewrite anything. To restore, stop the
+  dashboard and copy one back over `garmin.db`. The `.fit` files aren't copied: Garmin keeps
+  the originals, and a sync downloads any that go missing
 - `fit/`: the original `.fit` file for every workout, so nothing is lost even if Garmin
   changes something
 - `tokens/`: login tokens (private to your user account)

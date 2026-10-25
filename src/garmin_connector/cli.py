@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 from xml.etree import ElementTree
 
-from . import apple, auth, config, db, export, hrcheck, processing, sync, weather
+from . import apple, auth, backup, config, db, export, hrcheck, processing, sync, weather
 
 
 def _day(text: str) -> date:
@@ -45,6 +45,7 @@ def main(argv: list[str] | None = None) -> None:
     p_phone.add_argument("action", choices=["on", "off", "status", "now"], nargs="?", default="status",
                          help="on: set up; off: stop and forget the token; now: upload right away")
 
+    sub.add_parser("backup", help="copy the database to ~/.garmin-connector/backups now (syncs do it weekly)")
     sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
     p_hrc = sub.add_parser("hr-check", help="your running heart rate year by year, to spot sensor trouble")
     p_hrc.add_argument("--km", action="store_true", help="paces per km (default: per mile)")
@@ -81,7 +82,7 @@ def main(argv: list[str] | None = None) -> None:
         print("Saved password and tokens removed.")
     elif args.command == "sync":
         with closing(db.connect(config.db_path())) as conn:
-            result = sync.sync(auth.get_client(), conn, since=args.since, download_fit=not args.no_fit)
+            result = sync.run(conn, since=args.since, download_fit=not args.no_fit)
             print(
                 f"Synced {result['activities']} activities, {result['vo2max_readings']} VO2 max readings, "
                 f"{result['fit_files']} new .fit files; analyzed {result['analyzed']} activities."
@@ -94,8 +95,13 @@ def main(argv: list[str] | None = None) -> None:
         with closing(db.connect(config.db_path())) as conn:
             path = export.write(conn, args.to)
         print(f"Wrote {path} ({path.stat().st_size / 1e6:.1f} MB). Import it in the phone app.")
+    elif args.command == "backup":
+        with closing(db.connect(config.db_path())) as conn:
+            path = backup.backup(conn)
+        print(f"Backed up to {path} (the last {backup.KEEP} are kept).")
     elif args.command == "analyze":
         with closing(db.connect(config.db_path())) as conn:
+            backup.backup_quietly(conn)
             sync.import_missing_streams(conn)
             print(f"Analyzed {processing.refresh(conn, force=True)} activities.")
             export.write_quietly(conn)
@@ -112,6 +118,7 @@ def main(argv: list[str] | None = None) -> None:
             if args.if_needed and signature and db.get_text_setting(conn, "apple_import") == signature:
                 print(f"Apple Health export already imported ({Path(args.path).name}); nothing new to bring in.")
                 return
+            backup.backup_quietly(conn)
             print("Reading your Apple Health export (a big one takes a minute or two)…")
             try:
                 r = apple.import_export(conn, args.path, before=before)
@@ -148,6 +155,8 @@ def main(argv: list[str] | None = None) -> None:
             print("Done. They're in the dashboard alongside your Garmin runs.")
     elif args.command == "weather":
         with closing(db.connect(config.db_path())) as conn:
+            if args.redo:
+                backup.backup_quietly(conn)
             print("Looking up the weather (the first time covers your whole history; usually under a minute)…")
             r = weather.update(conn, redo=args.redo)
             print(f"Weather added for {r['weather']} workouts"

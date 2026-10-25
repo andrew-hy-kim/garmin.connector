@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 
-from . import api, auth, config, db, export, focus, heatmap, insights, performance, processing, races, sync
+from . import api, config, db, export, focus, heatmap, insights, performance, processing, races, sync
 
 log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
@@ -160,20 +160,25 @@ def create_app(db_path: Path | str | None = None) -> Flask:
         export_in_background()
         return jsonify(result)
 
+    @app.get("/api/sync")
+    def sync_status():
+        with conn() as c:
+            return jsonify(sync.get_status(c))
+
     @app.post("/api/sync")
     def sync_now():
         if not sync_lock.acquire(blocking=False):
             return jsonify({"error": "A sync is already running."}), 409
         try:
             with conn() as c:
-                result = sync.sync(auth.get_client(), c)
+                result = sync.run(c)
             export_in_background()
             return jsonify(result)
         except SystemExit as err:  # e.g. "Not logged in yet"
             return jsonify({"error": str(err)}), 400
         except Exception as err:
             log.exception("Sync failed")
-            return jsonify({"error": f"Sync failed: {err}"}), 500
+            return jsonify({"error": f"Sync failed: {sync.explain_failure(err)}"}), 500
         finally:
             sync_lock.release()
 
