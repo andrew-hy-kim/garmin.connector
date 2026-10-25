@@ -29,7 +29,10 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
   worked out from your workouts, so it doesn't need the watch worn day and night.
 - **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
   its coach notes
-- This week / month / year (each opens its runs), coach notes with the workouts after today's
+- **Sync trouble:** if the last sync failed (say, Garmin's login expired), a banner at the top
+  says what went wrong, what to do, and when the last good sync was
+- This week / month / year (each opens its runs) and your cross-training this week (strength,
+  rides, hikes and the rest), coach notes with the workouts after today's
   and your biggest opportunity to improve, and your recent activities
 
 **Progress**: how you're trending (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the range)
@@ -49,10 +52,12 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
 - **Base, fatigue & form** in plain language: *base* is your training load built up over about
   6 weeks (what other apps call "fitness"; your actual running fitness is VO2max shape), plus
   **monotony** and **training strain** (Foster) for the last 7 days, what resting would do, and
-  your base now vs. earlier
+  your base now vs. earlier. A fold-out shows **where your load comes from**: each kind of run
+  (easy, long, tempo…) and each kind of cross-training as a share of all your load in the range
 - Weekly distance, easy vs. hard running, **aerobic efficiency** (distance per heartbeat on
   easy runs) and **long runs** (your longest each week against the long-run threshold and your
-  marathon target). Each chart leads with its headline number, and a click on a week opens its
+  marathon target), and **cross-training**: hours of strength, cycling, hiking & walking and
+  everything else each week. Each chart leads with its headline number, and a click on a week opens its
   runs.
 - **Heart rate at a fixed pace:** your heart rate while running steadily at one pace (adjusted
   for hills), run by run with a 30-day average. The same pace at a lower heart rate is the

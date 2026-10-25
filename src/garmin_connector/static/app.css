@@ -214,6 +214,9 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 .best { color: var(--warn-c); font-size: 12px; }
 .badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-secondary); }
 .warn { background: var(--warn-bg); color: var(--warn-text); border-radius: 10px; padding: 10px 14px; font-size: 14px; margin-bottom: 12px; }
+.sync-alert { margin-bottom: 16px; line-height: 1.45; }
+.sync-alert code { background: var(--fill); border-radius: 4px; padding: 1px 5px; font-size: 13px; }
+.sync-alert .sub { opacity: .8; font-size: 12.5px; margin-top: 2px; }
 .good { color: var(--text-primary); }
 
 /* zone bars */
@@ -314,6 +317,13 @@ details.more.based .kv { margin-top: 10px; }
 .compare td { padding: 6px 0; }
 .compare td:first-child { color: var(--text-secondary); }
 .compare td.num b { font-size: 15px; }
+.load-sources td.bar { width: 45%; padding: 6px 10px; }
+.load-sources td.bar i { display: block; height: 8px; width: var(--w); min-width: 2px; border-radius: 4px; background: var(--c); }
+.load-sources td.num { width: 1%; text-align: right; font-variant-numeric: tabular-nums; }
+.load-sources tr.group td:first-child { color: var(--text-primary); font-weight: 600; }
+.load-sources tr.sub td:first-child { padding-left: 14px; }
+.load-sources tr.sub td { padding: 3px 0; font-size: 13px; }
+.load-sources tr.sub td.bar { padding: 3px 10px; }
 .compare .delta { color: var(--text-muted); font-size: 13px; padding-left: 14px; width: 1%; text-align: right; }
 
 /* activity filters */

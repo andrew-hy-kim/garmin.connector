@@ -148,10 +148,124 @@ function renderTiles() {
     `<div class="tile"><div class="label">Fatigue</div><div class="value">${today.fatigue.toFixed(0)}</div><div class="sub">${delta("fatigue")}</div></div>`,
     `<div class="tile state" style="--c:var(${textColor(st)})"><div class="label">Form</div><div class="value">${fmtSigned(today.form)}</div><div class="sub">${warmingUp() ? "Getting started" : st.label}</div></div>`,
   ] : [];
-  $("tiles").innerHTML = [...volume, ...load].join("");
+  const cross = state.type === "run" && $("readiness") ? [crossTile(week, new Date(week.getFullYear(), week.getMonth(), week.getDate() - 7))] : [];
+  $("tiles").innerHTML = [...volume, ...cross, ...load].join("");
   $("tiles").classList.toggle("six", volume.length + load.length === 6);
 }
 
+
+// ---------- cross-training ----------
+// Everything that isn't a run, in four groups (it already counts toward base and fatigue)
+const CROSS = [
+  { label: "Strength", color: "--cadence", test: (t) => /strength|hiit|weight/.test(t), one: "strength", many: "strength" },
+  { label: "Cycling", color: "--gap", test: (t) => /cycl|bik/.test(t), one: "ride", many: "rides" },
+  { label: "Hiking & walking", color: "--z3", test: (t) => /hik|walk/.test(t), one: "hike or walk", many: "hikes & walks" },
+  { label: "Yoga & other", color: "--elev", test: () => true, one: "other", many: "other" },
+];
+const crossGroup = (a) => (isRun(a.activity_type) ? -1 : CROSS.findIndex((g) => g.test(a.activity_type || "")));
+
+function crossTile(from, prevFrom) {
+  const sum = (lo, hi) => {
+    const n = CROSS.map(() => 0);
+    let secs = 0;
+    for (const a of state.activities) {
+      const g = crossGroup(a), d = localDate(a.start_time_local);
+      if (g < 0 || d < lo || (hi && d >= hi)) continue;
+      n[g]++; secs += a.duration_s || 0;
+    }
+    return { n, secs, count: n.reduce((t, v) => t + v, 0) };
+  };
+  const t = sum(from), prev = sum(prevFrom, from);
+  const sub = t.count ? CROSS.map((g, k) => (t.n[k] ? `${t.n[k]} ${t.n[k] === 1 ? g.one : g.many}` : "")).filter(Boolean).join(" · ")
+    : `Nothing yet${prev.count ? ` · last week ${fmtTotal(prev.secs)}` : ""}`;
+  return `<div class="tile cross"><div><div class="label">Cross-training this week</div>
+    <div class="value">${t.count ? fmtTotal(t.secs) : "0"}</div><div class="sub">${sub}</div></div></div>`;
+}
+
+function renderCross() {
+  if (!$("cross")) return;
+  const b = buckets();
+  const hours = CROSS.map(() => b.list.map(() => 0));
+  let sessions = 0;
+  for (const a of state.activities) {
+    const g = crossGroup(a);
+    if (g < 0) continue;
+    const i = b.indexOf(localDate(a.start_time_local));
+    if (i == null) continue;
+    hours[g][i] += (a.duration_s || 0) / 3600;
+    sessions++;
+  }
+  const total = hours.flat().reduce((t, v) => t + v, 0);
+  $("cross-card").hidden = !sessions;
+  if (!sessions) return;
+  const per = b.monthly ? "month" : "week";
+  $("cross-legend").innerHTML = CROSS.map((g) => `<span style="--c:var(${g.color})">${g.label}</span>`).join("");
+  $("cross-head").innerHTML = `<span class="big">${fmtNum(total / b.list.length, 1)}<small>h</small></span><span class="dim">a ${per} · ${sessions} sessions ${state.range === "All" ? "since you started" : `over ${state.range}`}</span>`;
+  const opts = chartBase();
+  opts.scales.x.stacked = true; opts.scales.y.stacked = true;
+  opts.scales.y.ticks.callback = (v) => `${v} h`;
+  opts.onClick = (e, els) => { if (els.length) showPeriod(b, els[0].index, { type: "all" }); };
+  opts.onHover = clickCursor;
+  opts.plugins.tooltip = { callbacks: {
+    title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`,
+    label: (i) => (i.parsed.y ? `${i.dataset.label}: ${fmtTotal(i.parsed.y * 3600)}` : null),
+  } };
+  drawChart("cross", "cross", {
+    type: "bar",
+    data: { labels: b.labels,
+      datasets: CROSS.map((g, k) => ({ label: g.label, data: hours[k], backgroundColor: cssVar(g.color),
+        borderColor: cssVar("--surface-1"), borderWidth: { top: 2 }, maxBarThickness: 22 })) },
+    options: opts,
+  });
+}
+
+// Where training load comes from over the range: runs by workout tag, then the cross-training groups
+function renderLoadSources() {
+  if (!$("load-sources")) return;
+  const runs = new Map(), cross = CROSS.map(() => 0);
+  let total = 0;
+  for (const a of state.activities) {
+    if (!a.trimp || !inRange(a.start_time_local)) continue;
+    total += a.trimp;
+    const g = crossGroup(a);
+    if (g >= 0) { cross[g] += a.trimp; continue; }
+    const key = a.workout_label || "Other runs";
+    const r = runs.get(key) || { load: 0, color: a.workout_type ? typeColor(a.workout_type) : "var(--z1)" };
+    r.load += a.trimp;
+    runs.set(key, r);
+  }
+  $("load-sources-fold").hidden = !total;
+  if (!total) return;
+  const runTotal = [...runs.values()].reduce((t, r) => t + r.load, 0);
+  const pct = (v) => (v / total) * 100;
+  const row = (label, load, color, cls = "") => `<tr class="${cls}"><td>${esc(label)}</td>
+    <td class="bar"><i style="--w:${pct(load).toFixed(1)}%;--c:${color}"></i></td>
+    <td class="num">${pct(load) < 1 ? "<1" : Math.round(pct(load))}%</td></tr>`;
+  const rows = [];
+  if (runTotal) {
+    rows.push(row("Running", runTotal, "var(--pace)", "group"));
+    for (const [label, r] of [...runs].sort((x, y) => y[1].load - x[1].load)) rows.push(row(label, r.load, r.color, "sub"));
+  }
+  CROSS.map((g, k) => [g, cross[k]]).filter(([, v]) => v).sort((x, y) => y[1] - x[1])
+    .forEach(([g, v]) => rows.push(row(g.label, v, `var(${g.color})`, "group")));
+  $("load-sources-range").textContent = state.range === "All" ? "since you started" : `over ${state.range}`;
+  $("load-sources").innerHTML = rows.join("");
+}
+
+// ---------- sync trouble ----------
+// A sync that failed since the last good one: say so on Today, with what to do about it
+async function renderSyncAlert() {
+  const el = $("sync-alert");
+  if (!el || PHONE) return;
+  let st = {};
+  try { st = await getJSON("/api/sync"); } catch {}
+  el.hidden = !st.error;
+  if (!st.error) return;
+  const when = (iso) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const msg = esc(st.error).replace(/`([^`]+)`/g, "<code>$1</code>");
+  el.innerHTML = `<b>Syncing isn't working.</b> ${msg}<div class="sub">Last try ${when(st.error_at)}` +
+    `${st.ok_at ? ` · last good sync ${when(st.ok_at)}` : ""}</div>`;
+}
 
 // Volume tiles open the activity list filtered to that week, month or year
 function tileFilter(e) {
@@ -305,11 +419,11 @@ function renderCompare() {
 }
 
 // Click a week (or month) on a bar chart: list just those activities.
-function showPeriod(b, i) {
+function showPeriod(b, i, extra = {}) {
   const from = b.list[i];
   const to = b.monthly ? new Date(from.getFullYear(), from.getMonth() + 1, 1) : new Date(from.getFullYear(), from.getMonth(), from.getDate() + 7);
   const last = new Date(to); last.setDate(last.getDate() - 1);
-  location.href = pageUrl("activities", { query: { from: isoDay(from), to: isoDay(last) } });
+  location.href = pageUrl("activities", { query: { from: isoDay(from), to: isoDay(last), ...extra } });
 }
 // Pointer cursor over clickable marks
 const clickCursor = (e, els) => { e.native.target.style.cursor = els.length ? "pointer" : "default"; };
@@ -993,6 +1107,7 @@ function setupTable() {
   const q = new URLSearchParams(location.search);
   if (q.get("from") || q.get("to")) Object.assign(t, { when: "custom", from: q.get("from") || "", to: q.get("to") || "" });
   if (q.get("workout")) t.workout = q.get("workout");
+  if (q.get("type")) state.type = q.get("type");
   $("f-workout").innerHTML = WORKOUT_FILTERS.map(([k, label]) => `<option value="${k}">${label}</option>`).join("");
   $("f-workout").value = t.workout;
   $("f-source").addEventListener("change", (e) => { t.source = e.target.value; update(); });
@@ -1054,7 +1169,7 @@ function populateTypes() {
 function renderCharts() {
   renderMilestones();
   renderRecordsByYear();
-  renderTrend(); renderLoad(); renderVolume(); renderMix(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus();
+  renderTrend(); renderLoad(); renderVolume(); renderMix(); renderCross(); renderLoadSources(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus();
 }
 
 // ---------- race predictor ----------
@@ -1584,7 +1699,7 @@ async function load() {
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights"].map((u) => getJSON(u))
       .concat(["/api/race-predictions", "/api/performance", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
   Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, races, perf, focus });
-  populateTypes(); render(); ready();
+  populateTypes(); render(); ready(); renderSyncAlert();
   // Phone: confirm a data import that just happened
   try {
     const imp = JSON.parse(sessionStorage.getItem("phoneImported") || "null");
@@ -1606,7 +1721,7 @@ $("sync")?.addEventListener("click", async () => {
     await load();
     const added = state.activities.length - before;
     setStatus(added > 0 ? `Synced ${added} new ${added === 1 ? "activity" : "activities"}.` : "You're up to date. No new activities.");
-  } catch (err) { setStatus(err.message, true); }
+  } catch (err) { setStatus(err.message, true); renderSyncAlert(); }
   finally { welcome.disabled = false; welcome.textContent = "Sync with Garmin"; }
 });
 
