@@ -45,9 +45,10 @@ def create_app(db_path: Path | str | None = None) -> Flask:
 
     def export_in_background():
         """Refresh the phone app's data file after a change, without making the page wait."""
+        folder = export.default_dir()  # now, not whenever the thread gets to it
         def run():
             with export_lock, conn() as c:
-                export.write_quietly(c)
+                export.write_quietly(c, folder)
         threading.Thread(target=run, daemon=True).start()
 
     @app.get("/")

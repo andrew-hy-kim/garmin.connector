@@ -158,11 +158,11 @@ def write(conn: sqlite3.Connection, folder: Path | str | None = None) -> Path:
     return path
 
 
-def write_quietly(conn: sqlite3.Connection) -> Path | None:
+def write_quietly(conn: sqlite3.Connection, folder: Path | None = None) -> Path | None:
     """Export after a sync (and send it to the phone, if automatic updates are on); a failure
     here never fails the sync itself."""
     try:
-        path = write(conn)
+        path = write(conn, folder)
     except Exception as err:  # e.g. iCloud Drive folder not writable
         log.warning("Couldn't write the phone export: %s", err)
         return None
