@@ -149,7 +149,9 @@ const prettyLabel = (s) => (s ? s.toLowerCase().replace(/_/g, " ").replace(/^./,
 function watchStats(w, run) {
   const imperial = Units.get() === "mi";
   const out = [];
-  if (w.calories) out.push(["Calories", withUnit(`${fmtNum(w.calories)} kcal`), ""]);
+  if (w.active_calories != null) out.push(["Active calories", withUnit(`${fmtNum(w.active_calories)} kcal`),
+    w.calories ? `${fmtNum(w.calories)} kcal with resting` : "Burned by the workout itself"]);
+  else if (w.calories) out.push(["Calories", withUnit(`${fmtNum(w.calories)} kcal`), ""]);
   if (w.avg_power_w) out.push(["Power", withUnit(`${Math.round(w.avg_power_w)} W`), w.norm_power_w ? `Normalized ${Math.round(w.norm_power_w)} W` : ""]);
   if (run && w.max_speed_mps) out.push(["Best pace", withUnit(fmtPace(w.max_speed_mps)), "Fastest moment of the run"]);
   if (w.stride_cm) out.push(["Stride length", withUnit(imperial ? `${(w.stride_cm / 30.48).toFixed(2)} ft` : `${(w.stride_cm / 100).toFixed(2)} m`), ""]);

@@ -40,7 +40,8 @@ function renderTiles() {
     `<div class="tile state" style="--c:var(${textColor(st)})"><div class="label">Form</div><div class="value">${fmtSigned(today.form)}</div><div class="sub">${warmingUp() ? "Getting started" : st.label}</div></div>`,
   ] : [];
   const cross = state.type === "run" && $("readiness") ? [crossTile(week, new Date(week.getFullYear(), week.getMonth(), week.getDate() - 7))] : [];
-  $("tiles").innerHTML = [...volume, ...cross, ...load].join("");
+  const kcal = $("readiness") ? [calorieTile()] : [];
+  $("tiles").innerHTML = [...volume, ...cross, ...kcal, ...load].join("");
   $("tiles").classList.toggle("six", volume.length + load.length === 6);
 }
 
@@ -141,6 +142,74 @@ function renderLoadSources() {
     .forEach(([g, v]) => rows.push(row(g.label, v, `var(${g.color})`, "group")));
   $("load-sources-range").textContent = state.range === "All" ? "since you started" : `over ${state.range}`;
   $("load-sources").innerHTML = rows.join("");
+}
+
+// ---------- active calories ----------
+// What workouts burned beyond resting (Garmin's estimate; rougher for anything but runs)
+const KCAL = [
+  { label: "Running", color: "--pace", test: (a) => isRun(a.activity_type) },
+  { label: "Cross-training", color: "--cadence", test: () => true },
+];
+const kcalGroup = (a) => KCAL.findIndex((g) => g.test(a));
+
+function calorieTile() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 6);
+  let todayKcal = 0, weekKcal = 0;
+  for (const a of state.activities) {
+    const d = localDate(a.start_time_local);
+    if (d < weekAgo || !a.active_calories) continue;
+    weekKcal += a.active_calories;
+    if (d >= today) todayKcal += a.active_calories;
+  }
+  return `<div class="tile kcal" title="Estimated by your watch; rougher for strength and other cross-training">
+    <div class="label">Active calories today</div>
+    <div class="value">${fmtNum(todayKcal)}<small>kcal</small></div>
+    <div class="sub">7-day average ${fmtNum(weekKcal / 7)} a day</div></div>`;
+}
+
+function renderCalories() {
+  if (!$("kcal")) return;
+  const b = buckets();
+  const kcal = KCAL.map(() => b.list.map(() => 0));
+  let any = false;
+  for (const a of state.activities) {
+    if (!a.active_calories || !inRange(a.start_time_local)) continue;
+    const i = b.indexOf(localDate(a.start_time_local));
+    if (i == null) continue;
+    kcal[kcalGroup(a)][i] += a.active_calories;
+    any = true;
+  }
+  $("kcal-card").hidden = !any;
+  if (!any) return;
+  // Each bar is a daily average, so weeks and months read the same (the current one counts only days so far)
+  const now = new Date(), start = rangeStart();
+  const days = b.list.map((from, i) => {
+    const to = b.list[i + 1] || new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return Math.max(1, Math.round((to - Math.max(from, start)) / 864e5));
+  });
+  const perDay = kcal.map((row) => row.map((v, i) => Math.round(v / days[i])));
+  const total = kcal.flat().reduce((t, v) => t + v, 0);
+  const allDays = days.reduce((t, v) => t + v, 0);
+  $("kcal-legend").innerHTML = KCAL.map((g) => `<span style="--c:var(${g.color})">${g.label}</span>`).join("");
+  $("kcal-head").innerHTML = `<span class="big">${fmtNum(total / allDays)}<small>kcal</small></span><span class="dim">a day on average ${state.range === "All" ? "since you started" : `over ${state.range}`}</span>`;
+  const opts = chartBase();
+  opts.scales.x.stacked = true; opts.scales.y.stacked = true;
+  opts.scales.y.ticks.callback = (v) => `${fmtNum(v)}`;
+  opts.onClick = (e, els) => { if (els.length) showPeriod(b, els[0].index, { type: "all" }); };
+  opts.onHover = clickCursor;
+  opts.plugins.tooltip = { callbacks: {
+    title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}: kcal a day`,
+    label: (i) => (i.parsed.y ? `${i.dataset.label}: ${fmtNum(i.parsed.y)}` : null),
+    footer: (i) => `${fmtNum(i.reduce((t, x) => t + x.parsed.y, 0))} kcal a day`,
+  } };
+  drawChart("kcal", "kcal", {
+    type: "bar",
+    data: { labels: b.labels,
+      datasets: KCAL.map((g, k) => ({ label: g.label, data: perDay[k], backgroundColor: cssVar(g.color),
+        borderColor: cssVar("--surface-1"), borderWidth: { top: 2 }, maxBarThickness: 22 })) },
+    options: opts,
+  });
 }
 
 // ---------- sync trouble ----------

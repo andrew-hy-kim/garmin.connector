@@ -342,7 +342,7 @@ def test_ios16_exports_with_totals_inside_workout_activity(conn, tmp_path):
     xml = xml.replace("</Workout>", f'<WorkoutActivity uuid="a">{meta}{stats}</WorkoutActivity></Workout>')
     apple.import_export(conn, export_zip(tmp_path / "e.zip", [(xml, [r for r in recs if "HeartRate" in r], None)]))
     a = next(x for x in api.activities(conn) if apple.is_apple(x["activity_id"]))
-    assert a["distance_m"] == pytest.approx(5400, abs=5) and a["calories"] == 330
+    assert a["distance_m"] == pytest.approx(5400, abs=5) and a["calories"] == a["active_calories"] == 330
     assert a["activity_type"] == "treadmill_running"  # HKIndoorWorkout read from inside
 
 

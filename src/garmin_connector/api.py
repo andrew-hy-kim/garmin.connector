@@ -14,12 +14,19 @@ from typing import Any
 from . import analysis, apple, db, insights, performance, processing, weather
 
 
+# Calories burned by the workout itself: Garmin's total less the resting (BMR) share it includes.
+# Apple Health workouts already record active energy only.
+ACTIVE_CALORIES = ("CASE WHEN a.activity_id >= ? THEN a.calories "
+                   "ELSE max(0, a.calories - json_extract(a.raw_json, '$.bmrCalories')) END")
+
+
 def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     per_run = (perf or performance.summary(conn))["per_activity"]
     rows = conn.execute(
         "SELECT a.activity_id, a.name, a.activity_type, a.start_time_local, a.distance_m, a.duration_s, "
         "a.moving_duration_s, a.elevation_gain_m, a.avg_hr, a.max_hr, a.avg_speed_mps, a.calories, "
         "a.avg_power_w, a.aerobic_te, a.anaerobic_te, a.vo2max, a.location, "
+        f"{ACTIVE_CALORIES} AS active_calories, "
         "m.trimp, m.decoupling_pct, m.efficiency, m.cadence_lock, s.external_hr, "
         "json_extract(m.data, '$.workout.type') AS workout_type, "
         "json_extract(m.data, '$.workout.label') AS workout_label, "
@@ -33,7 +40,7 @@ def activities(conn: sqlite3.Connection, perf: dict[str, Any] | None = None) -> 
         "s.activity_id IS NOT NULL AS has_streams, w.data AS weather "
         "FROM activities a LEFT JOIN activity_metrics m USING (activity_id) "
         "LEFT JOIN streams s USING (activity_id) LEFT JOIN weather w USING (activity_id) "
-        "ORDER BY a.start_time_local DESC"
+        "ORDER BY a.start_time_local DESC", (apple.APPLE_ID_BASE,)
     ).fetchall()
     out = []
     for r in rows:
@@ -82,6 +89,10 @@ def watch_extras(raw_json: str | None) -> dict[str, Any]:
     except ValueError:
         return {}
     out = {k: raw.get(v) for k, v in WATCH_FIELDS.items()}
+    if raw.get("source") == "apple":
+        out["active_calories"] = out.pop("calories")
+    elif out["calories"] and raw.get("bmrCalories") is not None:
+        out["active_calories"] = max(0, out["calories"] - raw["bmrCalories"])
     return {k: v for k, v in out.items() if v not in (None, "", 0)}
 
 

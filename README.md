@@ -32,7 +32,8 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
 - **Sync trouble:** if the last sync failed (say, Garmin's login expired), a banner at the top
   says what went wrong, what to do, and when the last good sync was
 - This week / month / year (each opens its runs) and your cross-training this week (strength,
-  rides, hikes and the rest), coach notes with the workouts after today's
+  rides, hikes and the rest), **active calories** today with your 7-day daily average, coach
+  notes with the workouts after today's
   and your biggest opportunity to improve, and your recent activities
 
 **Progress**: how you're trending (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the range)
@@ -57,7 +58,8 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
 - Weekly distance, easy vs. hard running, **aerobic efficiency** (distance per heartbeat on
   easy runs) and **long runs** (your longest each week against the long-run threshold and your
   marathon target), and **cross-training**: hours of strength, cycling, hiking & walking and
-  everything else each week. Each chart leads with its headline number, and a click on a week opens its
+  everything else each week, and **active calories**: what your workouts burned beyond resting,
+  as a daily average, split into running and cross-training. Each chart leads with its headline number, and a click on a week opens its
   runs.
 - **Heart rate at a fixed pace:** your heart rate while running steadily at one pace (adjusted
   for hills), run by run with a 30-day average. The same pace at a lower heart rate is the
@@ -117,7 +119,7 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
   rate and efficiency, how this one ranks against runs of the same kind, and your route record
 - Training load and Garmin's training effect (with what it means: maintaining, improving…),
   HR drift, efficiency, effective VO2max and your heart rate at the pace picked on Progress
-  against your runs the month before; under **More from your watch**, calories, power,
+  against your runs the month before; under **More from your watch**, active calories (with the total including resting), power,
   best pace, stride length, ground contact, vertical oscillation and ratio, and
   sweat loss, whichever your watch records
 - HR, pace + grade-adjusted pace, cadence and elevation on one synced timeline (by time or
@@ -133,6 +135,12 @@ The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
   2 bpm lower heart rate"); intervals are listed as reps and recoveries; the fastest split
   is marked
 - **HR drift** (aerobic decoupling) on steady runs over 40 minutes
+
+**Active calories:** Garmin's calorie count for a workout includes what you'd have burned
+sitting still; the dashboard takes that resting share off, so you see what the workout itself
+burned (Apple Watch workouts record it that way already). These are your watch's estimates:
+fair for runs (heart rate plus pace), rougher for strength, indoor cycling and the like, where
+heart rate alone tends to overstate them. Good for trends, not to the calorie.
 
 **Wrist vs. arm band:** each workout records whether an external HR sensor was connected.
 Wrist HR is cleaned of one-second spikes and dropouts, and runs where the wrist sensor

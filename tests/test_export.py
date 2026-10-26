@@ -162,3 +162,6 @@ def test_watch_extras():
     # zero means not measured; Body Battery needs all-day wear, so it's left out
     assert w == {"calories": 718, "stride_cm": 114.3, "te_label": "TEMPO"}
     assert api.watch_extras(None) == {} and api.watch_extras("not json") == {}
+    # active calories: Garmin's total less its resting share; Apple's figure is active already
+    assert api.watch_extras('{"calories": 366, "bmrCalories": 43}')["active_calories"] == 323
+    assert api.watch_extras('{"calories": 330, "source": "apple"}') == {"active_calories": 330}

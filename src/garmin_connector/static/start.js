@@ -14,7 +14,7 @@ function populateTypes() {
 function renderCharts() {
   renderMilestones();
   renderRecordsByYear();
-  renderTrend(); renderLoad(); renderVolume(); renderMix(); renderCross(); renderLoadSources(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus();
+  renderTrend(); renderLoad(); renderVolume(); renderMix(); renderCross(); renderCalories(); renderLoadSources(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus();
 }
 
 
