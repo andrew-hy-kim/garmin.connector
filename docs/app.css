@@ -727,6 +727,13 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
   .tiles:has(> .tile:nth-child(3):last-child) .tile .value { font-size: 20px; }
   .tiles:has(> .tile:nth-child(3):last-child) .tile .value small { font-size: 12px; margin-left: 2px; }
   .tiles:has(> .tile:nth-child(3):last-child) .tile .sub { font-size: 11.5px; line-height: 1.3; }
+  /* With cross-training and calories too: week / month / year three across, those two below */
+  .tiles:has(> .tile:nth-child(5):last-child) { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+  .tiles:has(> .tile:nth-child(5):last-child) .tile { grid-column: span 3; padding: 10px; border-radius: 14px; }
+  .tiles:has(> .tile:nth-child(5):last-child) .tile:nth-child(-n+3) { grid-column: span 2; }
+  .tiles:has(> .tile:nth-child(5):last-child) .tile .value { font-size: 20px; }
+  .tiles:has(> .tile:nth-child(5):last-child) .tile .value small { font-size: 12px; margin-left: 2px; }
+  .tiles:has(> .tile:nth-child(5):last-child) .tile .sub { font-size: 11.5px; line-height: 1.3; }
 }
 
 /* Phones: no pinch or double-tap zoom on the page; scrolling works as usual. Maps keep their
