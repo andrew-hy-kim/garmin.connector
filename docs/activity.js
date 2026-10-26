@@ -167,7 +167,8 @@ function renderTiles() {
   const whole = S ? summarize(0, S.n - 1) : null;
   const run = usesPace();
   const drift = m.decoupling_pct;
-  const moving = whole ? whole.moving : a.moving_duration_s || a.duration_s;
+  // no speed recorded (strength, yoga, indoor rides without a sensor): nothing counts as moving
+  const moving = (whole && whole.moving) || a.moving_duration_s || a.duration_s;
   const elapsed = whole ? whole.time : a.duration_s;
   const hero = [
     ["Distance", withUnit(fmtDist(a.distance_m)), ""],

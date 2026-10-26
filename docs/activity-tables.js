@@ -110,7 +110,7 @@ function renderSplits() {
   const u = Units.get(), unit = M_PER[u];
   $("split-unit").textContent = u === "mi" ? "Mile" : "Km";
   $("splits-title").textContent = u === "mi" ? "Mile splits" : "Kilometer splits";
-  if (!S) { $("splits").innerHTML = ""; return; }
+  if (!S) { $("splits").innerHTML = ""; $("splits").closest(".card").hidden = true; return; }
   const bounds = [0];
   let next = unit;
   for (let i = 0; i < S.n; i++) if (S.distance[i] >= next) { bounds.push(i); next += unit; }
@@ -137,7 +137,8 @@ function renderSplits() {
       <td class="num">${s.cadence ? Math.round(s.cadence) : ""}</td>
       <td class="num">${elev >= 0 ? "+" : "−"}${Math.abs(Math.round(elev))} ${u === "mi" ? "ft" : "m"}</td></tr>`);
   }
-  $("splits").innerHTML = rows.join("") || `<tr><td colspan="6" class="empty">No distance data.</td></tr>`;
+  $("splits").innerHTML = rows.join("");
+  $("splits").closest(".card").hidden = !rows.length;  // nothing to split without distance
   $("splits-pace-h").textContent = usesPace() ? "Pace" : "Speed";
   const gap = run && parts.some((p) => p.gap);
   $("splits-hint").textContent = (gap ? "GAP (grade-adjusted pace) is the flat-ground equivalent of each split's effort. " : "") +

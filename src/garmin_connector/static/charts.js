@@ -585,13 +585,14 @@ function renderRecords() {
 
 // Best time at each distance, year by year: how each year compares, whichever watch it was on
 const YEAR_DISTANCES = ["1 mile", "5 km", "10 km", "Half marathon", "Marathon"];
+const YEAR_SHORT = { "1 mile": "Mile", "5 km": "5K", "10 km": "10K", "Half marathon": "Half", "Marathon": "Full" };  // fits a phone
 function renderRecordsByYear() {
   if (!$("records-years")) return;
   const cols = YEAR_DISTANCES.filter((l) => state.records[l]?.length);
   const years = [...new Set(cols.flatMap((l) => state.records[l].map((e) => e.date.slice(0, 4))))].sort().reverse();
   $("records-years-fold").hidden = years.length < 2;
   if (years.length < 2) return;
-  $("records-years-head").innerHTML = `<tr><th>Year</th>${cols.map((l) => `<th class="num">${esc(l)}</th>`).join("")}</tr>`;
+  $("records-years-head").innerHTML = `<tr><th>Year</th>${cols.map((l) => `<th class="num"><span class="wide-only">${esc(l)}</span><span class="narrow-only">${YEAR_SHORT[l]}</span></th>`).join("")}</tr>`;
   $("records-years").innerHTML = years.map((y) => `<tr><td>${y}</td>${cols.map((l) => {
     const list = state.records[l];
     const e = list.find((x) => x.date.startsWith(y));  // fastest first, so the year's best

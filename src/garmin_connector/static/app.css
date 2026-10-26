@@ -441,6 +441,9 @@ button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14p
   .races-table th:nth-child(3), .races-table td:nth-child(3) { display: none; }
 }
 @media (max-width: 600px) { .splits-table .pbar { max-width: 16px; margin-right: 6px; } }
+/* records tables: a little less space between columns, so every column fits its card */
+.records-table th, .records-table td { padding-left: 7px; padding-right: 7px; }
+@media (max-width: 600px) { .records-years th, .records-years td { padding-left: 4px; padding-right: 4px; } }
 
 /* activity list on phones: two-line rows instead of a wide table */
 @media (min-width: 601px) { .narrow-only { display: none !important; } }
