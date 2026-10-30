@@ -56,12 +56,12 @@ def create_app(db_path: Path | str | None = None) -> Flask:
         return send_from_directory(STATIC, "index.html")
 
     @app.get("/plan")
-    def plan_page():  # the training plan was removed; old links land on Today
+    def plan_page():  # the training plan was removed; old links land on the home page
         return redirect("/")
 
     @app.get("/progress")
-    def progress_page():
-        return send_from_directory(STATIC, "progress.html")
+    def progress_page():  # Progress is now the home page; old links and bookmarks land there
+        return redirect("/")
 
     @app.get("/activities")
     def activities_page():

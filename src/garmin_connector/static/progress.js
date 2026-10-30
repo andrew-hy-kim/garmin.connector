@@ -295,34 +295,10 @@ async function renderLatest() {
   $("latest-route").hidden = !$("latest-route").innerHTML;
 }
 
-function renderRecent() {
-  const el = $("recent-list");
-  if (!el) return;
-  const list = filtered().slice(0, 6);
-  el.innerHTML = list.length ? `<table class="recent-table"><tbody>${list.map((a) => `<tr class="${a.has_streams ? "clickable" : ""}" ${a.has_streams ? 'tabindex="0"' : ""} data-id="${a.activity_id}">
-      <td class="when">${esc(fmtDate(a.start_time_local, { weekday: "short", month: "short", day: "numeric" }))}</td>
-      <td class="name">${esc(a.name)}${a.workout_label ? `<div>${tagHtml(a.workout_label, QUALITY.has(a.workout_type), a.workout_type)}</div>` : ""}</td>
-      <td class="num">${fmtDist(a.distance_m)}</td>
-      <td class="num">${fmtPaceOrSpeed(a.avg_speed_mps, a.activity_type)}</td>
-      <td class="num">${a.avg_hr ? `${Math.round(a.avg_hr)} bpm` : ""}</td></tr>`).join("")}</tbody></table>`
-    : `<p class="hint">No activities yet.</p>`;
-}
-
 // ---------- Progress: where to improve ----------
 const FOCUS_LABEL = { focus: "Work on", ok: "Fine", strength: "Strength" };
 function renderFocus() {
   const list = state.focus || [];
-  const top = $("focus-top");
-  if (top) {
-    // Today: the longer-term thing to work on
-    const a = list.find((x) => x.level === "focus");
-    top.hidden = !a;
-    if (a) {
-      top.href = pageUrl("progress", { hash: "focus-card" });
-      top.innerHTML = `<span class="dim">Biggest opportunity</span><b>${esc(a.title)}: ${esc(unitText(a.headline))}</b>
-        <span class="go">Where to improve ›</span>`;
-    }
-  }
   const card = $("focus-card");
   if (!card) return;
   card.hidden = !list.length;

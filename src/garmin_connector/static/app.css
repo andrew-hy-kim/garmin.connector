@@ -525,9 +525,8 @@ button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14p
   .topbar .controls label select { font-size: 14px; max-width: 132px; }
 }
 
-/* ---------- Today: readiness, latest run, recent ---------- */
+/* ---------- home: progress headline, latest run ---------- */
 .today-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
-#readiness { grid-template-columns: minmax(0, 1fr); }  /* one column: just the readiness itself */
 .today-hero .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
 .rd-main { display: flex; flex-direction: column; gap: 4px; }
 .rd-word { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }

@@ -16,11 +16,13 @@ if (matchMedia("(pointer: coarse)").matches) {
 function pageUrl(page, params = {}) {
   // `t` ("start-end" in seconds) opens the workout with that stretch selected
   if (page === "activity") return (PHONE ? `activity.html?id=${params.id}` : `/activity/${params.id}`) + (params.t ? `#t=${params.t}` : "");
-  if (["progress", "activities", "map"].includes(page)) {
+  if (["activities", "map"].includes(page)) {
     const query = params.query ? `?${new URLSearchParams(params.query)}` : "";
     return (PHONE ? `${page}.html` : `/${page}`) + query + (params.hash ? `#${params.hash}` : "");
   }
-  return PHONE ? "index.html" : "/";
+  // Progress is the home page
+  const hash = params.hash ? `#${params.hash}` : "";
+  return (PHONE ? "index.html" : "/") + hash;
 }
 
 // The sticky top bar's height, for things that stick just below it
@@ -31,7 +33,7 @@ function pageUrl(page, params = {}) {
 
 // Highlight this page's tab (a workout belongs to Activities)
 {
-  const page = document.body.dataset.page || (/activit/.test(location.pathname) ? "activities" : "today");
+  const page = document.body.dataset.page || (/activit/.test(location.pathname) ? "activities" : "progress");
   const mark = (a) => document.querySelectorAll(".tabs a").forEach((x) => (x === a ? x.setAttribute("aria-current", "page") : x.removeAttribute("aria-current")));
   mark(document.querySelector(`.tabs a[data-page="${page}"]`));
   // the tapped tab lights up the moment it's touched, before the next page has loaded

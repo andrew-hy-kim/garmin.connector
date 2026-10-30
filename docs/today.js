@@ -1,4 +1,4 @@
-// Today: volume and cross-training tiles, sync trouble, readiness, latest run, recent activities.
+// Summary tiles (volume, cross-training, calories), the cross-training and calorie charts, sync trouble.
 
 // ---------- tiles ----------
 function renderTiles() {
@@ -25,24 +25,8 @@ function renderTiles() {
     return `<div class="tile link" role="button" tabindex="0" data-from="${isoDay(from)}" title="List these ${noun(2)}"><div><div class="label">${label}</div>
       <div class="value">${distText(t.meters)}<small>${u}</small></div><div class="sub">${sub}</div></div></div>`;
   });
-  const today = state.load.at(-1);
-  const weekAgo = state.load.at(-8);
-  const delta = (k, goodWhenUp) => {
-    if (!weekAgo) return "";
-    const d = Math.round(today[k] - weekAgo[k]);
-    if (!d) return "Same as last week";
-    return `<span class="${goodWhenUp && d > 0 ? "up" : ""}">${d > 0 ? "▲" : "▼"} ${Math.abs(d)}</span> vs last week`;
-  };
-  const st = today && formState(today);
-  const load = today && !$("readiness") ? [
-    `<div class="tile"><div class="label">Base</div><div class="value">${today.fitness.toFixed(0)}</div><div class="sub">${delta("fitness", true)}</div></div>`,
-    `<div class="tile"><div class="label">Fatigue</div><div class="value">${today.fatigue.toFixed(0)}</div><div class="sub">${delta("fatigue")}</div></div>`,
-    `<div class="tile state" style="--c:var(${textColor(st)})"><div class="label">Form</div><div class="value">${fmtSigned(today.form)}</div><div class="sub">${warmingUp() ? "Getting started" : st.label}</div></div>`,
-  ] : [];
-  const cross = state.type === "run" && $("readiness") ? [crossTile(week, new Date(week.getFullYear(), week.getMonth(), week.getDate() - 7))] : [];
-  const kcal = $("readiness") ? [calorieTile()] : [];
-  $("tiles").innerHTML = [...volume, ...cross, ...kcal, ...load].join("");
-  $("tiles").classList.toggle("six", volume.length + load.length === 6);
+  const cross = state.type === "run" ? [crossTile(week, new Date(week.getFullYear(), week.getMonth(), week.getDate() - 7))] : [];
+  $("tiles").innerHTML = [...volume, ...cross, calorieTile()].join("");
 }
 
 
@@ -213,7 +197,7 @@ function renderCalories() {
 }
 
 // ---------- sync trouble ----------
-// A sync that failed since the last good one: say so on Today, with what to do about it
+// A sync that failed since the last good one: say so on the home page, with what to do about it
 async function renderSyncAlert() {
   const el = $("sync-alert");
   if (!el || PHONE) return;
@@ -238,7 +222,7 @@ $("tiles")?.addEventListener("click", tileFilter);
 $("tiles")?.addEventListener("keydown", tileFilter);
 
 
-// ---------- Today: readiness, latest run, recent activities ----------
+// ---------- load extras ----------
 // Monotony and strain over the last 7 days, rest days until fresh, and the most load you
 // can do today and stay balanced (RUNALYZE's calculations; same model as the charts).
 function loadExtras(series) {
@@ -252,42 +236,4 @@ function loadExtras(series) {
   const restDays = fatigue > fitness && fatigue > 0 ? Math.ceil(Math.log(Math.max(1, fitness) / fatigue) / Math.log((1 - la) / (1 - lc))) : 0;
   const balanced = Math.max(0, (fitness * (1 - lc) - fatigue * (1 - la)) / (la - lc));
   return { monotony, strain: avg * 7 * monotony, weekLoad: avg * 7, restDays, balanced };
-}
-
-const READY = {
-  fresh: ["Fresh", "A good day for a hard session or a race."],
-  neutral: ["Balanced", "Train normally: an easy run or your next workout."],
-  productive: ["Building", "You're carrying useful fatigue. Keep today easy unless a workout is due."],
-  overreaching: ["Tired", "Fatigue is high. Rest, or keep it short and very easy."],
-};
-
-function renderReadiness() {
-  const el = $("readiness");
-  if (!el) return;
-  const today = state.load.at(-1);
-  if (!today) { el.hidden = true; return; }
-  el.hidden = false;
-  const st = formState(today);
-  let [word, advice] = READY[st.key];
-  // after a break, low fatigue reads as "fresh"; that's the break talking, not readiness to race
-  const rebuilding = (state.insights || []).some((n) => n.title.startsWith("Rebuilding after"));
-  if (warmingUp()) {
-    [word, advice] = ["Getting started", WARMUP_TEXT];
-  } else if (rebuilding && (st.key === "fresh" || st.key === "neutral")) {
-    word = "Rebuilding";
-    advice = "Your training load is low after the break, so the numbers look fresh. Keep building gradually with easy running.";
-  }
-  const x = warmingUp() ? null : loadExtras(state.load);  // days to fresh, balanced load: not this early
-  const sign = fmtSigned;
-  const facts = [
-    `Base <b>${today.fitness.toFixed(0)}</b>`, `Fatigue <b>${today.fatigue.toFixed(0)}</b>`,
-    x && x.restDays ? `<b>${x.restDays}</b> easy day${x.restDays > 1 ? "s" : ""} to fresh` : "",
-    x ? `Up to <b>${Math.round(x.balanced)}</b> load today stays balanced` : "",
-  ].filter(Boolean);
-  el.innerHTML = `<div class="rd-main" style="--c:var(${textColor(st)})">
-      <span class="eyebrow">Readiness</span>
-      <div class="rd-word"><b>${word}</b><span class="rd-form" title="Form: base minus fatigue">Form ${sign(today.form)}</span></div>
-      <p>${advice}</p>
-      <div class="rd-facts">${facts.map((f) => `<span>${f}</span>`).join("")}</div>
-    </div>`;
 }

@@ -19,25 +19,19 @@ ramp rate, new bests, interval reps against the pace they're meant for, heat and
 and how you're building back after a break of 3+ weeks), worked out
 on your Mac.
 
-The dashboard has four tabs: **Today**, **Progress**, **Activities** and **Map**
+The dashboard has three tabs: **Progress**, **Activities** and **Map**
 (the same tabs sit at the bottom of the screen on a phone).
 
-**Today**: how you're doing and what to do now
-- **Readiness:** fresh / balanced / building / tired from your form, with base and fatigue,
-  how many easy days until you're fresh, and the most training load you can do today and stay
-  balanced. It's all
-  worked out from your workouts, so it doesn't need the watch worn day and night.
-- **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
-  its coach notes
+**Progress** (the home page): your running at a glance, then how you're trending (a 3M / 6M /
+1Y / 2Y / 5Y / All switch sets the range for the charts)
 - **Sync trouble:** if the last sync failed (say, Garmin's login expired), a banner at the top
   says what went wrong, what to do, and when the last good sync was
-- This week / month / year (each opens its runs) and your cross-training this week (strength,
-  rides, hikes and the rest), **active calories** today with your 7-day daily average, coach
-  notes with the workouts after today's
-  and your biggest opportunity to improve, and your recent activities
-
-**Progress**: how you're trending (a 3M / 6M / 1Y / 2Y / 5Y / All switch sets the range)
-- **Progress status:** one word, like Readiness on Today: *Improving*, *Edging up*, *Holding
+- **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
+  its coach notes
+- This week / month / year (each opens its runs), your cross-training this week (strength,
+  rides, hikes and the rest) and **active calories** today with your 7-day daily average
+- **Coach notes** on your recent training, with the workouts after today's
+- **Progress status:** one word: *Improving*, *Edging up*, *Holding
   steady*, *Slipping* or *Rebuilding* (after a break). It weighs four signals over fixed windows,
   whatever range the charts show: VO2max shape over 4 weeks, heart rate at your usual pace and
   easy-run efficiency (the last 4 weeks against the 8 before), and training load against 4 weeks
@@ -355,7 +349,7 @@ pytest
 Tests use a fake Garmin client and synthetic `.fit` files (written with `fit-tool`),
 and never touch a real account.
 
-The pages' code is split by part: Today, Progress and Activities share `overview.js` (state and
+The pages' code is split by part: Progress and Activities share `overview.js` (state and
 helpers), then `today.js`, `charts.js`, `table.js` and `progress.js`, with `start.js` loaded last
 to run the page; the workout page is `activity.js` plus `activity-panels.js`, `activity-tables.js`,
 `activity-map.js`, `activity-compare.js` and `activity-start.js`. A new file goes in the page's

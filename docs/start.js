@@ -1,4 +1,4 @@
-// Puts the Today, Progress and Activities pages together: loads the data, renders, wires the
+// Puts the Progress and Activities pages together: loads the data, renders, wires the
 // controls. Loaded last, after the files that define each part.
 
 // ---------- page ----------
@@ -49,10 +49,10 @@ function render() {
   document.body.classList.toggle("no-data", empty);
   if ($("welcome")) $("welcome").hidden = !empty || PHONE;
   renderToday();
-  renderReadiness(); renderLatest(); renderConsistency();
+  renderLatest(); renderConsistency();
   renderTiles(); renderRaces(); renderExplain(); renderCompare();
-  if ($("notes")) renderNotes($("notes"), $("readiness") ? state.insights.filter((n) => !n.title.startsWith("Form:")) : state.insights);
-  renderRecent(); renderCharts(); renderStats(); renderSettings(); renderTable(); updateJump();
+  if ($("notes")) renderNotes($("notes"), state.insights);
+  renderCharts(); renderStats(); renderSettings(); renderTable(); updateJump();
 }
 
 async function load() {

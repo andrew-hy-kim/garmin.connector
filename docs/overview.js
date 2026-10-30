@@ -1,4 +1,4 @@
-// Today, Progress and Activities pages: shared state and helpers (time range, weekly buckets, lazy charts).
+// Progress and Activities pages: shared state and helpers (time range, weekly buckets, lazy charts).
 // Each part of the pages is in its own file (today.js, charts.js, progress.js, table.js); start.js runs them.
 
 const PAGE_SIZE = 10;

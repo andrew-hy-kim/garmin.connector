@@ -20,7 +20,7 @@ from pathlib import Path
 STATIC = Path(__file__).parent / "static"
 PHONE = STATIC / "phone"
 
-PAGES = ["index.html", "progress.html", "activities.html", "map.html", "activity.html"]
+PAGES = ["index.html", "activities.html", "map.html", "activity.html"]
 ASSETS = ["app.css", "common.js", "map.js",
           "overview.js", "today.js", "charts.js", "table.js", "progress.js", "start.js",
           "activity.js", "activity-panels.js", "activity-tables.js", "activity-map.js", "activity-compare.js",
@@ -121,6 +121,8 @@ def build(out: Path | str = "docs") -> Path:
     files[".nojekyll"] = b""  # serve files as-is on GitHub Pages
     # the Plan tab was removed; a home-screen shortcut to it still lands somewhere useful
     files["plan.html"] = b'<!doctype html><meta charset="utf-8"><script>location.replace("index.html")</script>\n'
+    # Progress became the home page; a home-screen shortcut to it still works
+    files["progress.html"] = b'<!doctype html><meta charset="utf-8"><script>location.replace("index.html" + location.hash)</script>\n'
     for name, data in files.items():
         (out / name).write_bytes(data)
     return out
