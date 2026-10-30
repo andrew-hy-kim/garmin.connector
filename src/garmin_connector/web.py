@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 
-from . import api, config, db, export, focus, heatmap, insights, performance, processing, races, sync
+from . import api, config, db, focus, heatmap, insights, performance, processing, races, sync
 
 log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
@@ -40,16 +40,6 @@ def create_app(db_path: Path | str | None = None) -> Flask:
             if request.headers.get("Sec-Fetch-Site") == "cross-site" or (
                     origin and origin.rstrip("/") != f"{request.scheme}://{request.host}"):
                 abort(403)
-
-    export_lock = threading.Lock()
-
-    def export_in_background():
-        """Refresh the phone app's data file after a change, without making the page wait."""
-        folder = export.default_dir()  # now, not whenever the thread gets to it
-        def run():
-            with export_lock, conn() as c:
-                export.write_quietly(c, folder)
-        threading.Thread(target=run, daemon=True).start()
 
     @app.get("/")
     def index():
@@ -158,7 +148,6 @@ def create_app(db_path: Path | str | None = None) -> Flask:
                 db.set_setting(c, key, value)
             processing.refresh(c)
             result = api.settings_with_zones(c)
-        export_in_background()
         return jsonify(result)
 
     @app.get("/api/sync")
@@ -173,7 +162,6 @@ def create_app(db_path: Path | str | None = None) -> Flask:
         try:
             with conn() as c:
                 result = sync.run(c)
-            export_in_background()
             return jsonify(result)
         except SystemExit as err:  # e.g. "Not logged in yet"
             return jsonify({"error": str(err)}), 400

@@ -1,9 +1,5 @@
 // Shared helpers for all dashboard pages.
 
-// On the phone, phone.js loads first and answers API calls from the imported data file.
-const PHONE = !!window.PhoneData;
-if (PHONE) document.documentElement.classList.add("phone");
-
 // Phones: Safari ignores user-scalable=no for pinching, so stop its pinch gesture here.
 // Touch screens only (a Mac trackpad pinch is left alone), and not on maps, which zoom themselves.
 if (matchMedia("(pointer: coarse)").matches) {
@@ -12,17 +8,17 @@ if (matchMedia("(pointer: coarse)").matches) {
   }
 }
 
-// Links between pages: server routes on the Mac, plain files in the phone app.
+// Links between pages
 function pageUrl(page, params = {}) {
   // `t` ("start-end" in seconds) opens the workout with that stretch selected
-  if (page === "activity") return (PHONE ? `activity.html?id=${params.id}` : `/activity/${params.id}`) + (params.t ? `#t=${params.t}` : "");
+  if (page === "activity") return `/activity/${params.id}` + (params.t ? `#t=${params.t}` : "");
   if (["activities", "map"].includes(page)) {
     const query = params.query ? `?${new URLSearchParams(params.query)}` : "";
-    return (PHONE ? `${page}.html` : `/${page}`) + query + (params.hash ? `#${params.hash}` : "");
+    return `/${page}` + query + (params.hash ? `#${params.hash}` : "");
   }
   // Progress is the home page
   const hash = params.hash ? `#${params.hash}` : "";
-  return (PHONE ? "index.html" : "/") + hash;
+  return "/" + hash;
 }
 
 // The sticky top bar's height, for things that stick just below it
@@ -47,7 +43,6 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 async function getJSON(url, options) {
-  if (PHONE) return window.PhoneData.get(url, options);
   const res = await fetch(url, options);
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || res.statusText);

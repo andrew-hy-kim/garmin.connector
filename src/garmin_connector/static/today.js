@@ -200,7 +200,7 @@ function renderCalories() {
 // A sync that failed since the last good one: say so on the home page, with what to do about it
 async function renderSyncAlert() {
   const el = $("sync-alert");
-  if (!el || PHONE) return;
+  if (!el) return;
   let st = {};
   try { st = await getJSON("/api/sync"); } catch {}
   el.hidden = !st.error;

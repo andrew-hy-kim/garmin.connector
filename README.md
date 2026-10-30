@@ -20,7 +20,7 @@ and how you're building back after a break of 3+ weeks), worked out
 on your Mac.
 
 The dashboard has three tabs: **Progress**, **Activities** and **Map**
-(the same tabs sit at the bottom of the screen on a phone).
+(in a narrow window they move to the bottom of the screen).
 
 **Progress** (the home page): your running at a glance, then how you're trending (a 3M / 6M /
 1Y / 2Y / 5Y / All switch sets the range for the charts)
@@ -145,10 +145,6 @@ locked onto your cadence are flagged and left out of max-HR and efficiency estim
 > officially support it, so if Garmin changes their login it may need a library update
 > (`pip install -U garminconnect`).
 
-**On your iPhone:** a home-screen version of the dashboard that works offline. Your Mac
-writes one data file to iCloud Drive after every sync; the phone app imports it and keeps
-it on the phone. See [On your iPhone](#on-your-iphone).
-
 ## Setup (once)
 
 **Easiest:** paste this into Terminal. It installs everything (including its own Python,
@@ -203,7 +199,6 @@ Everything else is a command in Terminal. The command is `garmin`; the original,
 | `garmin settings --max-hr 192` | Override a Garmin value (0 = go back to Garmin's) |
 | `garmin analyze` | Re-run the analysis on every downloaded workout |
 | `garmin backup` | Copy your database to `~/.garmin-connector/backups` now (syncs already do it once a week) |
-| `garmin export` | Write the phone app's data file now (also happens after every sync) |
 | `garmin weather` | Look up the weather for workouts that don't have it yet (also happens at every sync; the first time it fills in your whole history) |
 | `garmin weather --redo` | Look up every workout's weather again |
 | `garmin import-apple export.zip` | Add your Apple Watch workouts from before your Garmin (see below) |
@@ -243,64 +238,6 @@ import lists any outdoor runs that came without a GPS route, and why.
 Rerun the setup line. It updates the app, skips the login if you're logged in, syncs, and
 opens the dashboard.
 
-## On your iPhone
-
-The phone app is the same dashboard (overview, workouts and coach notes) as a home-screen
-app. It's **view-only**: syncing and changing settings happen on the Mac. It works offline; only the route map's
-background needs a connection.
-
-**How it works:** after every sync (including the daily automatic one), your Mac writes
-`garmin-dashboard.data` to **iCloud Drive → Garmin Dashboard**. The phone app imports that
-file and stores it on the phone. The app's code is served by GitHub Pages. Your data only
-goes there if you turn on automatic updates (below), and then only encrypted.
-
-### One-time setup
-
-1. **Turn on GitHub Pages** for this repository: on GitHub, open the repo → **Settings** →
-   **Pages** → under *Build and deployment*, Source: **Deploy from a branch**, Branch:
-   **claude/affectionate-bohr-2g8s7y**, folder: **/docs** → **Save**. After a minute the app
-   is at **https://andrew-hy-kim.github.io/garmin.connector/**
-2. **On your Mac**, make sure iCloud Drive is on (System Settings → your name → iCloud →
-   iCloud Drive), update the app by rerunning the setup line, and let it sync. It prints
-   `Phone app data updated: …/Garmin Dashboard/garmin-dashboard.data`.
-3. **On your iPhone**, open the link above in **Safari**, tap **Share** → **Add to Home
-   Screen** → **Add**.
-4. Open **Running** from your home screen (not from Safari: the home-screen app keeps its
-   own copy of the data), tap **Import data**, then **Browse** → **iCloud Drive** →
-   **Garmin Dashboard** → **garmin-dashboard.data**. The first import takes a few seconds.
-
-### Everyday
-
-After your Mac syncs, tap **Update** at the top of the phone app and pick the same file
-again. The bar shows how old the data on the phone is. Or let it update by itself:
-
-### Automatic updates
-
-```bash
-garmin phone-updates on
-```
-
-It walks you through two things: a GitHub token that can change only this repository
-(Contents: read and write), and a passphrase you pick. From then on, after every sync your
-Mac encrypts the phone app's data with that passphrase (AES-256) and uploads it to the
-`phone-data` branch of this repository, replacing the previous copy. On the phone, tap
-**Auto-update** at the top (or, on a new phone, it's offered right away) and enter the
-passphrase once. Each time you open the app it checks for new data and loads it.
-
-- The repository is public, so the encrypted file is too: the passphrase is what keeps it
-  private. Use a few unrelated words. The token and passphrase stay in your Mac's Keychain;
-  the phone keeps only the key derived from the passphrase.
-- Change the passphrase by running `phone-updates on` again; the phone asks for the new one.
-- `garmin phone-updates status` shows whether it's on; `… now` uploads right
-  away; `… off` stops it and removes the token and passphrase (delete the `phone-data`
-  branch on GitHub to remove the uploaded file too).
-- Combined with the daily sync below, the phone stays current without touching the Mac.
-
-- No iCloud Drive? Run `garmin export --to ~/Desktop` and AirDrop the file to
-  your phone (save it to Files), then import it.
-- Needs iOS 16.4 or later.
-- Removing the app from your home screen deletes its copy of the data; just import again.
-
 ### Sync automatically every day
 
 ```bash
@@ -328,14 +265,11 @@ Everything is in `~/.garmin-connector/` (set `GARMIN_CONNECTOR_HOME` to move it)
 - `fit/`: the original `.fit` file for every workout, so nothing is lost even if Garmin
   changes something
 - `tokens/`: login tokens (private to your user account)
-- The phone app's copy: `iCloud Drive/Garmin Dashboard/garmin-dashboard.data` (summaries,
-  analysis and 5-second workout data, about 10–15 MB for several years of running)
 
-Your data is only sent to Garmin, to fetch it, with three exceptions: the route map loads
+Your data is only sent to Garmin, to fetch it, with two exceptions: the route map loads
 map tiles from OpenStreetMap, so OpenStreetMap sees roughly which area you ran in; the
 weather lookup sends Open-Meteo each workout's start point rounded to about a kilometre and
-its date (no account, nothing else about you or the run); and the
-phone app's data file is stored in your own iCloud Drive. The dashboard only listens on `127.0.0.1`, so it's reachable only from your Mac, and it
+its date (no account, nothing else about you or the run). The dashboard only listens on `127.0.0.1`, so it's reachable only from your Mac, and it
 refuses requests that other websites open in your browser could send it (changing settings,
 starting a sync, or reading your runs through another web address).
 
@@ -353,14 +287,7 @@ The pages' code is split by part: Progress and Activities share `overview.js` (s
 helpers), then `today.js`, `charts.js`, `table.js` and `progress.js`, with `start.js` loaded last
 to run the page; the workout page is `activity.js` plus `activity-panels.js`, `activity-tables.js`,
 `activity-map.js`, `activity-compare.js` and `activity-start.js`. A new file goes in the page's
-script tags (before the `start` file) and in `ASSETS` in `phone_build.py`; a test checks both.
-
-The phone app in `docs/` is built from `src/garmin_connector/static/`. After changing the
-pages, rebuild it (a test checks that `docs/` is up to date):
-
-```bash
-python -m garmin_connector.phone_build docs
-```
+script tags, before the `start` file.
 
 Chart.js 4.4.1 (MIT) and Leaflet 1.9.4 (BSD-2) are bundled in `src/garmin_connector/static/`,
 so everything except the map tiles works offline.

@@ -47,7 +47,7 @@ function render() {
   // Nothing synced yet: a welcome card instead of empty charts (set first, so cards have their width)
   const empty = !state.activities.length;
   document.body.classList.toggle("no-data", empty);
-  if ($("welcome")) $("welcome").hidden = !empty || PHONE;
+  if ($("welcome")) $("welcome").hidden = !empty;
   renderToday();
   renderLatest(); renderConsistency();
   renderTiles(); renderRaces(); renderExplain(); renderCompare();
@@ -61,13 +61,6 @@ async function load() {
       .concat(["/api/race-predictions", "/api/performance", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
   Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, races, perf, focus });
   populateTypes(); render(); ready(); renderSyncAlert();
-  // Phone: confirm a data import that just happened
-  try {
-    const imp = JSON.parse(sessionStorage.getItem("phoneImported") || "null");
-    sessionStorage.removeItem("phoneImported");
-    if (imp) setStatus(imp.added == null ? `Imported ${fmtNum(imp.total)} activities.`
-      : imp.added ? `Updated: ${imp.added} new ${imp.added === 1 ? "activity" : "activities"}.` : "Updated. You were already up to date.");
-  } catch {}
 }
 
 $("welcome-sync")?.addEventListener("click", () => $("sync").click());

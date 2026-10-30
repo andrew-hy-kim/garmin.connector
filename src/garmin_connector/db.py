@@ -91,14 +91,6 @@ CREATE TABLE IF NOT EXISTS vo2max_checked (
 );
 
 
--- Phone-sized copies of each workout's streams (see export.py), so exports only
--- process new workouts. ``key`` changes whenever the export format does.
-CREATE TABLE IF NOT EXISTS export_streams (
-    activity_id  INTEGER PRIMARY KEY,
-    key          TEXT NOT NULL,
-    data         BLOB NOT NULL
-);
-
 -- Garmin's own race predictions (seconds), one row per day, saved at each sync.
 CREATE TABLE IF NOT EXISTS race_predictions (
     date           TEXT PRIMARY KEY,
@@ -257,7 +249,7 @@ def upsert_race_predictions(conn: sqlite3.Connection, rows: list[dict[str, Any]]
 def delete_activities(conn: sqlite3.Connection, ids: Iterable[int]) -> int:
     """Remove activities and everything derived from them (the .fit files on disk are left alone)."""
     ids = list(ids)
-    for table in ("streams", "laps", "activity_metrics", "export_streams", "heatmap_tracks", "weather",
+    for table in ("streams", "laps", "activity_metrics", "heatmap_tracks", "weather",
                   "activities"):
         conn.executemany(f"DELETE FROM {table} WHERE activity_id = ?", [(i,) for i in ids])
     conn.commit()

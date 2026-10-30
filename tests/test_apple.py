@@ -314,20 +314,18 @@ def test_garmin_sync_wins_over_an_apple_copy(tmp_path, monkeypatch):
     assert days == [("2023-07-01", False), ("2023-07-03", True)]
 
 
-def test_reimport_rebuilds_map_track_and_phone_copy(conn, tmp_path):
-    """A run that gains its route on a later import shows it on the map and the phone too."""
+def test_reimport_rebuilds_map_track(conn, tmp_path):
+    """A run that gains its route on a later import shows it on the map."""
     import re
-    from garmin_connector import export, heatmap
+    from garmin_connector import heatmap
     d = lambda *a: datetime(*a, tzinfo=TZ)  # noqa: E731
     xml, recs, gpx = run(d(2021, 3, 4, 7, 0), minutes=30)
     bare = re.sub(r"<WorkoutRoute.*?</WorkoutRoute>", "", xml)
     apple.import_export(conn, export_zip(tmp_path / "a.zip", [(bare, recs, None)]))
     aid = next(a["activity_id"] for a in api.activities(conn) if apple.is_apple(a["activity_id"]))
     assert not heatmap.track(conn, aid)
-    assert all(v is None for v in export.phone_streams(conn, aid)[0]["lat"])
     apple.import_export(conn, export_zip(tmp_path / "b.zip", [(xml, recs, gpx)]))  # the route turns up
     assert heatmap.track(conn, aid)
-    assert any(v is not None for v in export.phone_streams(conn, aid)[0]["lat"])
 
 
 def test_ios16_exports_with_totals_inside_workout_activity(conn, tmp_path):

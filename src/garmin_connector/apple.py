@@ -580,8 +580,8 @@ def import_export(conn: sqlite3.Connection, path: Path | str, before: str | None
         db.upsert_activities(conn, [_activity(w, streams, aid, start_point)])
         db.save_streams(conn, aid, streams, external_hr=False)
         # what was worked out from the old streams goes: analyzed afresh, weather looked up again
-        # (now perhaps with a route), and the map track and phone copy rebuilt
-        for table in ("activity_metrics", "weather", "heatmap_tracks", "export_streams"):
+        # (now perhaps with a route), and the map track rebuilt
+        for table in ("activity_metrics", "weather", "heatmap_tracks"):
             conn.execute(f"DELETE FROM {table} WHERE activity_id = ?", (aid,))
         counts["imported"] += 1
         if counts["imported"] % 50 == 0:

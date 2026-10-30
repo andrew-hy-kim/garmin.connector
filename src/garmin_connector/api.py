@@ -1,7 +1,6 @@
 """The data behind each dashboard view.
 
-The Flask routes in ``web.py`` and the phone export in ``export.py`` both build
-their data here, so the phone shows exactly what the Mac dashboard shows.
+The Flask routes in ``web.py`` build their data here.
 """
 
 from __future__ import annotations

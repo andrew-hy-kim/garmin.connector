@@ -52,7 +52,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
 EOF
 
 # The dashboard's icon, in the sizes macOS wants (sips and iconutil come with macOS)
-ICON_SRC="$APP_DIR/src/garmin_connector/static/phone/icon-512.png"
+ICON_SRC="$APP_DIR/src/garmin_connector/static/icons/icon-512.png"
 if [[ -f "$ICON_SRC" ]] && command -v iconutil >/dev/null 2>&1; then
   SET="$(mktemp -d)/icon.iconset"
   mkdir -p "$SET"

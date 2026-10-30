@@ -15,7 +15,7 @@
     <div class="controls">
       <div class="seg" id="range" role="group" aria-label="Time range for charts"></div>
       <div class="seg" id="units" role="group" aria-label="Units"></div>
-      <button id="sync" class="primary server-only">Sync now</button>
+      <button id="sync" class="primary">Sync now</button>
     </div>
     <div id="status" role="status" aria-live="polite"></div>
   </header>
@@ -26,7 +26,7 @@
     <a href="#stats-card">Statistics</a><a href="#races-card">Races</a><a href="#records-grid">Records</a><a href="#hr-settings">Settings</a>
   </nav>
 
-  <div class="warn sync-alert server-only" id="sync-alert" role="alert" hidden></div>
+  <div class="warn sync-alert" id="sync-alert" role="alert" hidden></div>
 
   <section class="card welcome" id="welcome" hidden>
     <h2>Welcome</h2>
@@ -181,8 +181,7 @@
   <section class="card" id="hr-settings">
     <details class="fold"><summary><h2>Heart-rate settings</h2><span class="dim" id="hr-sum"></span></summary>
     <div class="fold-wide"><div>
-      <p class="hint server-only">They set your zones, workout tags and load. Each sync takes them from Garmin (or estimates them); type a value only to override, clear it to go back.</p>
-      <p class="hint phone-only" id="phone-zone-note"></p>
+      <p class="hint">They set your zones, workout tags and load. Each sync takes them from Garmin (or estimates them); type a value only to override, clear it to go back.</p>
       <form id="settings" class="settings-form">
         <label><span>Max HR</span><input type="number" name="max_hr" min="120" max="230" inputmode="numeric"><span class="src"></span></label>
         <label><span>Resting HR</span><input type="number" name="resting_hr" min="30" max="100" inputmode="numeric"><span class="src"></span></label>
@@ -191,7 +190,7 @@
           <option value="threshold" title="Built around your threshold HR, like COROS">Threshold</option>
           <option value="garmin" title="Exactly the zones set in Garmin Connect">Garmin</option>
         </select></label>
-        <button type="submit" class="server-only">Save</button>
+        <button type="submit">Save</button>
       </form>
     </div>
     <div>

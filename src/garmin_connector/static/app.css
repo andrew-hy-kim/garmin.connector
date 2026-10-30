@@ -112,7 +112,7 @@ button:disabled { opacity: .45; cursor: default; }
 
 /* page content fades in once its data is drawn */
 main > :not(.topbar) { transition: opacity .25s ease; }
-body.loading main > :not(.topbar):not(.page-head):not(.data-bar):not(.onboard) { opacity: 0; }
+body.loading main > :not(.topbar):not(.page-head) { opacity: 0; }
 
 /* ---------- top bar: translucent, full width, like a Mac toolbar ---------- */
 html, body { overflow-x: clip; }
@@ -345,30 +345,6 @@ th.sortable[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
 .welcome p { color: var(--text-secondary); max-width: 620px; margin: 6px 0 18px; }
 .welcome .hint { margin: 14px 0 0; }
 .wide-btn { min-height: 44px; padding: 8px 22px; font-size: 16px; border-radius: 12px; }
-
-/* phone app: hide what only works on the Mac */
-.phone .server-only { display: none !important; }
-html:not(.phone) .phone-only { display: none !important; }
-.data-bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: center; font-size: 13px; color: var(--text-secondary);
-  background: var(--surface-1); border-radius: 14px; padding: 8px 8px 8px 14px; margin: 0 0 16px; box-shadow: var(--shadow); }
-.data-bar.stale { box-shadow: inset 0 0 0 1.5px var(--warn-c); }
-.data-bar button { padding: 4px 12px; font-size: 13px; min-height: 30px; }
-.onboard { max-width: 440px; margin: 0 auto; padding: max(10vh, 40px) 8px 40px; text-align: center; }
-.onboard .app-icon { border-radius: 20px; box-shadow: 0 6px 20px rgba(0, 0, 0, .15); }
-.onboard h1 { margin: 18px 0 6px; }
-.onboard .lead { color: var(--text-muted); font-size: 17px; margin: 0 0 28px; }
-.onboard .steps { list-style: none; counter-reset: step; padding: 0; margin: 0 0 28px; text-align: left; background: var(--surface-1);
-  border-radius: 16px; box-shadow: var(--shadow); }
-.onboard .steps li { counter-increment: step; display: grid; grid-template-columns: 28px 1fr; gap: 12px; padding: 14px 16px; margin: 0;
-  border-top: 1px solid var(--grid); color: var(--text-secondary); font-size: 15px; }
-.onboard .steps li:first-child { border-top: 0; }
-.onboard .steps li::before { content: counter(step); width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff;
-  font-weight: 700; font-size: 14px; display: grid; place-items: center; }
-.onboard .steps b { color: var(--text-primary); display: block; }
-.onboard .steps code { font-size: 12px; }
-button.wide { width: 100%; min-height: 50px; font-size: 17px; border-radius: 14px; }
-.onboard .hint { margin-top: 12px; }
-.onboard .err { color: var(--danger); margin-top: 10px; }
 
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 20px; font-size: 14px; margin: 8px 0 14px; }
 .kv div span { display: block; color: var(--text-muted); font-size: 12px; }
@@ -695,17 +671,6 @@ body[data-page="progress"] main > section { scroll-margin-top: 64px; }
 .link-btn { background: none; border: 0; color: var(--link); font: inherit; font-size: 14px; font-weight: 600; padding: 10px 0 0; cursor: pointer; }
 #heatmap.heat-mode { background: #0d1117; }
 #heatmap.heat-mode .leaflet-tile-pane, :root #heatmap.heat-mode .leaflet-tile-pane { opacity: .32; }
-
-/* ---------- phone: automatic updates ---------- */
-.bar-actions { display: flex; gap: 6px; }
-.data-bar .auto-form { flex-basis: 100%; }
-.auto-form { text-align: left; margin: 0 0 20px; }
-.auto-form p { margin: 0 0 8px; }
-.auto-row { display: flex; gap: 8px; }
-.auto-row input { flex: 1; min-width: 0; font-size: 16px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);
-  background: var(--surface-1); color: var(--text-primary); }
-.auto-form .hint { margin: 6px 0 0; }
-.auto-form .err { color: var(--danger); }
 
 /* taps on the tab bar: no double-tap-zoom wait, no grey flash */
 .tabs a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }

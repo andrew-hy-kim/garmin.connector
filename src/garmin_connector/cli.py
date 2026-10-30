@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 from xml.etree import ElementTree
 
-from . import apple, auth, backup, config, db, export, hrcheck, processing, sync, weather
+from . import apple, auth, backup, config, db, hrcheck, processing, sync, weather
 
 
 def _day(text: str) -> date:
@@ -36,14 +36,6 @@ def main(argv: list[str] | None = None) -> None:
     p_sync = sub.add_parser("sync", help="pull new activities into the local database")
     p_sync.add_argument("--since", type=_day, help="re-sync from this date (YYYY-MM-DD)")
     p_sync.add_argument("--no-fit", action="store_true", help="skip downloading .fit files (summaries only)")
-    p_sync.add_argument("--no-export", action="store_true", help="don't update the phone app's data file")
-
-    p_export = sub.add_parser("export", help="write the data file for the phone app (iCloud Drive by default)")
-    p_export.add_argument("--to", help="folder to write to (default: iCloud Drive/Garmin Dashboard)")
-
-    p_phone = sub.add_parser("phone-updates", help="automatic updates for the phone app (encrypted, via GitHub)")
-    p_phone.add_argument("action", choices=["on", "off", "status", "now"], nargs="?", default="status",
-                         help="on: set up; off: stop and forget the token; now: upload right away")
 
     sub.add_parser("backup", help="copy the database to ~/.garmin-connector/backups now (syncs do it weekly)")
     sub.add_parser("analyze", help="re-run the analysis on every downloaded activity")
@@ -87,14 +79,6 @@ def main(argv: list[str] | None = None) -> None:
                 f"Synced {result['activities']} activities, {result['vo2max_readings']} VO2 max readings, "
                 f"{result['fit_files']} new .fit files; analyzed {result['analyzed']} activities."
             )
-            if not args.no_export:
-                path = export.write_quietly(conn)
-                if path:
-                    print(f"Phone app data updated: {path}")
-    elif args.command == "export":
-        with closing(db.connect(config.db_path())) as conn:
-            path = export.write(conn, args.to)
-        print(f"Wrote {path} ({path.stat().st_size / 1e6:.1f} MB). Import it in the phone app.")
     elif args.command == "backup":
         with closing(db.connect(config.db_path())) as conn:
             path = backup.backup(conn)
@@ -104,7 +88,6 @@ def main(argv: list[str] | None = None) -> None:
             backup.backup_quietly(conn)
             sync.import_missing_streams(conn)
             print(f"Analyzed {processing.refresh(conn, force=True)} activities.")
-            export.write_quietly(conn)
     elif args.command == "hr-check":
         with closing(db.connect(config.db_path())) as conn:
             hrcheck.print_report(conn, "km" if args.km else "mi")
@@ -149,7 +132,6 @@ def main(argv: list[str] | None = None) -> None:
             print("Analyzing…")
             processing.refresh(conn)
             weather.update_quietly(conn)
-            export.write_quietly(conn)
             if signature:
                 db.set_text_setting(conn, "apple_import", signature)
             print("Done. They're in the dashboard alongside your Garmin runs.")
@@ -163,7 +145,6 @@ def main(argv: list[str] | None = None) -> None:
                   + (f"; {r['indoor']} indoor" if r["indoor"] else "")
                   + (f"; {r['no_gps']} without GPS" if r["no_gps"] else "")
                   + (f"; {r['missing']} not available yet" if r["missing"] else "") + ".")
-            export.write_quietly(conn)
     elif args.command == "settings":
         with closing(db.connect(config.db_path())) as conn:
             changes = {"max_hr": args.max_hr, "resting_hr": args.resting_hr, "lthr": args.lthr}
@@ -176,8 +157,6 @@ def main(argv: list[str] | None = None) -> None:
             if any(v is not None for v in changes.values()):
                 processing.refresh(conn)
             current = processing.effective_settings(conn)
-            if any(v is not None for v in changes.values()):
-                export.write_quietly(conn)
         for key, label in (("max_hr", "Max HR"), ("resting_hr", "Resting HR"), ("lthr", "Threshold HR")):
             value = current[key]
             source = current["sources"][key]
@@ -186,16 +165,6 @@ def main(argv: list[str] | None = None) -> None:
             print(f"{label}: {round(value) if value else 'not set'}{note}")
         if current["zone_floors"]:
             print("Zones: from Garmin, lower bounds " + ", ".join(str(f) for f in current["zone_floors"]))
-    elif args.command == "phone-updates":
-        import requests
-
-        from . import publish
-        try:
-            phone_updates(args.action)
-        except publish.GitHubError as err:
-            raise SystemExit(str(err))
-        except requests.RequestException as err:
-            raise SystemExit(f"Couldn't reach GitHub: {err}")
     elif args.command == "dashboard":
         dashboard(args.port, browser=not args.no_browser, stop=args.stop)
 
@@ -258,58 +227,6 @@ def dashboard(port: int, browser: bool = True, stop: bool = False) -> None:
         create_app().run(host="127.0.0.1", port=port)
     finally:
         pid_file.unlink(missing_ok=True)
-
-
-def phone_updates(action: str) -> None:
-    import getpass
-
-    from . import publish
-
-    with closing(db.connect(config.db_path())) as conn:
-        cfg = publish.settings(conn)
-        if action == "status":
-            if cfg:
-                print(f"Automatic phone updates are on: encrypted data goes to the '{publish.BRANCH}' branch of "
-                      f"{cfg['repo']} after each sync.\nPhone app: {publish.phone_url(cfg['repo'])}")
-            else:
-                print("Automatic phone updates are off. Turn them on with: garmin phone-updates on")
-        elif action == "off":
-            publish.clear_settings(conn)
-            print("Automatic phone updates are off; the token and passphrase were removed from your Keychain.\n"
-                  "To also remove the uploaded (encrypted) data, delete the 'phone-data' branch on GitHub.")
-        elif action == "now":
-            if not cfg:
-                raise SystemExit("Automatic phone updates aren't set up. Run: garmin phone-updates on")
-            publish.publish(conn, export.write(conn), force=True)
-            print("Uploaded. The phone app picks it up the next time you open it.")
-        else:  # on
-            print("The phone app runs on GitHub Pages, so your Mac uploads an encrypted copy of its data there\n"
-                  "after each sync, and the app downloads it when you open it. Without your passphrase the\n"
-                  "file is unreadable.\n")
-            repo = publish.repo_from_git() or input("GitHub repository of the phone app (owner/name): ").strip()
-            print(f"Repository: {repo}\n")
-            print("1. Make a GitHub token that can change only this repository:\n"
-                  "   https://github.com/settings/personal-access-tokens/new\n"
-                  f"   Repository access: Only select repositories → {repo}\n"
-                  "   Permissions → Repository permissions → Contents: Read and write\n"
-                  "   Generate it and copy it.")
-            token = getpass.getpass("   Paste the token (hidden): ").strip()
-            publish.check_access(repo, token)
-            print("\n2. Pick a passphrase. You'll type it once on your phone. Use a few unrelated words\n"
-                  "   (at least 12 characters): the encrypted file is public, so the passphrase is what protects it.")
-            while True:
-                passphrase = getpass.getpass("   Passphrase (hidden): ")
-                if len(passphrase) < 12:
-                    print("   At least 12 characters, please.")
-                elif getpass.getpass("   Again: ") != passphrase:
-                    print("   Those didn't match.")
-                else:
-                    break
-            publish.save_settings(conn, repo, token, passphrase)
-            print("\nUploading your data…")
-            publish.publish(conn, export.write(conn), force=True)
-            print(f"Done. On your phone, open {publish.phone_url(repo)} and tap 'Turn on automatic updates',\n"
-                  "then enter the passphrase. From then on it updates by itself after each sync.")
 
 
 if __name__ == "__main__":

@@ -12,7 +12,6 @@ dependencies = [
     "keyring>=24",
     "fitdecode>=0.10",
     "flask>=3",
-    "cryptography>=42",
     "requests>=2.28",
 ]
 

@@ -652,7 +652,6 @@ function renderSettings() {
   form.elements.zone_system.value = s.zone_system || "threshold";
   if ($("hr-sum")) $("hr-sum").textContent = [s.max_hr && `Max ${Math.round(s.max_hr)}`, s.lthr && `threshold ${Math.round(s.lthr)}`,
     `${s.zone_system === "garmin" ? "Garmin" : "threshold"} zones`].filter(Boolean).join(" · ");
-  if (PHONE) renderPhoneZoneChoice(form, s);
   // One strip with each zone as wide as its heart-rate span (resting HR to max HR)
   const last = s.zones.length - 1;
   const spans = s.zones.map((z, i) => {
@@ -661,42 +660,13 @@ function renderSettings() {
     return Math.max(1, hi - lo);
   });
   $("zones").className = "zones compact";
-  const overridden = s.zone_system === "garmin" && !s.zone_floors && !PHONE;
+  const overridden = s.zone_system === "garmin" && !s.zone_floors;
   $("zones").innerHTML = `<p class="hint" style="margin:14px 0 0">${zoneBasis(s)}.${overridden
     ? " Garmin's own zones only apply with Garmin's heart-rate values; clear your values above to use them again." : ""}</p>
     <div class="zone-strip" aria-hidden="true">${spans.map((w, i) => `<div style="flex:${w};--c:var(--z${i + 1})"></div>`).join("")}</div>` +
     s.zones.map((z, i) => `<div class="zone-row"><div><span class="swatch" style="--c:var(--z${i + 1})"></span>Z${i + 1} ${esc(z.name)}</div>
         <div class="bar"></div><div class="val">${zoneRange(s.zones, i)} bpm</div></div>`).join("");
 }
-
-// On the phone, heart-rate values are view-only but the zone system can be switched here.
-function renderPhoneZoneChoice(form, s) {
-  form.querySelectorAll("input").forEach((el) => { el.disabled = true; });
-  const select = form.elements.zone_system;
-  const options = s.zone_options;
-  select.disabled = !options;
-  const garminOpt = select.querySelector('option[value="garmin"]');
-  garminOpt.disabled = !!options && !options.garmin;
-  garminOpt.textContent = options && !options.garmin ? "Garmin (not available)" : "Garmin";
-  const names = { threshold: "threshold-based (COROS-style)", garmin: "Garmin's" };
-  let note;
-  if (!options) {
-    note = "To switch zones on the phone, update the app on your Mac (rerun the setup line) and sync once, then tap Update here.";
-  } else if (s.zone_system !== s.mac_zone_system) {
-    note = `Showing ${names[s.zone_system]} zones on this phone. Your Mac uses ${names[s.mac_zone_system]} zones; change it in the Mac dashboard too if you want both to match.`;
-  } else {
-    note = "Heart-rate values are set on your Mac. You can switch zones here; the choice is saved on this phone.";
-  }
-  $("phone-zone-note").textContent = note;
-}
-
-$("settings")?.addEventListener("change", async (e) => {
-  if (!PHONE || e.target.name !== "zone_system") return;
-  const value = e.target.value;
-  window.PhoneData.setZoneSystem(value === state.settings.mac_zone_system ? null : value);
-  state.settings = await getJSON("/api/settings");
-  renderSettings();
-});
 
 $("settings")?.addEventListener("submit", async (e) => {
   e.preventDefault();
