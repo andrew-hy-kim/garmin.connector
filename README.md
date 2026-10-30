@@ -19,7 +19,7 @@ ramp rate, new bests, interval reps against the pace they're meant for, heat and
 and how you're building back after a break of 3+ weeks), worked out
 on your Mac.
 
-The dashboard has three tabs: **Progress**, **Activities** and **Map**
+The dashboard has four tabs: **Progress**, **Activities**, **Map** and **Recap**
 (in a narrow window they move to the bottom of the screen).
 
 **Progress** (the home page): your running at a glance, then how you're trending (a 3M / 6M /
@@ -99,6 +99,14 @@ The dashboard has three tabs: **Progress**, **Activities** and **Map**
   workout type and distance
 - **Where you run:** your most-run places, with runs, distance and your last visit. Select one
   to zoom there. The map opens on the place you run most.
+
+**Recap**: every full year of your running, like a music app's year-end recap
+- One colour band per year, titled by what stood out (*The Marathon Year*, *The Engine Year*
+  when VO2max climbed, *The Steady Year*…), with distance, days run and streaks, miles by month,
+  climbing (as a share of Everest), top run types, fastest efforts (all-time bests marked),
+  VO2max start to end, your favourite day and time to run, places, weather and cross-training
+- Years with fewer than 60 runs share one compact section; a table compares all years side by
+  side. A year appears once it's over and your history covers all of it, so each January adds one
 
 **Workout page** (click any activity)
 - **Weather** during the run, from [Open-Meteo](https://open-meteo.com): temperature and

@@ -4,7 +4,7 @@ import re
 
 from garmin_connector.web import STATIC
 
-PAGES = ["index.html", "activities.html", "map.html", "activity.html"]
+PAGES = ["index.html", "activities.html", "map.html", "activity.html", "recap.html"]
 
 
 def test_every_page_has_the_same_tabs():
@@ -12,5 +12,5 @@ def test_every_page_has_the_same_tabs():
     tabs = {p: re.search(r'<nav class="tabs".*?</nav>', (STATIC / p).read_text(), re.S).group(0) for p in PAGES}
     assert len(set(tabs.values())) == 1, "tab bars differ between pages"
     nav = tabs["index.html"]
-    assert re.findall(r'data-page="(\w+)"', nav) == ["progress", "activities", "map"]
+    assert re.findall(r'data-page="(\w+)"', nav) == ["progress", "activities", "map", "recap"]
     assert '<a href="/" data-page="progress">' in nav

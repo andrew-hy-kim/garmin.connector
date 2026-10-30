@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 
-from . import api, config, db, focus, heatmap, insights, performance, processing, races, sync
+from . import api, config, db, focus, heatmap, insights, performance, processing, races, recap, sync
 
 log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
@@ -60,6 +60,10 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     @app.get("/map")
     def map_page():
         return send_from_directory(STATIC, "map.html")
+
+    @app.get("/recap")
+    def recap_page():
+        return send_from_directory(STATIC, "recap.html")
 
     @app.get("/activity/<int:activity_id>")
     def activity_page(activity_id):
@@ -116,6 +120,11 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     def race_predictions():
         with conn() as c:
             return jsonify(races.predictions(c))
+
+    @app.get("/api/recap")
+    def year_recap():
+        with conn() as c:
+            return jsonify(recap.recap(c))
 
     @app.get("/api/records")
     def records():

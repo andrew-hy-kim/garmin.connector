@@ -12,7 +12,7 @@ if (matchMedia("(pointer: coarse)").matches) {
 function pageUrl(page, params = {}) {
   // `t` ("start-end" in seconds) opens the workout with that stretch selected
   if (page === "activity") return `/activity/${params.id}` + (params.t ? `#t=${params.t}` : "");
-  if (["activities", "map"].includes(page)) {
+  if (["activities", "map", "recap"].includes(page)) {
     const query = params.query ? `?${new URLSearchParams(params.query)}` : "";
     return `/${page}` + query + (params.hash ? `#${params.hash}` : "");
   }
