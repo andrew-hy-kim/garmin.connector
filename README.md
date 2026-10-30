@@ -37,25 +37,24 @@ The dashboard has three tabs: **Progress**, **Activities** and **Map**
 - **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
   its top coach note
 - **Coach notes** on your recent training: the three that matter most, with the rest a tap away
-- **Running fitness**, the way [RUNALYZE](https://runalyze.com) does it:
-  - **VO2max shape:** an effective VO2max from every run's pace and heart rate (Daniels &
-    Gilbert), averaged over 30 days and weighted by duration. Races marked in Garmin
-    calibrate it. It's charted next to your watch's VO2 max.
-  - **Marathon shape:** whether your training has the endurance long races need. Weekly
-    distance over 6 months counts two thirds, long runs over 13 km in the last 10 weeks one
-    third, against targets that grow with your VO2max.
-- **Base, fatigue & form** in plain language: *base* is your training load built up over about
+  (form and monotony notes stay out of it; they're in Base, fatigue & form)
+- **Aerobic fitness:** your **VO2max shape**, the way [RUNALYZE](https://runalyze.com) does it:
+  an effective VO2max from every run's pace and heart rate (Daniels & Gilbert), averaged over
+  30 days and weighted by duration. Races marked in Garmin calibrate it. Next to it, how much
+  it has changed **over 6 months** (are you improving?) and your average week over 6 months;
+  it's charted against your watch's VO2 max.
+- **Aerobic efficiency** right below it: distance per heartbeat on easy runs, run by run with
+  a 30-day average. Rising means a stronger aerobic engine.
+- Weekly distance and easy vs. hard running. Each chart leads with its headline number, and a
+  click on a week opens its runs. Folded under **More charts**: **cross-training** (hours of
+  strength, cycling, hiking & walking and everything else each week), **active calories**
+  (what your workouts burned beyond resting, as a daily average), heart rate at a fixed pace
+  and running form.
+- **Base, fatigue & form** (folded away, with base and fatigue on its summary line) in plain language: *base* is your training load built up over about
   6 weeks (what other apps call "fitness"; your actual running fitness is VO2max shape), plus
   **monotony** and **training strain** (Foster) for the last 7 days, what resting would do, and
   your base now vs. earlier. A fold-out shows **where your load comes from**: each kind of run
   (easy, long, tempo…) and each kind of cross-training as a share of all your load in the range
-- Weekly distance, easy vs. hard running, **aerobic efficiency** (distance per heartbeat on
-  easy runs) and **long runs** (your longest each week against the long-run threshold and your
-  marathon target), and **cross-training**: hours of strength, cycling, hiking & walking and
-  everything else each week, and **active calories**: what your workouts burned beyond resting,
-  as a daily average, split into running and cross-training. Each chart leads with its headline number, and a click on a week opens its
-  runs. Cross-training, active calories, heart rate at a fixed pace and running form sit
-  folded under **More charts**.
 - **Heart rate at a fixed pace:** your heart rate while running steadily at one pace (adjusted
   for hills), run by run with a 30-day average. The same pace at a lower heart rate is the
   plainest sign of getting fitter. Hot or humid runs show as orange triangles and are left out of the
@@ -65,10 +64,10 @@ The dashboard has three tabs: **Progress**, **Activities** and **Map**
 - **Running form:** cadence, stride length, ground contact time and vertical ratio on easy runs
   (whichever your watch records), each run plus a 30-day average, so you see your form change
   over months
-- **Where to improve:** your last three months area by area (consistency, endurance, easy vs.
-  hard, workouts, aerobic efficiency), each marked *work on*, *fine* or *strength*,
+- **Where to improve:** your last three months area by area (consistency, easy vs. hard,
+  workouts, aerobic efficiency; no marathon-style long-run or mileage targets), each marked *work on*, *fine* or *strength*,
   with what to work on first and a concrete next step using your own paces and distances
-- **Statistics** by year, month or week: runs, distance, time, pace, heart rate, climb, longest
+- **Statistics** (folded away, like the race predictor and records) by year, month or week: runs, distance, time, pace, heart rate, climb, longest
   run and VO2max. Click a row to list its runs. Above it, a year-to-date chart of this year's
   distance against last year and your best year: ahead or behind by this date, and what
   you're on pace for.

@@ -1,9 +1,9 @@
 """Where to improve: your running looked at area by area over the last three months.
 
 Coach notes react to the last week or two. This looks further back and asks where
-the biggest gains are: endurance (weekly volume and long runs, as in marathon
-shape), consistency, the balance of easy and hard running, quality sessions
-and aerobic efficiency. Each area gets a verdict (a strength, fine, or
+the biggest gains in aerobic fitness are: consistency, the balance of easy and
+hard running, quality sessions and aerobic efficiency. (No marathon-style
+endurance targets: long runs and big weeks aren't the goal.) Each area gets a verdict (a strength, fine, or
 the thing to work on) and one concrete next step, with paces and distances taken
 from your own fitness.
 
@@ -41,38 +41,6 @@ def _area(key: str, title: str, level: str, headline: str, detail: str, action: 
 
 def _pace(perf: dict[str, Any], key: str) -> dict[str, Any] | None:
     return next((x for x in perf.get("paces") or [] if x["key"] == key), None)
-
-
-def endurance(perf: dict[str, Any], back: dict[str, Any] | None = None) -> dict[str, Any] | None:
-    shape = perf.get("marathon_shape")
-    if not shape:
-        return None
-    pct = shape["percent"]
-    if back and back["days_back"] < 28:
-        # endurance always reads low after a break; rebuilding weekly time comes first
-        return _area("endurance", "Endurance", "ok", f"Marathon shape {pct}%",
-                     "Weekly distance and long runs dropped during the break, so this reads low for now.",
-                     "Rebuild your weekly running time first; long runs come back once you're running steadily again.",
-                     priority=5)
-    level = "strength" if pct >= 90 else "ok" if pct >= 60 else "focus"
-    detail = (f"Weekly distance over the last 6 months: {d(shape['weekly_km'] * 1000)} of the "
-              f"{d(shape['weekly_target_km'] * 1000)} your fitness could carry. "
-              f"{shape['long_runs']} long run{'s' if shape['long_runs'] != 1 else ''} over {d(13000)} in 10 weeks, "
-              f"toward a target of {d(shape['long_target_km'] * 1000)}. "
-              f"This matters most for the half marathon and longer.")
-    if level == "strength":
-        action = None
-    elif shape["weekly_percent"] <= shape["long_percent"]:
-        action = (f"Build weekly distance gradually, about 10% a week with an easier week every third or fourth, "
-                  f"toward {d(shape['weekly_target_km'] * 1000)}.")
-    elif shape["long_runs"] >= 5:
-        action = (f"Your long runs are regular; extend them gradually, a little further every other week, "
-                  f"toward {d(shape['long_target_km'] * 1000)}. Keep them easy.")
-    else:
-        action = (f"Make one run a week your long run and extend it a little each time, toward "
-                  f"{d(shape['long_target_km'] * 1000)}. Keep it easy.")
-    return _area("endurance", "Endurance", level, f"Marathon shape {pct}%", detail, action,
-                 priority=2 if pct < 40 else 4)
 
 
 def consistency(runs: list[dict[str, Any]], today: date, back: dict[str, Any] | None = None) -> dict[str, Any] | None:
@@ -200,7 +168,7 @@ def areas(conn: sqlite3.Connection, perf: dict[str, Any], today: date | None = N
     last8 = [r for r in runs if r["date"] > (today - timedelta(days=56)).isoformat()]
     back = insights.comeback(insights._runs(conn, (today - timedelta(days=insights.COMEBACK_DAYS + 120)).isoformat()),
                              today.isoformat())
-    out = [a for a in (consistency(runs, today, back), endurance(perf, back), balance(last8, perf), quality(runs, perf, today, back),
+    out = [a for a in (consistency(runs, today, back), balance(last8, perf), quality(runs, perf, today, back),
                        efficiency(runs, today)) if a]
     out.sort(key=lambda a: (LEVEL_RANK[a["level"]], a["priority"]))
     return out

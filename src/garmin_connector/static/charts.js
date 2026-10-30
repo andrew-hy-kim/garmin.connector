@@ -76,6 +76,7 @@ function renderExplain() {
   if (!$("explain")) return;
   const today = state.load.at(-1);
   if (!today) { $("explain").innerHTML = `<p>Appears once workouts with heart rate are synced.</p>`; return; }
+  if ($("load-sum")) $("load-sum").textContent = `Base ${today.fitness.toFixed(0)} · fatigue ${today.fatigue.toFixed(0)}`;
   const st = formState(today);
   const ago6 = state.load.at(-43);
   const trend = ago6 ? today.fitness - ago6.fitness : null;
@@ -252,42 +253,6 @@ function renderVolume() {
 }
 
 // ---------- long runs ----------
-// The longest run of each week: endurance for long races comes from these (see marathon shape).
-function renderLongRuns() {
-  if (!$("longruns")) return;
-  const b = buckets();
-  const longest = b.list.map(() => 0);
-  for (const a of state.activities) {
-    if (!isRun(a.activity_type)) continue;
-    const i = b.indexOf(localDate(a.start_time_local));
-    if (i != null) longest[i] = Math.max(longest[i], dist(a.distance_m));
-  }
-  const u = Units.get();
-  const threshold = dist(13000);
-  const target = state.perf?.marathon_shape ? dist(state.perf.marathon_shape.long_target_km * 1000) : null;
-  $("longruns-hint").textContent = `Your longest run each ${b.monthly ? "month" : "week"}. Runs over ${fmtNum(threshold, u === "mi" ? 1 : 0)} ${u} (dashed line) build the endurance long races need${
-    target ? `; the solid line is the long run a marathon at your fitness calls for (${fmtNum(target, 0)} ${u})` : ""}.`;
-  const recent = longest.slice(-10).filter((v) => v > threshold).length;
-  $("longruns-head").innerHTML = `<span class="big">${fmtNum(Math.max(...longest.slice(-4), 0), 1)}<small>${u}</small></span><span class="dim">longest in the last 4 ${b.monthly ? "months" : "weeks"}${b.monthly ? "" : ` · ${recent} long run${recent === 1 ? "" : "s"} in 10 weeks`}</span>`;
-  const opts = chartBase();
-  opts.scales.y.ticks.callback = (v) => `${v} ${u}`;
-  opts.onClick = (e, els) => { if (els.length) showPeriod(b, els[0].index); };
-  opts.onHover = clickCursor;
-  opts.plugins.tooltip = { callbacks: { title: (i) => `${b.monthly ? "" : "Week of "}${i[0].label}`,
-    label: (i) => (i.datasetIndex ? `${i.dataset.label}: ${i.parsed.y.toFixed(1)} ${u}` : `Longest run: ${i.parsed.y.toFixed(1)} ${u}`) } };
-  const line = (label, v, color, dash) => ({ type: "line", label, data: b.list.map(() => v), borderColor: color, borderWidth: 1.5,
-    borderDash: dash, pointRadius: 0, pointHoverRadius: 0 });
-  drawChart("longruns", "longruns", {
-    type: "bar",
-    data: { labels: b.labels, datasets: [
-      { data: longest, backgroundColor: longest.map((v) => cssVar(v > threshold ? "--pace" : "--surface-3")), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", maxBarThickness: 18 },
-      line("Counts as a long run above", threshold, cssVar("--text-muted"), [4, 3]),
-      ...(target ? [line("Marathon long-run target", target, cssVar("--elev"), [])] : []),
-    ] },
-    options: opts,
-  });
-}
-
 // ---------- intensity mix ----------
 const MIX = [["Easy", "--z2"], ["Tempo", "--z3"], ["Threshold", "--z4"], ["VO2 max", "--z5"]];
 function renderMix() {

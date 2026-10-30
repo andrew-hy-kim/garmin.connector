@@ -33,6 +33,9 @@ function renderRaces() {
       <td class="num">${main ? `<b>${fmtDuration(main)}</b>` : dash}${potential}</td><td class="num">${main ? fmtPace(r.meters / main) : ""}</td>
       <td class="num">${main ? change(chg) : ""}</td><td class="num">${garmin}</td></tr>`;
   }).join("");
+  // folded: 5K and 10K on the summary line
+  $("races-sum").textContent = rp.races.filter((r) => ["5 km", "10 km"].includes(r.race) && (r.fitness_seconds || r.seconds))
+    .map((r) => `${r.race.replace(" km", "K")} ${fmtDuration(r.fitness_seconds || r.seconds)}`).join(" · ");
   const limited = rp.races.some((r) => r.endurance_limited);
   $("races-foot").innerHTML = [
     limited ? `Long races are held back by endurance: the second time is what your speed supports once weekly distance and long runs catch up, and it's the one your training paces use.` : "",
@@ -66,6 +69,7 @@ function renderYearToDate() {
   if (box.hidden) return;
   const ytd = cum(mine, today);
   const nowDist = ytd.at(-1);
+  if ($("stats-sum")) $("stats-sum").textContent = `${fmtNum(nowDist, 0)} ${u} this year`;
   const others = [...byYear.keys()].filter((y) => y < year - 1);
   const best = others.sort((a, b) => cum(byYear.get(b)).at(-1) - cum(byYear.get(a)).at(-1))[0];
   const lastCum = last ? cum(last) : null;
@@ -311,22 +315,24 @@ function renderFocus() {
       </div></div>`).join("");
 }
 
-// ---------- Progress: VO2max shape, marathon shape, training paces ----------
+// ---------- Progress: aerobic fitness (VO2max shape), training paces ----------
 function renderPerf() {
   const el = $("perf");
   if (!el) return;
   const p = state.perf;
   if (!p || !p.vo2max) {
-    el.innerHTML = `<h2>Running fitness</h2><p class="hint">Appears once you have a few runs with heart rate.</p>`;
+    el.innerHTML = `<h2>Aerobic fitness</h2><p class="hint">Appears once you have a few runs with heart rate.</p>`;
     $("paces-card") && ($("paces-card").hidden = true);
     return;
   }
   const ms = p.marathon_shape;
   const watch = state.vo2.filter((r) => r.sport === "running").at(-1);
   const chg = p.vo2max_change_4w;
-  const shapeFor = (pct) => (pct >= 100 ? "the marathon" : pct >= 42 ? "the half marathon" : pct >= 17 ? "10K" : "5K");
+  // the long view: VO2max shape now against about six months ago
+  const past = p.history.filter((d) => d.date <= isoDay(new Date(Date.now() - 182 * 864e5))).at(-1);
+  const chg6 = past ? p.vo2max - past.vo2max : null;
   const u = Units.get();
-  el.innerHTML = `<h2>Running fitness</h2>
+  el.innerHTML = `<h2>Aerobic fitness</h2>
     <p class="hint">Estimated from every run's pace and heart rate, like RUNALYZE does it${p.calibrated_by ? ", calibrated by your best race" : ""}.</p>
     <div class="perf-grid">
       <div class="perf-item">
@@ -335,28 +341,20 @@ function renderPerf() {
         <span class="sub">${p.vo2max_as_of ? `As of ${esc(fmtDate(p.vo2max_as_of, { month: "short", day: "numeric" }))}: no continuous runs since to update it` : chg == null ? "" : Math.abs(chg) < 0.2 ? "Steady over 4 weeks" : `<span class="${chg > 0 ? "up" : ""}">${chg > 0 ? "▲" : "▼"} ${Math.abs(chg).toFixed(1)}</span> over 4 weeks`}${watch ? ` · watch says ${watch.value.toFixed(0)}` : ""}</span>
       </div>
       <div class="perf-item">
-        <span class="label">Marathon shape</span>
-        <span class="big">${ms.percent}<small>%</small></span>
-        <span class="sub">Enough endurance for ${shapeFor(ms.percent)}</span>
-        <div class="meter" role="img" aria-label="${ms.percent}% of marathon endurance"><div style="width:${Math.min(100, ms.percent)}%"></div>
-          <i style="left:17%" title="10K"></i><i style="left:42.5%" title="Half"></i></div>
+        <span class="label">Over 6 months</span>
+        <span class="big">${chg6 == null ? "–" : Math.abs(chg6) < 0.2 ? "Steady" : `<span class="${chg6 > 0 ? "up" : ""}">${chg6 > 0 ? "▲" : "▼"} ${Math.abs(chg6).toFixed(1)}</span>`}</span>
+        <span class="sub">${chg6 == null ? "Needs six months of runs with heart rate" : `VO2max shape was ${past.vo2max.toFixed(1)} on ${esc(fmtDate(past.date, { month: "short", day: "numeric" }))}`}</span>
       </div>
       <div class="perf-item">
-        <span class="label">Weekly distance</span>
+        <span class="label">Average week (6 months)</span>
         <span class="big">${fmtNum(dist(ms.weekly_km * 1000), 1)}<small>${u}</small></span>
-        <span class="sub">${ms.weekly_percent}% of the ${fmtNum(dist(ms.weekly_target_km * 1000), 0)} ${u} a week a marathon at your VO2max calls for</span>
-      </div>
-      <div class="perf-item">
-        <span class="label">Long runs</span>
-        <span class="big">${ms.long_runs}</span>
-        <span class="sub">over ${fmtNum(dist(13000), 1)} ${u} in 10 weeks; the target is about ${fmtNum(dist(ms.long_target_km * 1000), 0)} ${u}</span>
+        <span class="sub">Your typical weekly distance, not just this week</span>
       </div>
     </div>
-    <div class="legend" style="margin-top:14px"><span style="--c:var(--pace)">VO2max shape</span><span style="--c:var(--gap)">Watch VO2max</span><span style="--c:var(--elev)">Marathon shape %</span></div>
-    <div class="chart-box"><canvas id="perf-chart" role="img" aria-label="VO2max shape and marathon shape over time"></canvas></div>
+    <div class="legend" style="margin-top:14px"><span style="--c:var(--pace)">VO2max shape</span><span style="--c:var(--gap)">Watch VO2max</span></div>
+    <div class="chart-box"><canvas id="perf-chart" role="img" aria-label="VO2max shape over time"></canvas></div>
     <details class="more"><summary>How these are worked out</summary>
-      <p><b>VO2max shape</b> is the average of each run's effective VO2max over 30 days, weighted by duration. For each run, your pace says how much oxygen it took, and your heart rate as a share of your max says what share of your maximum that was. Your watch's estimate is shown for comparison.</p>
-      <p><b>Marathon shape</b> asks whether your training has the endurance for long races: your weekly distance over 6 months (two thirds) and your long runs over ${fmtNum(dist(13000), 1)} ${u} in the last 10 weeks (one third), against targets that grow with your VO2max. A 10K needs 17 %, a half marathon 42 %, a marathon 100 %. The race predictor uses both.</p></details>`;
+      <p><b>VO2max shape</b> is the average of each run's effective VO2max over 30 days, weighted by duration. For each run, your pace says how much oxygen it took, and your heart rate as a share of your max says what share of your maximum that was. Your watch's estimate is shown for comparison.</p></details>`;
   const h = p.history.filter((d) => inRange(d.date));
   const opts = chartBase();
   opts.interaction = { mode: "nearest", intersect: false };
@@ -368,11 +366,9 @@ function renderPerf() {
     const lo = Math.min(...vals), hi = Math.max(...vals), mid = (lo + hi) / 2;
     if (hi - lo < 6) { opts.scales.y.suggestedMin = Math.floor(mid - 3); opts.scales.y.suggestedMax = Math.ceil(mid + 3); }
   }
-  opts.scales.y2 = { position: "right", grid: { display: false }, border: { display: false }, min: 0,
-    ticks: { color: cssVar("--text-muted"), callback: (v) => `${v}%` } };
   opts.plugins.tooltip = { callbacks: {
     title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
-    label: (i) => `${i.dataset.label}: ${i.parsed.y.toFixed(i.datasetIndex === 2 ? 0 : 1)}${i.datasetIndex === 2 ? "%" : ""}`,
+    label: (i) => `${i.dataset.label}: ${i.parsed.y.toFixed(1)}`,
   } };
   drawChart("perf", "perf-chart", {
     type: "line",
@@ -381,8 +377,6 @@ function renderPerf() {
         borderColor: cssVar("--pace"), borderWidth: 2.5, pointRadius: h.length < 3 ? 4 : 0, tension: 0.25, spanGaps: GAP_MS },
       { label: "Watch VO2max", data: state.vo2.filter((r) => r.sport === "running" && inRange(r.date)).map((r) => ({ x: new Date(r.date + "T12:00").getTime(), y: r.value })),
         borderColor: cssVar("--gap"), borderWidth: 1.5, pointRadius: 0, borderDash: [4, 3], tension: 0.2, spanGaps: WATCH_GAP_MS },
-      { label: "Marathon shape", yAxisID: "y2", data: h.map((d) => ({ x: new Date(d.date + "T12:00").getTime(), y: d.marathon_shape })),
-        borderColor: cssVar("--elev"), backgroundColor: cssVar("--elev") + "22", fill: "origin", borderWidth: 1.5, pointRadius: 0, tension: 0.25, spanGaps: GAP_MS },
     ] },
     options: opts,
   });

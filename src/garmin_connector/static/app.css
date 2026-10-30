@@ -541,7 +541,7 @@ th.sortable[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
 }
 
 /* ---------- Progress: running fitness, training paces ---------- */
-.perf-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+.perf-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
 .perf-item { background: var(--surface-2); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .perf-item .label { color: var(--text-muted); font-size: 13px; font-weight: 600; }
 .perf-item .big { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; }
@@ -551,7 +551,7 @@ th.sortable[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
 .meter { position: relative; height: 8px; border-radius: 4px; background: var(--fill-strong); margin-top: 8px; overflow: visible; }
 .meter > div { height: 100%; border-radius: 4px; background: var(--elev); }
 .meter i { position: absolute; top: -3px; width: 2px; height: 14px; background: var(--text-muted); border-radius: 1px; }
-@media (max-width: 900px) { .perf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .perf-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) { .perf-grid { gap: 8px; } .perf-item { padding: 10px 12px; } .perf-item .big { font-size: 24px; } }
 
 .paces { display: grid; gap: 0; }

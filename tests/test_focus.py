@@ -25,15 +25,15 @@ def test_regular_easy_running(tmp_path):
     areas = focus.areas(c, perf.summary(c))
     by = {a["key"]: a for a in areas}
     assert by["consistency"]["level"] == "strength"
-    # all easy, 40-minute runs: no workouts, and no long runs for endurance
+    # all easy, 40-minute runs: no workouts
     assert by["quality"]["level"] == "focus" and by["quality"]["action"]
-    assert by["endurance"]["level"] == "focus"
+    assert "endurance" not in by  # no marathon-style long-run targets
     # areas to work on come first
     levels = [a["level"] for a in areas]
     assert levels == sorted(levels, key=focus.LEVEL_RANK.get)
     # paces and distances are tokens the dashboard shows in your units
-    assert "{{r:" in by["quality"]["action"] and "{{d:" in by["endurance"]["detail"]
-    assert "{{" not in insights.plain(by["endurance"]["detail"]) and " km" in insights.plain(by["endurance"]["detail"])
+    assert "{{r:" in by["quality"]["action"]
+    assert "{{" not in insights.plain(by["quality"]["action"])
     c.close()
 
 
