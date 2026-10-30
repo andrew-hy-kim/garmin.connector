@@ -26,17 +26,17 @@ The dashboard has three tabs: **Progress**, **Activities** and **Map**
 1Y / 2Y / 5Y / All switch sets the range for the charts)
 - **Sync trouble:** if the last sync failed (say, Garmin's login expired), a banner at the top
   says what went wrong, what to do, and when the last good sync was
-- **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
-  its coach notes
-- This week / month / year (each opens its runs), your cross-training this week (strength,
-  rides, hikes and the rest) and **active calories** today with your 7-day daily average
-- **Coach notes** on your recent training, with the workouts after today's
 - **Progress status:** one word: *Improving*, *Edging up*, *Holding
   steady*, *Slipping* or *Rebuilding* (after a break). It weighs four signals over fixed windows,
   whatever range the charts show: VO2max shape over 4 weeks, heart rate at your usual pace and
   easy-run efficiency (the last 4 weeks against the 8 before), and training load against 4 weeks
   ago; hot or humid runs are left out, so summer doesn't read as slipping. Next to it, the one
   step that would help most, from *Where to improve*
+- This week / month / year (each opens its runs), your cross-training this week (strength,
+  rides, hikes and the rest) and **active calories** today with your 7-day daily average
+- **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
+  its top coach note
+- **Coach notes** on your recent training: the three that matter most, with the rest a tap away
 - **Running fitness**, the way [RUNALYZE](https://runalyze.com) does it:
   - **VO2max shape:** an effective VO2max from every run's pace and heart rate (Daniels &
     Gilbert), averaged over 30 days and weighted by duration. Races marked in Garmin
@@ -54,7 +54,8 @@ The dashboard has three tabs: **Progress**, **Activities** and **Map**
   marathon target), and **cross-training**: hours of strength, cycling, hiking & walking and
   everything else each week, and **active calories**: what your workouts burned beyond resting,
   as a daily average, split into running and cross-training. Each chart leads with its headline number, and a click on a week opens its
-  runs.
+  runs. Cross-training, active calories, heart rate at a fixed pace and running form sit
+  folded under **More charts**.
 - **Heart rate at a fixed pace:** your heart rate while running steadily at one pace (adjusted
   for hills), run by run with a 30-day average. The same pace at a lower heart rate is the
   plainest sign of getting fitter. Hot or humid runs show as orange triangles and are left out of the

@@ -290,15 +290,19 @@ function weatherShort(w, u = Units.get()) {
 // ---------- coach notes ----------
 const LEVEL_LABEL = { good: "Good", info: "Note", warn: "Watch" };
 const LEVEL_ICON = { good: "✓", info: "i", warn: "!" };
-function renderNotes(el, notes, emptyText = "Nothing to flag yet. Notes appear as more runs are analyzed.") {
+// With a limit, the rest fold away under "N more"
+function renderNotes(el, notes, emptyText = "Nothing to flag yet. Notes appear as more runs are analyzed.", limit = Infinity) {
   // Things to watch first, then notes, then good news
   const rank = { warn: 0, info: 1, good: 2 };
   notes = [...notes].sort((a, b) => (rank[a.level] ?? 1) - (rank[b.level] ?? 1));
-  el.innerHTML = notes.length ? notes.map((n) => `<div class="note lvl-${esc(n.level)}">
+  const html = (list) => list.map((n) => `<div class="note lvl-${esc(n.level)}">
       <span class="ico" role="img" aria-label="${LEVEL_LABEL[n.level] || ""}">${LEVEL_ICON[n.level] || "i"}</span>
       <div class="t">${esc(unitText(n.title))}</div>
-      ${n.detail ? `<div class="d">${esc(unitText(n.detail))}</div>` : ""}</div>`).join("")
-    : `<p class="hint" style="margin:0">${esc(emptyText)}</p>`;
+      ${n.detail ? `<div class="d">${esc(unitText(n.detail))}</div>` : ""}</div>`).join("");
+  const rest = notes.slice(limit);
+  el.innerHTML = !notes.length ? `<p class="hint" style="margin:0">${esc(emptyText)}</p>`
+    : html(notes.slice(0, limit)) + (rest.length
+      ? `<details class="more-inline notes-more"><summary>${rest.length} more note${rest.length > 1 ? "s" : ""}</summary>${html(rest)}</details>` : "");
 }
 
 // Workout type -> the HR zone it mostly trains, so tags and charts share one color language.

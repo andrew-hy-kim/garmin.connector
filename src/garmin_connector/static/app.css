@@ -749,5 +749,11 @@ details.fold > summary .dim { font-size: 13px; }
 details.fold[open] > summary { margin-bottom: 10px; }
 details.more-inline > summary { cursor: pointer; color: var(--link); font-size: 13px; font-weight: 600; margin: 4px 0 0; }
 details.more-inline[open] > summary { margin-bottom: 8px; }
+.notes-more { margin-top: 4px; }
+/* Progress: the less-used training charts, folded under one line */
+.more-charts { margin: 0 0 16px; padding: 14px 20px; background: var(--surface-1); border-radius: 16px; box-shadow: var(--shadow); }
+.more-charts[open] { background: none; box-shadow: none; padding: 0; }
+.more-charts[open] > summary { padding: 0 4px; }
+.more-charts .grid > .card { box-shadow: var(--shadow); }
 .fold-wide { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 28px; }
 @media (max-width: 900px) { .fold-wide { grid-template-columns: minmax(0, 1fr); gap: 16px; } }

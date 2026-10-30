@@ -22,7 +22,7 @@
   <div class="page-head"><div class="eyebrow" id="today"></div><h1>Progress</h1></div>
 
   <nav class="jump" aria-label="On this page">
-    <a href="#latest">Latest</a><a href="#notes-card">Notes</a><a href="#trend" data-needs="trend">Trend</a><a href="#perf">Fitness</a><a href="#load-card">Load</a><a href="#training">Training</a><a href="#focus-card" data-needs="focus-card">Improve</a>
+    <a href="#perf">Fitness</a><a href="#load-card">Load</a><a href="#training">Training</a><a href="#focus-card" data-needs="focus-card">Improve</a>
     <a href="#stats-card">Statistics</a><a href="#races-card">Races</a><a href="#records-grid">Records</a><a href="#hr-settings">Settings</a>
   </nav>
 
@@ -36,16 +36,16 @@
     <p class="hint">Your charts, fitness, records and coach notes appear here once your runs are in.</p>
   </section>
 
-  <section class="card needs-data" id="latest"></section>
+  <section class="card needs-data today-hero" id="trend" hidden></section>
 
   <section class="tiles needs-data" id="tiles"></section>
+
+  <section class="card needs-data" id="latest"></section>
 
   <section class="card needs-data" id="notes-card">
     <h2>Coach notes</h2>
     <div class="notes" id="notes"></div>
   </section>
-
-  <section class="card needs-data today-hero" id="trend" hidden></section>
 
   <section class="card needs-data" id="perf"></section>
 
@@ -94,36 +94,42 @@
       <div class="headline" id="longruns-head"></div>
       <div class="chart-box"><canvas id="longruns" role="img" aria-label="Bar chart of the longest run each week"></canvas></div>
     </div>
-    <div class="card" id="cross-card" hidden>
-      <h2>Cross-training</h2>
-      <p class="hint">Time on everything besides running. It counts toward your base and fatigue too. Click a bar to list that week.</p>
-      <div class="headline" id="cross-head"></div>
-      <div class="legend" id="cross-legend"></div>
-      <div class="chart-box"><canvas id="cross" role="img" aria-label="Stacked bar chart of cross-training hours by kind"></canvas></div>
-    </div>
-    <div class="card" id="kcal-card" hidden>
-      <h2>Active calories</h2>
-      <p class="hint">Calories your workouts burned beyond resting, as a daily average. Your watch's estimate: fair for runs, rougher for strength, cycling and other cross-training. Click a bar to list that week.</p>
-      <div class="headline" id="kcal-head"></div>
-      <div class="legend" id="kcal-legend"></div>
-      <div class="chart-box"><canvas id="kcal" role="img" aria-label="Stacked bar chart of active calories a day, running and cross-training"></canvas></div>
-    </div>
-    <div class="card" id="hrpace-card" hidden>
-      <div class="toolbar"><h2 style="margin:0">Heart rate at a fixed pace</h2><span class="spacer"></span>
-        <label class="hrpace-pick">At <select id="hrpace-pick" aria-label="Pace"></select></label></div>
-      <p class="hint">Heart rate when running steadily at this pace, adjusted for hills: falling means you're getting fitter. Click a dot to open its run.</p>
-      <div class="headline" id="hrpace-head"></div>
-      <div class="chart-box"><canvas id="hrpace" role="img" aria-label="Scatter chart of heart rate at a fixed pace over time"></canvas></div>
-      <div class="chart-key" id="hrpace-key"></div>
-    </div>
-    <div class="card" id="form-card" hidden>
-      <div class="toolbar"><h2 style="margin:0">Running form</h2><span class="spacer"></span>
-        <div class="seg" id="form-by" role="group" aria-label="Measure"></div></div>
-      <p class="hint" id="form-hint"></p>
-      <div class="headline" id="form-head"></div>
-      <div class="chart-box"><canvas id="runform" role="img" aria-label="Running form measure on easy runs over time"></canvas></div>
-    </div>
   </section>
+
+  <details class="fold more-charts needs-data" id="more-charts">
+    <summary><h2>More charts</h2><span class="dim">Cross-training, calories, heart rate at a pace, running form</span></summary>
+    <section class="grid">
+      <div class="card" id="cross-card" hidden>
+        <h2>Cross-training</h2>
+        <p class="hint">Time on everything besides running. It counts toward your base and fatigue too. Click a bar to list that week.</p>
+        <div class="headline" id="cross-head"></div>
+        <div class="legend" id="cross-legend"></div>
+        <div class="chart-box"><canvas id="cross" role="img" aria-label="Stacked bar chart of cross-training hours by kind"></canvas></div>
+      </div>
+      <div class="card" id="kcal-card" hidden>
+        <h2>Active calories</h2>
+        <p class="hint">Calories your workouts burned beyond resting, as a daily average. Your watch's estimate: fair for runs, rougher for strength, cycling and other cross-training. Click a bar to list that week.</p>
+        <div class="headline" id="kcal-head"></div>
+        <div class="legend" id="kcal-legend"></div>
+        <div class="chart-box"><canvas id="kcal" role="img" aria-label="Stacked bar chart of active calories a day, running and cross-training"></canvas></div>
+      </div>
+      <div class="card" id="hrpace-card" hidden>
+        <div class="toolbar"><h2 style="margin:0">Heart rate at a fixed pace</h2><span class="spacer"></span>
+          <label class="hrpace-pick">At <select id="hrpace-pick" aria-label="Pace"></select></label></div>
+        <p class="hint">Heart rate when running steadily at this pace, adjusted for hills: falling means you're getting fitter. Click a dot to open its run.</p>
+        <div class="headline" id="hrpace-head"></div>
+        <div class="chart-box"><canvas id="hrpace" role="img" aria-label="Scatter chart of heart rate at a fixed pace over time"></canvas></div>
+        <div class="chart-key" id="hrpace-key"></div>
+      </div>
+      <div class="card" id="form-card" hidden>
+        <div class="toolbar"><h2 style="margin:0">Running form</h2><span class="spacer"></span>
+          <div class="seg" id="form-by" role="group" aria-label="Measure"></div></div>
+        <p class="hint" id="form-hint"></p>
+        <div class="headline" id="form-head"></div>
+        <div class="chart-box"><canvas id="runform" role="img" aria-label="Running form measure on easy runs over time"></canvas></div>
+      </div>
+    </section>
+  </details>
 
   <section class="card needs-data" id="focus-card" hidden>
     <h2>Where to improve</h2>

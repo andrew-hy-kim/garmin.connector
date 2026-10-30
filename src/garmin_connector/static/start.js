@@ -15,6 +15,9 @@ function renderCharts() {
   renderMilestones();
   renderRecordsByYear();
   renderTrend(); renderLoad(); renderVolume(); renderMix(); renderCross(); renderCalories(); renderLoadSources(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderLongRuns(); renderRecords(); renderPerf(); renderFocus();
+  // "More charts" only when one of them has something to show
+  const more = $("more-charts");
+  if (more) more.hidden = [...more.querySelectorAll(".grid > .card")].every((c) => c.hidden);
 }
 
 
@@ -51,7 +54,7 @@ function render() {
   renderToday();
   renderLatest(); renderConsistency();
   renderTiles(); renderRaces(); renderExplain(); renderCompare();
-  if ($("notes")) renderNotes($("notes"), state.insights);
+  if ($("notes")) renderNotes($("notes"), state.insights, undefined, 3);
   renderCharts(); renderStats(); renderSettings(); renderTable(); updateJump();
 }
 

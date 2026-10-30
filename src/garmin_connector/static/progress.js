@@ -289,7 +289,7 @@ async function renderLatest() {
     const d = await getJSON(`/api/activities/${id}`);
     if (latestShown !== id) return;
     if (d.streams?.lat) $("latest-route").innerHTML = routeSvg(d.streams.lat, d.streams.lon, color);
-    const notes = (d.insights || []).filter((n) => !/^(Tagged|Run\/walk):/.test(n.title)).slice(0, 2);
+    const notes = (d.insights || []).filter((n) => !/^(Tagged|Run\/walk):/.test(n.title)).slice(0, 1);
     if (notes.length) renderNotes($("latest-notes"), notes);
   } catch {}
   $("latest-route").hidden = !$("latest-route").innerHTML;
