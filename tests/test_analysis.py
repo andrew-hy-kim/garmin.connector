@@ -72,6 +72,17 @@ def test_best_efforts_rejects_gps_glitch():
     assert "1 km" not in analysis.best_efforts(t, dist)
 
 
+def test_short_gps_track_still_times_a_5k():
+    # a 5K race whose GPS track ends 67 m short of the watch's 5,005 m
+    t = list(range(1245))
+    dist = [i * 4937.4 / 1244 for i in t]
+    assert "5 km" not in analysis.best_efforts(t, dist)
+    stretched = analysis.to_total(dist, 5005)
+    assert analysis.best_efforts(t, stretched)["5 km"]["seconds"] == pytest.approx(1244 * 5000 / 5005, abs=1)
+    # but not a track far off the total, which says something else went wrong
+    assert analysis.to_total(dist, 6000) == dist
+
+
 def test_grade_adjusted_speed_is_faster_uphill():
     distance = [float(i) for i in range(0, 200, 2)]
     altitude = [d * 0.08 for d in distance]  # 8% climb

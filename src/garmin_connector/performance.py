@@ -5,7 +5,8 @@
   rate says what share of your maximum that was, so together they estimate the maximum.
 - **VO2max shape**: those values averaged over the last 30 days, weighted by duration.
   If you've marked races in Garmin, the best one calibrates the estimate (the
-  "correction factor"), since heart rate alone tends to under- or over-read.
+  "correction factor"): its finish time against your 30-day estimate going into it,
+  since heart rate alone tends to under- or over-read.
 - **Marathon shape**: whether your training has the endurance a long race needs:
   weekly distance over the last 6 months (2/3) and long runs over 13 km in the last
   10 weeks (1/3), against targets that grow with your VO2max.
@@ -183,17 +184,26 @@ def _runs(conn: sqlite3.Connection, max_hr: float) -> list[dict[str, Any]]:
 
 
 def correction_factor(runs: list[dict[str, Any]]) -> tuple[float, dict[str, Any] | None]:
-    """From your best race: its VO2max by result over its VO2max by heart rate (1.0 without races)."""
+    """From your best race: its VO2max by result over your heart-rate VO2max going into it (1.0 without races).
+
+    The best race is the one whose time says most about your fitness, usually the shortest hard
+    one (a marathon is held back by endurance). It's compared with your 30-day estimate before
+    race day, not with the race's own heart rate: one run's wrist reading can be far off (cold,
+    a loose band), and a race read too low would drag every estimate down with it.
+    """
     best = None
     for r in runs:
-        if r["race"] and r["vo2max_raw"]:
+        if r["race"]:
             by_time = vo2max_from_race(r["meters"], r["seconds"])
             if by_time and (best is None or by_time > best[0]):
                 best = (by_time, r)
     if not best:
         return 1.0, None
-    factor = best[0] / best[1]["vo2max_raw"]
-    return max(0.7, min(1.3, factor)), best[1]
+    race = best[1]
+    by_hr = shape_on([r for r in runs if r is not race], race["day"], 1.0)
+    if not by_hr:
+        return 1.0, None
+    return max(0.7, min(1.3, best[0] / by_hr)), race
 
 
 def shape_on(runs: list[dict[str, Any]], day: date, factor: float) -> float | None:

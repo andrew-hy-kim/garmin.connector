@@ -117,6 +117,22 @@ def test_races_marked_in_garmin_calibrate(conn, tmp_path):
     assert s["calibrated_by"] == 900 and s["correction_factor"] != 1.0
 
 
+def test_a_race_with_a_bad_heart_rate_reading_still_calibrates(conn, tmp_path):
+    """The race time is set against the 30 days before it, not the race's own heart rate."""
+    today = date.today()
+    _add(conn, tmp_path, 901, (today - timedelta(days=4)).isoformat(),
+         *steady_run(minutes=20, pace_mps=4.2, start_hr=176, drift_bpm=4))
+    conn.execute("UPDATE activities SET raw_json = json_set(raw_json, '$.eventType', json('{\"typeKey\": \"race\"}')) "
+                 "WHERE activity_id = 901")
+    processing.refresh(conn, force=True)
+    good = perf.summary(conn)["correction_factor"]
+    # the same race with the wrist reading far too low (a cold morning, a loose band)
+    conn.execute("UPDATE activities SET avg_hr = avg_hr - 25 WHERE activity_id = 901")
+    perf._summary_cache.clear()  # the summary is cached until the data changes; this edit is sneaky
+    bad = perf.summary(conn, today + timedelta(days=1))["correction_factor"]
+    assert bad == pytest.approx(good, abs=0.01)
+
+
 @pytest.mark.parametrize("vdot,meters,daniels", [
     (40, 5000, "24:08"), (40, 42195, "3:49:45"), (50, 5000, "19:57"), (50, 10000, "41:21"),
     (50, 21097.5, "1:31:35"), (60, 10000, "35:22"),

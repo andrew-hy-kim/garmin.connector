@@ -40,7 +40,9 @@ The dashboard has four tabs: **Progress**, **Activities**, **Map** and **Recap**
   (form and monotony notes stay out of it; they're in Base, fatigue & form)
 - **Aerobic fitness:** your **VO2max shape**, the way [RUNALYZE](https://runalyze.com) does it:
   an effective VO2max from every run's pace and heart rate (Daniels & Gilbert), averaged over
-  30 days and weighted by duration. Races marked in Garmin calibrate it. Next to it, how much
+  30 days and weighted by duration. Races marked in Garmin calibrate it: the race whose time
+  says most about your fitness (usually the shortest hard one) is set against your 30-day
+  estimate going into it, so a bad wrist reading on race day doesn't skew it. Next to it, how much
   it has changed **over 6 months** (are you improving?) and your average week over 6 months;
   it's charted against your watch's VO2 max.
 - **Aerobic efficiency** right below it: distance per heartbeat on easy runs, run by run with

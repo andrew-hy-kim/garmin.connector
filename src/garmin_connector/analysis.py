@@ -223,6 +223,19 @@ def grade_adjusted_speed(speed: Sequence[float | None], grade: Sequence[float | 
 
 # ---------------------------------------------------------------- efforts
 
+def to_total(distance: Sequence[float | None], total_m: float | None) -> list[float | None]:
+    """The GPS track stretched to the watch's own total, when it falls a little short.
+
+    The second-by-second track can end a percent or two below the distance the watch reports
+    (5,005 m against 4,937 m on one 5K race), which would leave a 5K without a 5K effort.
+    """
+    last = next((d for d in reversed(distance) if d is not None), None)
+    if not total_m or not last or not 1 < total_m / last <= 1.03:
+        return list(distance)
+    k = total_m / last
+    return [d * k if d is not None else None for d in distance]
+
+
 def best_efforts(t: Sequence[int], distance: Sequence[float | None]) -> dict[str, dict[str, float]]:
     """Fastest time over each standard distance anywhere within the activity."""
     pts = [(ti, d) for ti, d in zip(t, distance) if d is not None]
@@ -591,7 +604,8 @@ def pacing_stats(t, speed, hr, cadence) -> dict[str, Any]:
 # ---------------------------------------------------------------- per activity
 
 def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[str, Any],
-            external_hr: bool, laps: list[dict] | None = None, is_race: bool = False) -> dict[str, Any]:
+            external_hr: bool, laps: list[dict] | None = None, is_race: bool = False,
+            total_m: float | None = None) -> dict[str, Any]:
     """All per-activity metrics, as stored in the ``activity_metrics`` table."""
     t = streams["t"]
     hr = clean_hr(streams["hr"]) if not external_hr else [float(h) if h else None for h in streams["hr"]]
@@ -653,5 +667,5 @@ def analyze(activity_type: str | None, streams: dict[str, list], settings: dict[
     # Best efforts need GPS distance: without it (GPS off, or an Apple Watch run with no route)
     # distance comes from the step counter in coarse chunks, too rough to time a fast 400 m
     if is_outdoor_run(activity_type) and any(v is not None for v in streams.get("lat") or []):
-        metrics["best_efforts"] = best_efforts(t, streams["distance"])
+        metrics["best_efforts"] = best_efforts(t, to_total(streams["distance"], total_m))
     return metrics
