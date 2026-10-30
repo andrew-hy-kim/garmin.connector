@@ -44,7 +44,9 @@ The dashboard has four tabs: **Progress**, **Activities**, **Map** and **Recap**
   says most about your fitness (usually the shortest hard one) is set against your 30-day
   estimate going into it, so a bad wrist reading on race day doesn't skew it. Next to it, how much
   it has changed **over 6 months** (are you improving?) and your average week over 6 months;
-  it's charted against your watch's VO2 max.
+  it's charted against your watch's VO2 max. A dashed line marks where you were before a
+  recent break of 3+ weeks, on this chart and the efficiency one, so a comeback reads as
+  closing the gap.
 - **Aerobic efficiency** right below it: distance per heartbeat on easy runs, run by run with
   a 30-day average. Rising means a stronger aerobic engine.
 - Weekly distance and easy vs. hard running. Each chart leads with its headline number, and a
@@ -73,16 +75,15 @@ The dashboard has four tabs: **Progress**, **Activities**, **Map** and **Recap**
   run and VO2max. Click a row to list its runs. Above it, a year-to-date chart of this year's
   distance against last year and your best year: ahead or behind by this date, and what
   you're on pace for.
-- **Race predictor** at the record distances (400 m to marathon), from VO2max shape, with
-  Garmin's prediction (saved at each sync) and the change over three months. Long races that
-  your endurance doesn't support yet show two times: what you'd run today, and what your speed
+- **Race predictor** from 400 m to the half marathon (no marathon: it isn't a goal here), from
+  VO2max shape, with Garmin's prediction (saved at each sync) and the change over three months.
+  A half your endurance doesn't support yet shows two times: what you'd run today, and what your speed
   supports once weekly distance and long runs catch up. Click a row for your fastest recent
   stretch at that distance.
 - **Personal records** from the fastest stretch of any outdoor run (all-time and within the
   range) and milestones (longest run, biggest week and month)
-- **Training paces** (easy, marathon, threshold, interval, repetition) from your VO2max shape,
-  folded away under one summary line; marathon pace is your potential, with today's marathon
-  pace noted when endurance holds it back
+- **Training paces** (easy, threshold, interval, repetition) from your VO2max shape, folded
+  away under one summary line
 - Heart-rate settings (folded away, with a summary line), max, resting and threshold HR and **zones pulled from your Garmin account**
   on every sync, so zones match your watch. You can override any value, and anything Garmin
   doesn't have is estimated from your data.
@@ -294,7 +295,7 @@ Tests use a fake Garmin client and synthetic `.fit` files (written with `fit-too
 and never touch a real account.
 
 The pages' code is split by part: Progress and Activities share `overview.js` (state and
-helpers), then `today.js`, `charts.js`, `table.js` and `progress.js`, with `start.js` loaded last
+helpers), then `summary.js`, `charts.js`, `table.js` and `progress.js`, with `start.js` loaded last
 to run the page; the workout page is `activity.js` plus `activity-panels.js`, `activity-tables.js`,
 `activity-map.js`, `activity-compare.js` and `activity-start.js`. A new file goes in the page's
 script tags, before the `start` file.

@@ -312,6 +312,20 @@ function coolTrend(all, pts) {
     return { x: p.x, y: win.reduce((s, q) => s + q.y, 0) / win.length };
   });
 }
+// The latest break of 3+ weeks without running, if it ended in the last six months:
+// from your last run before it to your first one back
+function lastBreak() {
+  const runs = state.activities.filter((a) => isRun(a.activity_type)).map((a) => localDate(a.start_time_local).getTime()).sort((p, q) => p - q);
+  const since = Date.now() - 182 * 864e5;
+  for (let i = runs.length - 1; i > 0 && runs[i] >= since; i--) {
+    if (runs[i] - runs[i - 1] >= 21 * 864e5) return { from: runs[i - 1], to: runs[i] };
+  }
+  return null;
+}
+// A dashed line at where you were before the break, from the break to today
+const beforeBreakLine = (brk, y) => ({ type: "line", label: "Before your break", data: [{ x: Math.max(brk.from, rangeStart().getTime()), y }, { x: Date.now(), y }],
+  borderColor: cssVar("--text-muted"), borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, pointHoverRadius: 0 });
+
 function dotStyle(pts, color) {
   return {
     backgroundColor: pts.map((p) => (isHot(p.a) ? cssVar("--gap") + "cc" : color + "66")),
@@ -349,16 +363,20 @@ function renderEfficiency() {
     title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
     label: (i) => i.datasetIndex === 0
       ? `${i.raw.a.name}: ${i.parsed.y.toFixed(2)} m/beat at ${Math.round(i.raw.a.avg_hr)} bpm${hotNote(i.raw.a)}`
-      : `30-day average: ${i.parsed.y.toFixed(2)} m/beat`,
+      : `${i.datasetIndex === 2 ? "Before your break" : "30-day average"}: ${i.parsed.y.toFixed(2)} m/beat`,
   } };
   $("eff-head").innerHTML = trend.length > 1 ? headline(`${trend.at(-1).y.toFixed(2)}<small>m/beat</small>`,
     ((trend.at(-1).y / trend[0].y) - 1) * 100, (v) => `${Math.abs(v).toFixed(0)}%`, "30-day average") : "";
-  $("eff-key").innerHTML = hotKey(pts);
+  // where the 30-day average stood when a recent break began
+  const brk = lastBreak();
+  const before = brk && coolTrend(all, all.filter((p) => p.x <= brk.from)).at(-1)?.y;
+  $("eff-key").innerHTML = hotKey(pts) + (before ? `<span class="break-key">Dashed line: before your break, ${before.toFixed(2)} m/beat</span>` : "");
   drawChart("efficiency", "efficiency", {
     type: "scatter",
     data: { datasets: [
       { data: pts, ...dotStyle(pts, cssVar("--pace")) },
       { type: "line", data: trend, borderColor: cssVar("--pace"), borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: GAP_MS },
+      ...(before ? [beforeBreakLine(brk, before)] : []),
     ] },
     options: opts,
   });

@@ -760,6 +760,11 @@ details.more-inline[open] > summary { margin-bottom: 8px; }
 
 /* ---------- Recap: each full year as a colour band of big numbers ---------- */
 /* Year colours are fixed (white text on a deep colour), so they read the same in light and dark mode. */
+/* the dashed before-the-break line's key */
+.legend span.dashed::before { width: 16px; height: 0; border-radius: 0; background: none; border-top: 2px dashed var(--c); vertical-align: 3px; }
+.chart-key .break-key { color: var(--text-muted); }
+.chart-key > * + .break-key { margin-left: 12px; }
+
 .recap-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 16px; }
 @media (max-width: 700px) { .recap-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .recap-totals div { background: var(--surface-1); border-radius: 16px; padding: 14px 18px; box-shadow: var(--shadow); }

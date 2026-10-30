@@ -7,7 +7,7 @@ endurance targets: long runs and big weeks aren't the goal.) Each area gets a ve
 the thing to work on) and one concrete next step, with paces and distances taken
 from your own fitness.
 
-Distances and paces in the text are tokens (``{{d:meters}}``, ``{{p:m/s}}``) that
+Paces in the text are tokens (``{{p:m/s}}``) that
 the dashboard shows in your units; ``insights.plain`` turns them into km for text
 that leaves the dashboard.
 """
@@ -23,10 +23,6 @@ from . import insights
 
 WEEKS = 12
 LEVEL_RANK = {"focus": 0, "ok": 1, "strength": 2}
-
-
-def d(meters: float) -> str:
-    return f"{{{{d:{round(meters)}}}}}"
 
 
 def p(mps: float) -> str:

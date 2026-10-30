@@ -14,13 +14,14 @@ function renderRaces() {
   const table = $("races").closest("table");
   table.classList.toggle("no-garmin", !rp.races.some((r) => r.garmin_seconds));
   $("races-hint").textContent = rp.vo2max
-    ? `From your VO2max shape (${rp.vo2max.toFixed(1)}${state.perf?.vo2max_as_of ? `, as of ${fmtDate(state.perf.vo2max_as_of, { month: "short", day: "numeric" })}` : ""}) and marathon shape (${rp.marathon_shape}%). ${act()} a row for your fastest recent stretch at that distance.`
+    ? `From your VO2max shape (${rp.vo2max.toFixed(1)}${state.perf?.vo2max_as_of ? `, as of ${fmtDate(state.perf.vo2max_as_of, { month: "short", day: "numeric" })}` : ""}). ${act()} a row for your fastest recent stretch at that distance.`
     : `From your fastest stretches in the last ${rp.window_days} days, scaled to each distance. ${act()} a row to see the stretch it's based on.`;
   // negative = faster, which is good: shown as time taken off (−) or added (+)
   const change = (s) => (s == null ? `<span class="dim">–</span>` : Math.abs(s) < 5 ? `<span class="dim">same</span>`
     : `<span class="chg ${s < 0 ? "up" : ""}" title="${s < 0 ? "Faster" : "Slower"} than ${months} months ago">${s < 0 ? "−" : "+"}${fmtDuration(Math.abs(s))}</span>`);
   const dash = `<span class="dim">–</span>`;
-  $("races").innerHTML = rp.races.map((r) => {
+  // up to the half: the marathon isn't a goal here
+  $("races").innerHTML = rp.races.filter((r) => r.race !== "Marathon").map((r) => {
     const main = r.fitness_seconds || r.seconds;
     const chg = r.fitness_seconds ? r.fitness_change_s : r.change_s;
     const e = r.basis;
@@ -325,12 +326,24 @@ function renderPerf() {
     $("paces-card") && ($("paces-card").hidden = true);
     return;
   }
-  const ms = p.marathon_shape;
+  // the average week over the last six months (or since you started, if that's sooner)
+  const since = Date.now() - 182 * 864e5;
+  const recent = state.activities.filter((a) => isRun(a.activity_type) && localDate(a.start_time_local) >= since);
+  const firstRun = state.activities.filter((a) => isRun(a.activity_type)).at(-1);
+  const weeks = Math.max(1, Math.min(26, (Date.now() - (firstRun ? localDate(firstRun.start_time_local) : Date.now())) / (7 * 864e5)));
+  const weekM = recent.reduce((t, a) => t + (a.distance_m || 0), 0) / weeks;
   const watch = state.vo2.filter((r) => r.sport === "running").at(-1);
   const chg = p.vo2max_change_4w;
   // the long view: VO2max shape now against about six months ago
   const past = p.history.filter((d) => d.date <= isoDay(new Date(Date.now() - 182 * 864e5))).at(-1);
   const chg6 = past ? p.vo2max - past.vo2max : null;
+  // where VO2max shape stood when a recent break began, for the dashed line
+  const brk = lastBreak();
+  // (30 days of runs up to the last one before it, weighted by duration, like the estimate itself)
+  const preRuns = brk ? state.activities.filter((a) => a.vo2max_eff && isRun(a.activity_type)
+    && localDate(a.start_time_local).getTime() <= brk.from && localDate(a.start_time_local).getTime() > brk.from - 30 * 864e5) : [];
+  const preSecs = preRuns.reduce((t, a) => t + (a.moving_duration_s || a.duration_s || 0), 0);
+  const preBreak = preSecs ? { vo2max: preRuns.reduce((t, a) => t + a.vo2max_eff * (a.moving_duration_s || a.duration_s || 0), 0) / preSecs } : null;
   const u = Units.get();
   el.innerHTML = `<h2>Aerobic fitness</h2>
     <p class="hint">Estimated from every run's pace and heart rate, like RUNALYZE does it${p.calibrated_by ? ", calibrated by your best race" : ""}.</p>
@@ -347,11 +360,11 @@ function renderPerf() {
       </div>
       <div class="perf-item">
         <span class="label">Average week (6 months)</span>
-        <span class="big">${fmtNum(dist(ms.weekly_km * 1000), 1)}<small>${u}</small></span>
+        <span class="big">${fmtNum(dist(weekM), 1)}<small>${u}</small></span>
         <span class="sub">Your typical weekly distance, not just this week</span>
       </div>
     </div>
-    <div class="legend" style="margin-top:14px"><span style="--c:var(--pace)">VO2max shape</span><span style="--c:var(--gap)">Watch VO2max</span></div>
+    <div class="legend" style="margin-top:14px"><span style="--c:var(--pace)">VO2max shape</span><span style="--c:var(--gap)">Watch VO2max</span>${preBreak ? `<span class="dashed" style="--c:var(--text-muted)">Before your break (${preBreak.vo2max.toFixed(1)})</span>` : ""}</div>
     <div class="chart-box"><canvas id="perf-chart" role="img" aria-label="VO2max shape over time"></canvas></div>
     <details class="more"><summary>How these are worked out</summary>
       <p><b>VO2max shape</b> is the average of each run's effective VO2max over 30 days, weighted by duration. For each run, your pace says how much oxygen it took, and your heart rate as a share of your max says what share of your maximum that was. Your watch's estimate is shown for comparison.</p></details>`;
@@ -377,6 +390,7 @@ function renderPerf() {
         borderColor: cssVar("--pace"), borderWidth: 2.5, pointRadius: h.length < 3 ? 4 : 0, tension: 0.25, spanGaps: GAP_MS },
       { label: "Watch VO2max", data: state.vo2.filter((r) => r.sport === "running" && inRange(r.date)).map((r) => ({ x: new Date(r.date + "T12:00").getTime(), y: r.value })),
         borderColor: cssVar("--gap"), borderWidth: 1.5, pointRadius: 0, borderDash: [4, 3], tension: 0.2, spanGaps: WATCH_GAP_MS },
+      ...(preBreak ? [beforeBreakLine(brk, preBreak.vo2max)] : []),
     ] },
     options: opts,
   });
@@ -390,14 +404,10 @@ function renderPaces() {
   $("paces-card").hidden = !p?.paces?.length;
   if (!p?.paces?.length) return;
   $("paces-hint").textContent = `From your VO2max shape of ${p.vo2max.toFixed(1)}${p.vo2max_as_of ? ` (as of ${fmtDate(p.vo2max_as_of, { month: "short", day: "numeric" })})` : ""}, using Jack Daniels' training intensities. As your fitness changes, so do these.`;
-  const zone = { easy: 2, marathon: 3, threshold: 4, interval: 5, repetition: 5 };
+  const zone = { easy: 2, threshold: 4, interval: 5, repetition: 5 };
   const easy = p.paces.find((z) => z.key === "easy"), thr = p.paces.find((z) => z.key === "threshold");
   if ($("paces-sum")) $("paces-sum").textContent = easy && thr
     ? `Easy ${fmtPace(easy.fast_mps, undefined, false)}–${fmtPace(easy.slow_mps)} · threshold ${fmtPace(thr.fast_mps, undefined, false)}–${fmtPace(thr.slow_mps)}` : "";
-  // marathon pace is your potential; when endurance holds a marathon back, say what today's would be
-  const mara = (p.races || []).find((r) => r.race === "Marathon");
-  const maraNote = mara?.limited_by_endurance && mara.seconds
-    ? ` A marathon today: about ${fmtPace(mara.meters / mara.seconds)}, until your endurance catches up (see Race predictor).` : "";
-  el.innerHTML = p.paces.map((z) => `<div class="pace-row" style="--c:var(--z${zone[z.key]})">
-      <b>${z.label}</b><span class="pace-range">${fmtPace(z.fast_mps, undefined, false)}–${fmtPace(z.slow_mps)}</span><span class="dim">${esc(z.about)}${z.key === "marathon" ? esc(maraNote) : ""}</span></div>`).join("");
+  el.innerHTML = p.paces.filter((z) => zone[z.key]).map((z) => `<div class="pace-row" style="--c:var(--z${zone[z.key]})">
+      <b>${z.label}</b><span class="pace-range">${fmtPace(z.fast_mps, undefined, false)}–${fmtPace(z.slow_mps)}</span><span class="dim">${esc(z.about)}</span></div>`).join("");
 }

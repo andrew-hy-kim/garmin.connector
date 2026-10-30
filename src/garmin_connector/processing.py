@@ -77,9 +77,6 @@ def effective_settings(conn: sqlite3.Connection) -> dict[str, Any]:
     overridden = "max_hr" in chosen or "lthr" in chosen
     use_garmin = settings["zone_system"] == "garmin" and not overridden
     settings["zone_floors"] = garmin.get("zone_floors") if use_garmin else None
-    # Garmin's boundaries whenever they'd apply, so time in zones is also computed for the
-    # zone system you're not using (the phone app can switch between them).
-    settings["garmin_zone_floors"] = garmin.get("zone_floors") if not overridden else None
     settings["zone_method"] = garmin.get("zone_method") if settings["zone_floors"] else None
     settings["male"] = garmin.get("gender") != "FEMALE"
     return settings
@@ -113,7 +110,7 @@ def check_hr_settings(conn: sqlite3.Connection, values: dict[str, float | None])
 
 def _signature(settings: dict[str, Any]) -> str:
     return json.dumps([ANALYSIS_VERSION, settings["max_hr"], settings["resting_hr"], settings["lthr"],
-                       settings["zone_floors"], settings.get("garmin_zone_floors"), settings["male"]])
+                       settings["zone_floors"], settings["male"]])
 
 
 def analyze_activity(conn: sqlite3.Connection, activity_id: int, settings: dict[str, Any]) -> None:

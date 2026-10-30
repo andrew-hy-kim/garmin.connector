@@ -43,9 +43,8 @@ function derive() {
   // carry distance forward over gaps so the distance axis is continuous
   let lastD = 0;
   const distance = s.distance.map((d) => (lastD = d ?? lastD));
-  // Smoothing windows are in seconds; the phone copy has one sample every few seconds.
-  const step = D.sample_step_s || 1;
-  const win = (seconds) => Math.max(1, Math.round(seconds / step));
+  // Smoothing windows are in seconds, one sample a second
+  const win = (seconds) => Math.max(1, Math.round(seconds));
   const speed = rolling(s.speed, win(15)), gap = rolling(s.gap, win(15));
   const toPace = (v) => (v != null && v >= MOVING_MPS ? M_PER[u] / v : null);
   S = {
