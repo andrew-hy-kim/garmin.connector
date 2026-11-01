@@ -20,7 +20,8 @@ and how you're building back after a break of 3+ weeks), worked out
 on your Mac.
 
 The dashboard has four tabs: **Progress**, **Activities**, **Map** and **Recap**
-(in a narrow window they move to the bottom of the screen).
+(in a narrow window they move to the bottom of the screen). A fifth, **Plan ↗**, opens
+your weekly training plan (the one Claude keeps updating as you chat) on claude.ai in a new browser tab.
 
 **Progress** (the home page): your running at a glance, then how you're trending (a 3M / 6M /
 1Y / 2Y / 5Y / All switch sets the range for the charts)

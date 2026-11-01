@@ -484,7 +484,7 @@ th.sortable[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
 @media (max-width: 600px) {
   #status { bottom: calc(76px + env(safe-area-inset-bottom)); }
   main { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
-  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0;
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0;
     padding: 6px 0 calc(4px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border);
     background: color-mix(in srgb, var(--surface-1) 94%, transparent); -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px); }
   .tabs a, .tabs a[aria-current="page"] { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; font-weight: 550;
