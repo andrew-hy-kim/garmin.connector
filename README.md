@@ -58,7 +58,7 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
   it's charted against your watch's VO2 max. A dashed line marks where you were before a
   recent break of 3+ weeks, on this chart and the efficiency one, so a comeback reads as
   closing the gap.
-- **Aerobic efficiency** right below it: distance per heartbeat on easy runs, run by run with
+- **Aerobic efficiency** next to it: distance per heartbeat on easy runs, run by run with
   a 30-day average. Rising means a stronger aerobic engine. Hot or humid runs show as orange
   triangles and are left out of the average, so a summer heatwave doesn't read as lost fitness.
 - Weekly distance and easy vs. hard running. Each chart leads with its headline number, and a

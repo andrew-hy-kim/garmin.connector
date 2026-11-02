@@ -359,9 +359,9 @@ function renderPerf() {
         <span class="sub">${chg6 == null ? "Needs six months of runs with heart rate" : `VO2max shape was ${past.vo2max.toFixed(1)} on ${esc(fmtDate(past.date, { month: "short", day: "numeric" }))}`}</span>
       </div>
       <div class="perf-item">
-        <span class="label">Average week (6 months)</span>
+        <span class="label">Average week</span>
         <span class="big">${fmtNum(dist(weekM), 1)}<small>${u}</small></span>
-        <span class="sub">Your typical weekly distance, not just this week</span>
+        <span class="sub">Over the last 6 months, not just this week</span>
       </div>
     </div>
     <div class="legend" style="margin-top:14px"><span style="--c:var(--pace)">VO2max shape</span><span style="--c:var(--gap)">Watch VO2max</span>${preBreak ? `<span class="dashed" style="--c:var(--text-muted)">Before your break (${preBreak.vo2max.toFixed(1)})</span>` : ""}</div>
