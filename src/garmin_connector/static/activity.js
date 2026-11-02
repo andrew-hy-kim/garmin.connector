@@ -259,6 +259,28 @@ function renderConditions() {
       ? ", for where your runs around then started (this one has no GPS)" : ""}.</span></p>`;
 }
 
+// ---------- the night before (when you wore the watch to bed) ----------
+function renderNight() {
+  const el = $("night"), n = D.night;
+  if (!n || !n.sleep_s) { el.hidden = true; return; }
+  const lowHrv = n.hrv && n.hrv_low && n.hrv < n.hrv_low;
+  const rhrUp = n.resting_hr && n.resting_hr_normal ? Math.round(n.resting_hr - n.resting_hr_normal) : 0;
+  const items = [
+    ["Sleep", fmtTotal(n.sleep_s), n.sleep_score ? `Score ${Math.round(n.sleep_score)}` : ""],
+    ["HRV", n.hrv ? `${Math.round(n.hrv)} ms` : null, n.hrv_low ? `${lowHrv ? "Below" : n.hrv > n.hrv_high ? "Above" : "Within"} your normal ${Math.round(n.hrv_low)}–${Math.round(n.hrv_high)}` : ""],
+    ["Resting HR", n.resting_hr ? `${Math.round(n.resting_hr)} bpm` : null, n.resting_hr_normal ? (Math.abs(rhrUp) < 3 ? "About your normal" : `${Math.abs(rhrUp)} ${rhrUp > 0 ? "above" : "below"} your normal`) : ""],
+  ].filter(([, v]) => v);
+  const short = n.sleep_s < 6 * 3600;
+  const tired = [short && "a short night", lowHrv && "HRV below your normal", rhrUp >= 5 && "a raised resting heart rate"].filter(Boolean);
+  const impact = tired.length
+    ? `<b>Not fully recovered:</b> ${tired.join(", ")}. Heart rate can run higher and hard efforts feel harder on a day like this.`
+    : "<b>Well rested:</b> nothing in last night's numbers to hold this run back.";
+  el.hidden = false;
+  el.innerHTML = `<div class="cond-grid">${items.map(([l, v, sub]) =>
+      `<div><div class="label">${esc(l)}</div><div class="value">${v}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}</div>`).join("")}</div>
+    <p class="cond-impact">${impact} <span class="dim">The night before, from your watch.</span></p>`;
+}
+
 function isIntervalWorkout() {
   return D.laps.some((l) => ["rest", "recovery"].includes(l.intensity)) && D.laps.some((l) => l.intensity === "active");
 }

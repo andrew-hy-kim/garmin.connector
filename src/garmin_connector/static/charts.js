@@ -630,7 +630,7 @@ function renderSettings() {
     input.value = source === "you" ? Math.round(s[key]) : "";
     input.placeholder = s[key] ? Math.round(s[key]) : "not set";
     const src = input.closest("label").querySelector(".src");
-    if (src) src.textContent = { garmin: "from Garmin", estimated: "estimated", default: "default", you: "set by you" }[source] || "";
+    if (src) src.textContent = { garmin: "from Garmin", nights: "from your nights", estimated: "estimated", default: "default", you: "set by you" }[source] || "";
   }
   form.elements.zone_system.value = s.zone_system || "threshold";
   if ($("hr-sum")) $("hr-sum").textContent = [s.max_hr && `Max ${Math.round(s.max_hr)}`, s.lthr && `threshold ${Math.round(s.lthr)}`,

@@ -10,7 +10,7 @@ import sqlite3
 from dataclasses import asdict
 from typing import Any
 
-from . import analysis, apple, db, insights, performance, processing, weather
+from . import analysis, apple, db, insights, overnight, performance, processing, weather
 
 
 # Calories burned by the workout itself: Garmin's total less the resting (BMR) share it includes.
@@ -131,6 +131,7 @@ def activity_detail(conn: sqlite3.Connection, activity_id: int, with_streams: bo
     result["paces"] = perf.get("paces") or []
     result["pace_bounds_mps"] = perf.get("pace_bounds_mps")
     result["weather"] = weather.for_activity(conn, activity_id)
+    result["night"] = overnight.night_before(conn, row["start_time_local"])
     raw = conn.execute("SELECT raw_json FROM activities WHERE activity_id = ?", (activity_id,)).fetchone()
     result["watch"] = watch_extras(raw[0] if raw else None)
     result["source"] = "apple" if apple.is_apple(activity_id) else "garmin"

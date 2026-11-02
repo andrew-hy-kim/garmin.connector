@@ -142,3 +142,32 @@ def test_night_before_a_workout(conn):
     n = overnight.night_before(conn, f"{TODAY} 17:30:00")
     assert n["resting_hr"] == 64 and n["resting_hr_normal"] == 58 and n["hrv_low"] == 34
     assert overnight.night_before(conn, f"{days_before(30)} 17:30:00") is None
+
+
+def test_a_forgotten_night_leaves_a_gap_not_a_workout_day_resting_hr(conn):
+    # Worn most nights; one night forgotten (Garmin has no sleep for it) and one put on at 4 a.m.
+    nights = [night(days_before(i), rhr=58) for i in range(1, 12) if i != 4]
+    nights.append(night(days_before(6), sleep_h=2.5, rhr=97))
+    overnight.fetch(FakeGarmin(nights), conn, TODAY)
+    by_day = {r["date"]: r for r in overnight.summary(conn, TODAY)["nights"]}
+    assert days_before(4) not in by_day                  # the forgotten night: no entry at all
+    assert by_day[days_before(6)]["resting_hr"] is None  # the short night: sleep kept, resting HR not
+    assert by_day[days_before(6)]["sleep_s"] == 2.5 * 3600
+    assert overnight.update_resting_hr(conn, TODAY) == 58
+
+
+def test_coach_notes_from_your_nights(conn):
+    from garmin_connector import insights
+    real_today = date.today()
+    ago = lambda i: (real_today - timedelta(days=i)).isoformat()  # noqa: E731
+    nights = [night(ago(i), rhr=56, hrv=44) for i in range(3, 25)] + [night(ago(i), rhr=64, hrv=30) for i in range(3)]
+    overnight.fetch(FakeGarmin(nights), conn, real_today)
+    titles = [n["title"] for n in insights.overview_insights(conn)]
+    assert any(t.startswith("Resting heart rate 8 bpm above your normal") for t in titles)
+
+    db.upsert_activities(conn, [{"activityId": 7, "startTimeLocal": f"{ago(0)} 17:00:00", "activityType": {"typeKey": "running"},
+                                 "distance": 5000.0, "duration": 1500.0, "averageHR": 150.0}])
+    db.save_metrics(conn, 7, {"decoupling_pct": 7.0})
+    notes = insights.workout_insights(conn, 7)
+    tired = next(n for n in notes if n["title"] == "Under-recovered going in")
+    assert "below your normal 34–50" in tired["detail"] and "8 bpm above" in tired["detail"]

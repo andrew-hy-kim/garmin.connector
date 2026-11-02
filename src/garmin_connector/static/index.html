@@ -22,7 +22,7 @@
   <div class="page-head"><div class="eyebrow" id="today"></div><h1>Progress</h1></div>
 
   <nav class="jump" aria-label="On this page">
-    <a href="#perf">Fitness</a><a href="#training">Training</a><a href="#load-card">Load</a><a href="#focus-card" data-needs="focus-card">Improve</a>
+    <a href="#recovery-card" data-needs="recovery-card">Recovery</a><a href="#perf">Fitness</a><a href="#training">Training</a><a href="#load-card">Load</a><a href="#focus-card" data-needs="focus-card">Improve</a>
     <a href="#stats-card">Statistics</a><a href="#races-card">Races</a><a href="#records-grid">Records</a><a href="#hr-settings">Settings</a>
   </nav>
 
@@ -45,6 +45,13 @@
   <section class="card needs-data" id="notes-card">
     <h2>Coach notes</h2>
     <div class="notes" id="notes"></div>
+  </section>
+
+  <section class="card" id="recovery-card" hidden>
+    <div class="toolbar"><h2 style="margin:0">Recovery</h2><span class="spacer"></span><span class="dim" id="recovery-when"></span></div>
+    <p class="hint">From the nights you wear your watch to bed. Nights without it are skipped, never guessed.
+      <a href="#nights-card">Night by night ↓</a></p>
+    <div class="kv recovery-kv" id="recovery-kv"></div>
   </section>
 
   <section class="card needs-data" id="perf"></section>
@@ -74,8 +81,16 @@
   </section>
 
   <details class="fold more-charts needs-data" id="more-charts">
-    <summary><h2>More charts</h2><span class="dim">Cross-training, calories, heart rate at a pace, running form</span></summary>
+    <summary><h2>More charts</h2><span class="dim">Nights, cross-training, calories, heart rate at a pace, running form</span></summary>
     <section class="grid">
+      <div class="card" id="nights-card" hidden>
+        <div class="toolbar"><h2 style="margin:0">Nights</h2><span class="spacer"></span>
+          <div class="seg" id="nights-by" role="group" aria-label="Measure"></div></div>
+        <p class="hint" id="nights-hint"></p>
+        <div class="headline" id="nights-head"></div>
+        <div class="chart-box"><canvas id="nights" role="img" aria-label="Resting heart rate, HRV or sleep, night by night"></canvas></div>
+        <div class="chart-key" id="nights-key"></div>
+      </div>
       <div class="card" id="cross-card" hidden>
         <h2>Cross-training</h2>
         <p class="hint">Time on everything besides running. It counts toward your base and fatigue too. Click a bar to list that week.</p>
@@ -212,6 +227,7 @@
 <script src="/static/charts.js"></script>
 <script src="/static/table.js"></script>
 <script src="/static/progress.js"></script>
+<script src="/static/nights.js"></script>
 <script src="/static/start.js"></script>
 </body>
 </html>

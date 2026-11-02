@@ -14,7 +14,7 @@ function populateTypes() {
 function renderCharts() {
   renderMilestones();
   renderRecordsByYear();
-  renderTrend(); renderLoad(); renderVolume(); renderMix(); renderCross(); renderCalories(); renderLoadSources(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderRecords(); renderPerf(); renderFocus();
+  renderNights(); renderTrend(); renderLoad(); renderVolume(); renderMix(); renderCross(); renderCalories(); renderLoadSources(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderRecords(); renderPerf(); renderFocus();
   // "More charts" only when one of them has something to show
   const more = $("more-charts");
   if (more) more.hidden = [...more.querySelectorAll(".grid > .card")].every((c) => c.hidden);
@@ -53,17 +53,17 @@ function render() {
   if ($("welcome")) $("welcome").hidden = !empty;
   renderToday();
   renderLatest(); renderConsistency();
-  renderTiles(); renderRaces(); renderExplain(); renderCompare();
+  renderRecovery(); renderTiles(); renderRaces(); renderExplain(); renderCompare();
   // form and monotony are day-to-day readiness numbers; they stay in the Base, fatigue & form fold
   if ($("notes")) renderNotes($("notes"), state.insights.filter((n) => !/^(Form|Monotony)\b/.test(n.title)), undefined, 3);
   renderCharts(); renderStats(); renderSettings(); renderTable(); updateJump();
 }
 
 async function load() {
-  const [acts, vo2, loadSeries, records, settings, notes, races, perf, focus] = await Promise.all(
+  const [acts, vo2, loadSeries, records, settings, notes, races, perf, focus, nights] = await Promise.all(
     ["/api/activities", "/api/vo2max", "/api/training-load", "/api/records", "/api/settings", "/api/insights"].map((u) => getJSON(u))
-      .concat(["/api/race-predictions", "/api/performance", "/api/focus"].map((u) => getJSON(u).catch(() => null))));
-  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, races, perf, focus });
+      .concat(["/api/race-predictions", "/api/performance", "/api/focus", "/api/nights"].map((u) => getJSON(u).catch(() => null))));
+  Object.assign(state, { activities: acts, vo2, load: loadSeries, records, settings, insights: notes, races, perf, focus, nights });
   populateTypes(); render(); ready(); renderSyncAlert();
 }
 

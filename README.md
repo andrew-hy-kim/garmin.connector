@@ -27,6 +27,14 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
 1Y / 2Y / 5Y / All switch sets the range for the charts)
 - **Sync trouble:** if the last sync failed (say, Garmin's login expired), a banner at the top
   says what went wrong, what to do, and when the last good sync was
+- **Recovery:** last night's sleep (time and Garmin's sleep score), HRV against the normal range
+  Garmin works out for you, and resting heart rate against your normal (the median of your
+  last 30 nights), plus how many of the last 14 nights you wore the watch. It shows when last
+  night is in; when resting HR or HRV stays off your normal for 2+ nights in a row, or you average
+  under 6 hours of sleep for a week, a coach note says so. Only nights you wore the watch to bed
+  count: a night without it is simply skipped, and a night under 4 hours of sleep keeps its sleep
+  time but not its resting HR or HRV. Garmin's daily resting heart rate (on days the watch was only
+  on for a workout, that's your warm-up: 95–130 bpm) is never used
 - **Progress status:** one word: *Improving*, *Edging up*, *Holding
   steady*, *Slipping* or *Rebuilding* (after a break). It weighs four signals over fixed windows,
   whatever range the charts show: VO2max shape over 4 weeks, heart rate at your usual pace and
@@ -51,7 +59,9 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
 - **Aerobic efficiency** right below it: distance per heartbeat on easy runs, run by run with
   a 30-day average. Rising means a stronger aerobic engine.
 - Weekly distance and easy vs. hard running. Each chart leads with its headline number, and a
-  click on a week opens its runs. Folded under **More charts**: **cross-training** (hours of
+  click on a week opens its runs. Folded under **More charts**: **nights** (resting HR,
+  HRV with your normal range shaded, sleep score or sleep time, night by night with a 7-day
+  average; nights without the watch are left as gaps), **cross-training** (hours of
   strength, cycling, hiking & walking and everything else each week), **active calories**
   (what your workouts burned beyond resting, as a daily average), heart rate at a fixed pace
   and running form.
@@ -86,8 +96,10 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
 - **Training paces** (easy, threshold, interval, repetition) from your VO2max shape, folded
   away under one summary line
 - Heart-rate settings (folded away, with a summary line), max, resting and threshold HR and **zones pulled from your Garmin account**
-  on every sync, so zones match your watch. You can override any value, and anything Garmin
-  doesn't have is estimated from your data.
+  on every sync, so zones match your watch. Resting HR (used in training load) comes from your
+  nights once you have 5 or more: the median of your latest 30 full nights in the past year, updated
+  only when it moves 2 bpm or more, so your load history isn't recalculated every night. You can
+  override any value, and anything Garmin doesn't have is estimated from your data.
 
 **Activities**
 - **Consistency calendar:** every run of the past year as a dot, colored by workout type and
@@ -113,6 +125,9 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
   side. A year appears once it's over and your history covers all of it, so each January adds one
 
 **Workout page** (click any activity)
+- **The night before** (when you wore the watch to bed): sleep and its score, HRV and resting
+  HR against your normal then. After a short night, low HRV or a raised resting heart rate, a coach
+  note says you went in under-recovered.
 - **Weather** during the run, from [Open-Meteo](https://open-meteo.com): temperature and
   feels-like, dew point and humidity, wind, rain or snow, and air quality (US AQI), with what
   it cost you: heat and humidity together give an expected slowdown at the same effort
@@ -182,7 +197,7 @@ pip install --upgrade pip
 pip install -e .
 
 garmin login     # asks for your Garmin email + password
-garmin sync      # first run downloads your whole history; allow ~1 s per workout
+garmin sync      # first run downloads your whole history (workouts and nights); allow ~1 s per workout
 garmin dashboard # opens http://127.0.0.1:8765
 ```
 
@@ -266,7 +281,8 @@ the sync runs when it wakes. Logs: `~/.garmin-connector/sync.log`.
 Everything is in `~/.garmin-connector/` (set `GARMIN_CONNECTOR_HOME` to move it):
 
 - `garmin.db`: SQLite database. `activities` (summaries plus Garmin's full JSON), `streams`
-  (second-by-second data, compressed), `laps`, `activity_metrics`, `vo2max`, `weather`, `settings`.
+  (second-by-second data, compressed), `laps`, `activity_metrics`, `vo2max`, `weather`, `nights` (sleep,
+  resting HR and HRV, one row per night you wore the watch), `settings`.
   While the dashboard or a sync has it open, recent changes sit beside it in `garmin.db-wal`;
   to copy it by hand, copy the whole folder, or run `garmin dashboard --stop` first and copy `garmin.db`
 - `backups/`: copies of `garmin.db`, one per day at most, the last 4 kept. A sync makes one

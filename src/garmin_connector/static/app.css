@@ -830,3 +830,11 @@ details.more-inline[open] > summary { margin-bottom: 8px; }
   .recap-year .months i { transform-origin: bottom; animation: recap-grow .6s cubic-bezier(.2, .8, .2, 1) both; }
   @keyframes recap-grow { from { transform: scaleY(.15); } to { transform: scaleY(1); } }
 }
+
+/* ---------- recovery (nights) ---------- */
+.recovery-kv { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 4px; }
+.recovery-kv b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.recovery-kv b em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.recovery-kv b em.rec-bad { color: var(--warn-c); }
+.recovery-kv small { color: var(--text-muted); font-size: 12px; }
+@media (max-width: 600px) { .recovery-kv { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

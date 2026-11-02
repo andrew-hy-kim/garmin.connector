@@ -4,7 +4,7 @@
 
 function renderAll() {
   if (D.streams) { derive(); }
-  renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderConditions(); renderZones(); if (S) renderPaceZones(); else $("pace-zones-card").hidden = true;
+  renderHeader(); renderTagline(); renderWarnings(); renderTiles(); renderConditions(); renderNight(); renderZones(); if (S) renderPaceZones(); else $("pace-zones-card").hidden = true;
   renderLaps(); renderSplits(); renderEfforts(); drawSameRoute(); if (allActivities) renderKind(allActivities);
   renderNotes($("notes"), (D.insights || []).filter((n) => !n.title.startsWith("Tagged:")), "Nothing stands out in this workout.");
   $("charts-card").style.display = D.streams ? "" : "none";

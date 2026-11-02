@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from statistics import median
 from typing import Any
 
-from . import analysis, performance, processing, weather
+from . import analysis, overnight, performance, processing, weather
 
 EASY_TYPES = {"easy", "recovery", "long", "easy_strides"}
 BREAK_DAYS = 21       # this long without running counts as a break (injury, illness, off-season)
@@ -253,6 +253,21 @@ def workout_insights(conn: sqlite3.Connection, activity_id: int, perf: dict[str,
         notes.append(_note("info", f"Windy: {wind(w['wind_kmh'])}",
                            "Strong wind slows the into-the-wind stretches more than it helps the others, so "
                            "pace reads slower than the effort was."))
+
+    # The night before, when you wore the watch to bed
+    n = overnight.night_before(conn, row["start_time_local"]) or {}
+    tired = []
+    if n.get("sleep_s") and n["sleep_s"] < 6 * 3600:
+        tired.append(f"{n['sleep_s'] / 3600:.1f} hours of sleep")
+    if n.get("hrv") and n.get("hrv_low") and n["hrv"] < n["hrv_low"]:
+        tired.append(f"HRV {n['hrv']:.0f} ms, below your normal {n['hrv_low']:.0f}–{n['hrv_high']:.0f}")
+    if n.get("resting_hr") and n.get("resting_hr_normal") and n["resting_hr"] >= n["resting_hr_normal"] + 5:
+        tired.append(f"resting heart rate {n['resting_hr'] - n['resting_hr_normal']:.0f} bpm above your normal")
+    if tired:
+        notes.append(_note("info", "Under-recovered going in",
+                           f"The night before: {'; '.join(tired)}. Heart rate tends to run higher and efforts feel "
+                           f"harder on days like this"
+                           + (", which may explain some of the heart-rate drift." if (drift or 0) >= 5 else ".")))
 
     # Interval execution
     reps = [r for r in m.get("reps") or [] if r.get("seconds")]
@@ -509,6 +524,14 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
         notes.append(_note("warn", f"Monotony {extras['monotony']:.1f}: every day looks the same",
                            "Your training load was very similar day after day this week. Varying it, with real easy "
                            "or rest days between the hard ones, lowers the risk of illness and overtraining."))
+
+    # Your nights: resting HR, HRV and sleep off your normal for a few nights running
+    flags = (overnight.summary(conn, today) or {}).get("flags") or []
+    if flags:
+        also = f"Also: {'; '.join(f['text'] for f in flags[1:])}. " if len(flags) > 1 else ""
+        notes.append(_note("warn", flags[0]["text"],
+                           also + "A few nights off your normal often come before illness, and also follow hard "
+                           "training, stress, alcohol or poor sleep. Keep the next day or two easy and see if it settles."))
 
     vo2 = conn.execute("SELECT date, value FROM vo2max WHERE sport = 'running' ORDER BY date").fetchall()
     if len(vo2) >= 2:

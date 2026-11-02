@@ -318,7 +318,8 @@ const QUALITY = new Set(["race", "progression", "tempo", "threshold", "intervals
 // A link to a section that's folded away opens it
 function openFoldAt(hash) {
   const el = hash && hash.length > 1 && document.getElementById(hash.slice(1));
-  const fold = el && (el.matches("details.fold") ? el : el.querySelector("details.fold"));
+  // the fold around it (a chart inside More charts), or the fold inside it (a card's own)
+  const fold = el && (el.closest("details") || el.querySelector("details.fold"));
   if (fold) fold.open = true;
 }
 addEventListener("hashchange", () => openFoldAt(location.hash));
