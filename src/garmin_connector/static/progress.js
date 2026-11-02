@@ -182,7 +182,7 @@ function trendSignals() {
   };
   const runs = state.activities.filter((a) => isRun(a.activity_type));
   const u = Units.get();
-  const pick = hrPaceChoice(hrPaces(state.activities, u), u);
+  const pick = hrPaceChoice(hrPaces(state.activities, u));
   if (pick) {
     const w = windows(runs.filter((a) => a.hr_by_speed?.length && !isHot(a))
       .map((a) => [localDate(a.start_time_local).getTime(), hrAtPace(a.hr_by_speed, pick.mps)]).filter(([, v]) => v != null));

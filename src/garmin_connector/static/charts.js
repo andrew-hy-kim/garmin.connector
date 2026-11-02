@@ -1,5 +1,5 @@
 // Progress charts: base, fatigue & form, consistency, volume, long runs, intensity, efficiency,
-// heart rate at a fixed pace, running form, VO2 max, records; and the heart-rate settings.
+// running form, VO2 max, records; and the heart-rate settings.
 
 // ---------- training load ----------
 function renderLoad() {
@@ -382,62 +382,6 @@ function renderEfficiency() {
   });
 }
 
-// ---------- heart rate at a fixed pace ----------
-function renderHrPace() {
-  const card = $("hrpace-card");
-  if (!card) return;
-  const u = Units.get();
-  const paces = hrPaces(state.activities, u);
-  card.hidden = !paces.length;
-  if (!paces.length) return;
-  const pick = hrPaceChoice(paces, u);
-  $("hrpace-pick").innerHTML = paces.map((p) => `<option value="${p.sec}"${p === pick ? " selected" : ""}>${fmtPace(p.mps, u)}</option>`).join("");
-  $("hrpace-pick").onchange = (e) => { saveHrPace(Number(e.target.value), u); renderHrPace(); };
-  const all = state.activities
-    .filter((a) => a.hr_by_speed?.length && isRun(a.activity_type))
-    .map((a) => ({ x: localDate(a.start_time_local).getTime(), y: hrAtPace(a.hr_by_speed, pick.mps), a }))
-    .filter((p) => p.y != null)
-    .sort((p, q) => p.x - q.x);
-  const start = rangeStart().getTime();
-  const pts = all.filter((p) => p.x >= start);
-  const trend = coolTrend(all, pts);
-  if (trend.length > 1) {
-    const change = trend.at(-1).y - trend[0].y;
-    const flat = Math.abs(change) < 1;
-    const since = state.range === "All" ? "since you started" : `over ${state.range}`;
-    // lower is better: the same pace at a lower heart rate
-    $("hrpace-head").innerHTML = `<span class="big">${Math.round(trend.at(-1).y)}<small>bpm</small></span>
-      <span class="chg ${!flat && change < 0 ? "up" : ""}">${flat ? "Steady" : `${change > 0 ? "▲" : "▼"} ${Math.round(Math.abs(change))} bpm`} ${since}</span>
-      <span class="dim">30-day average at ${fmtPace(pick.mps, u)}</span>`;
-  } else $("hrpace-head").innerHTML = "";
-  const opts = chartBase();
-  opts.interaction = { mode: "nearest", intersect: false };
-  timeAxis(opts);
-  // whole beats only, and at least 10 bpm tall, so a steady stretch doesn't repeat labels
-  opts.scales.y.ticks.precision = 0;
-  opts.scales.y.ticks.callback = (v) => `${Math.round(v)} bpm`;
-  const ys = pts.map((p) => p.y);
-  if (ys.length) { const mid = (Math.min(...ys) + Math.max(...ys)) / 2; opts.scales.y.suggestedMin = mid - 5; opts.scales.y.suggestedMax = mid + 5; }
-  const dotsAt = (e, chart) => chart.getElementsAtEventForMode(e.native, "nearest", { intersect: true }, false).filter((el) => el.datasetIndex === 0);
-  opts.onClick = (e, _, chart) => { const hit = dotsAt(e, chart)[0]; if (hit) location.href = pageUrl("activity", { id: pts[hit.index].a.activity_id }); };
-  opts.onHover = (e, _, chart) => clickCursor(e, dotsAt(e, chart));
-  opts.plugins.tooltip = { callbacks: {
-    title: (i) => new Date(i[0].parsed.x).toLocaleDateString(undefined, { dateStyle: "medium" }),
-    label: (i) => i.datasetIndex === 0 ? `${i.raw.a.name}: ${Math.round(i.parsed.y)} bpm at ${fmtPace(pick.mps, u)}${hotNote(i.raw.a)}`
-      : `30-day average: ${Math.round(i.parsed.y)} bpm`,
-  } };
-  $("hrpace-key").innerHTML = hotKey(pts);
-  drawChart("hrpace", "hrpace", {
-    type: "scatter",
-    data: { datasets: [
-      { data: pts, ...dotStyle(pts, cssVar("--hr")) },
-      { type: "line", data: trend, borderColor: cssVar("--hr"), borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: GAP_MS },
-    ] },
-    options: opts,
-  });
-}
-
-// ---------- running form (cadence and running dynamics on easy runs) ----------
 const FORM = [
   { key: "cadence_spm", label: "Cadence", unit: "spm", digits: 0, better: 1,
     hint: "Steps per minute on easy runs. A slightly higher cadence usually means shorter, lighter steps and less load on each landing." },

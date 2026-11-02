@@ -14,7 +14,7 @@ function populateTypes() {
 function renderCharts() {
   renderMilestones();
   renderRecordsByYear();
-  renderNights(); renderTrend(); renderLoad(); renderVolume(); renderMix(); renderCross(); renderCalories(); renderLoadSources(); renderEfficiency(); renderHrPace(); renderForm(); renderVo2(); renderRecords(); renderPerf(); renderFocus();
+  renderNights(); renderTrend(); renderLoad(); renderVolume(); renderMix(); renderCross(); renderCalories(); renderLoadSources(); renderEfficiency(); renderForm(); renderVo2(); renderRecords(); renderPerf(); renderFocus();
   // "More charts" only when one of them has something to show
   const more = $("more-charts");
   if (more) more.hidden = [...more.querySelectorAll(".grid > .card")].every((c) => c.hidden);

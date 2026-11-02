@@ -81,7 +81,7 @@
   </section>
 
   <details class="fold more-charts needs-data" id="more-charts">
-    <summary><h2>More charts</h2><span class="dim">Nights, cross-training, calories, heart rate at a pace, running form</span></summary>
+    <summary><h2>More charts</h2><span class="dim">Nights, cross-training, calories, running form</span></summary>
     <section class="grid">
       <div class="card" id="nights-card" hidden>
         <div class="toolbar"><h2 style="margin:0">Nights</h2><span class="spacer"></span>
@@ -104,14 +104,6 @@
         <div class="headline" id="kcal-head"></div>
         <div class="legend" id="kcal-legend"></div>
         <div class="chart-box"><canvas id="kcal" role="img" aria-label="Stacked bar chart of active calories a day, running and cross-training"></canvas></div>
-      </div>
-      <div class="card" id="hrpace-card" hidden>
-        <div class="toolbar"><h2 style="margin:0">Heart rate at a fixed pace</h2><span class="spacer"></span>
-          <label class="hrpace-pick">At <select id="hrpace-pick" aria-label="Pace"></select></label></div>
-        <p class="hint">Heart rate when running steadily at this pace, adjusted for hills: falling means you're getting fitter. Click a dot to open its run.</p>
-        <div class="headline" id="hrpace-head"></div>
-        <div class="chart-box"><canvas id="hrpace" role="img" aria-label="Scatter chart of heart rate at a fixed pace over time"></canvas></div>
-        <div class="chart-key" id="hrpace-key"></div>
       </div>
       <div class="card" id="form-card" hidden>
         <div class="toolbar"><h2 style="margin:0">Running form</h2><span class="spacer"></span>

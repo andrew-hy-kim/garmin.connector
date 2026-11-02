@@ -57,25 +57,19 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
   recent break of 3+ weeks, on this chart and the efficiency one, so a comeback reads as
   closing the gap.
 - **Aerobic efficiency** right below it: distance per heartbeat on easy runs, run by run with
-  a 30-day average. Rising means a stronger aerobic engine.
+  a 30-day average. Rising means a stronger aerobic engine. Hot or humid runs show as orange
+  triangles and are left out of the average, so a summer heatwave doesn't read as lost fitness.
 - Weekly distance and easy vs. hard running. Each chart leads with its headline number, and a
   click on a week opens its runs. Folded under **More charts**: **nights** (resting HR,
   HRV with your normal range shaded, sleep score or sleep time, night by night with a 7-day
   average; nights without the watch are left as gaps), **cross-training** (hours of
   strength, cycling, hiking & walking and everything else each week), **active calories**
-  (what your workouts burned beyond resting, as a daily average), heart rate at a fixed pace
-  and running form.
+  (what your workouts burned beyond resting, as a daily average) and running form.
 - **Base, fatigue & form** (folded away, with base and fatigue on its summary line) in plain language: *base* is your training load built up over about
   6 weeks (what other apps call "fitness"; your actual running fitness is VO2max shape), plus
   **monotony** and **training strain** (Foster) for the last 7 days, what resting would do, and
   your base now vs. earlier. A fold-out shows **where your load comes from**: each kind of run
   (easy, long, tempo…) and each kind of cross-training as a share of all your load in the range
-- **Heart rate at a fixed pace:** your heart rate while running steadily at one pace (adjusted
-  for hills), run by run with a 30-day average. The same pace at a lower heart rate is the
-  plainest sign of getting fitter. Hot or humid runs show as orange triangles and are left out of the
-  30-day average (on the efficiency chart too), so a summer heatwave doesn't read as lost fitness. Pick the pace from the card (it starts at the pace you run
-  most); only steady stretches count, from five minutes in and two minutes after any change of
-  pace, and run/walk runs and runs where the heart rate locked onto your cadence are left out
 - **Running form:** cadence, stride length, ground contact time and vertical ratio on easy runs
   (whichever your watch records), each run plus a 30-day average, so you see your form change
   over months
@@ -139,8 +133,8 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
 - **Same route:** your other runs along the same line, start to finish, with time, pace, heart
   rate and efficiency, how this one ranks against runs of the same kind, and your route record
 - Training load and Garmin's training effect (with what it means: maintaining, improving…),
-  HR drift, efficiency, effective VO2max and your heart rate at the pace picked on Progress
-  against your runs the month before; under **More from your watch**, active calories (with the total including resting), power,
+  HR drift, efficiency, effective VO2max and your heart rate at the pace you run most (adjusted for
+  hills, steady stretches only) against your runs the month before; under **More from your watch**, active calories (with the total including resting), power,
   best pace, stride length, ground contact, vertical oscillation and ratio, and
   sweat loss, whichever your watch records
 - HR, pace + grade-adjusted pace, cadence and elevation on one synced timeline (by time or

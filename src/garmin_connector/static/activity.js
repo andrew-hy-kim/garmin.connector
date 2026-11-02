@@ -212,7 +212,7 @@ function hrPaceStat() {
   const table = D.metrics?.hr_by_speed;
   if (!table?.length || !allActivities) return none;
   const u = Units.get();
-  const pick = hrPaceChoice(hrPaces(allActivities, u), u);
+  const pick = hrPaceChoice(hrPaces(allActivities, u));
   const hr = pick && hrAtPace(table, pick.mps);
   if (hr == null) return none;
   const t = localDate(D.activity.start_time_local).getTime();

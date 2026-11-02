@@ -130,15 +130,11 @@ function hrPaces(activities, u = Units.get()) {
   }
   return out;
 }
-// The pace you picked, or else the one you've run at most lately (usually your easy pace)
-function hrPaceChoice(paces, u = Units.get()) {
+// The pace you've run at most lately (usually your easy pace)
+function hrPaceChoice(paces) {
   if (!paces.length) return null;
-  let saved = null;
-  try { saved = localStorage.getItem("hrPace"); } catch {}
-  return paces.find((p) => `${u}:${p.sec}` === saved)
-    || paces.reduce((b, p) => (p.recent > b.recent || (p.recent === b.recent && p.n > b.n) ? p : b));
+  return paces.reduce((b, p) => (p.recent > b.recent || (p.recent === b.recent && p.n > b.n) ? p : b));
 }
-function saveHrPace(sec, u = Units.get()) { try { localStorage.setItem("hrPace", `${u}:${sec}`); } catch {} }
 // Totals of time: "42m", "1h 42m", "161h"
 function fmtTotal(s) {
   s = Math.round(s || 0);
