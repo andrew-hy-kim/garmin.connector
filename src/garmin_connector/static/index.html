@@ -22,7 +22,7 @@
   <div class="page-head"><div class="eyebrow" id="today"></div><h1>Progress</h1></div>
 
   <nav class="jump" aria-label="On this page">
-    <a href="#recovery-card" data-needs="recovery-card">Recovery</a><a href="#fitness">Fitness</a><a href="#training">Training</a><a href="#load-card">Load</a><a href="#focus-card" data-needs="focus-card">Improve</a>
+    <a href="#recovery-card" data-needs="recovery-card">Recovery</a><a href="#perf">Fitness</a><a href="#training">Training</a><a href="#load-card">Load</a><a href="#focus-card" data-needs="focus-card">Improve</a>
     <a href="#stats-card">Statistics</a><a href="#races-card">Races</a><a href="#records-grid">Records</a><a href="#hr-settings">Settings</a>
   </nav>
 
@@ -54,16 +54,14 @@
     <div class="kv recovery-kv" id="recovery-kv"></div>
   </section>
 
-  <section class="grid needs-data" id="fitness">
-  <div class="card" id="perf"></div>
+  <section class="card needs-data" id="perf"></section>
 
-  <div class="card" id="eff-card">
+  <section class="card needs-data" id="eff-card">
     <h2>Aerobic efficiency</h2>
     <p class="hint">Distance per heartbeat on easy runs: rising means a stronger aerobic engine. Click a dot to open its run.</p>
     <div class="headline" id="eff-head"></div>
     <div class="chart-box"><canvas id="efficiency" role="img" aria-label="Scatter chart of aerobic efficiency over time"></canvas></div>
     <div class="chart-key" id="eff-key"></div>
-  </div>
   </section>
 
   <section class="grid needs-data" id="training">
