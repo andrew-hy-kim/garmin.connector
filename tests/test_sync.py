@@ -78,7 +78,7 @@ def test_first_sync_pulls_full_history_and_vo2max(conn):
     result = sync.sync(client, conn, download_fit=False)
 
     assert client.activity_calls[0][0] == sync.EARLIEST.isoformat()
-    assert result == {"activities": 2, "vo2max_readings": 2, "fit_files": 0, "analyzed": 0, "weather": 0}
+    assert result == {"activities": 2, "vo2max_readings": 2, "fit_files": 0, "analyzed": 0, "weather": 0, "nights": 0}
     row = conn.execute("SELECT * FROM activities WHERE activity_id = 2").fetchone()
     assert row["activity_type"] == "running"
     assert row["distance_m"] == 5000.0
@@ -358,3 +358,19 @@ def test_downloads_stop_when_garmin_keeps_refusing(conn, tmp_path, caplog):
     # the next sync picks up where this one stopped
     left = conn.execute("SELECT count(*) FROM activities WHERE fit_path IS NULL").fetchone()[0]
     assert left == 38
+
+
+def test_sync_brings_in_nights_and_uses_their_resting_hr(conn, monkeypatch):
+    from garmin_connector import overnight, processing
+    monkeypatch.setattr(overnight, "REQUEST_PAUSE_S", 0)
+
+    class WithSleep(FakeGarmin):
+        def get_sleep_daily(self, start, end):
+            return [{"calendarDate": d, "values": {"totalSleepTimeInSeconds": 27000, "restingHeartRate": 52,
+                                                   "avgOvernightHrv": 45, "sleepScore": 80}}
+                    for d in (days_ago(i) for i in range(8)) if start <= d <= end]
+
+    result = sync.sync(WithSleep([make_activity(1, days_ago(3))]), conn, download_fit=False)
+    assert result["nights"] == 8
+    settings = processing.effective_settings(conn)
+    assert settings["resting_hr"] == 52 and settings["sources"]["resting_hr"] == "nights"

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from garminconnect import Garmin, GarminConnectAuthenticationError, GarminConnectTooManyRequestsError
 
-from . import apple, auth, backup, config, db, processing, weather
+from . import apple, auth, backup, config, db, overnight, processing, weather
 
 log = logging.getLogger(__name__)
 
@@ -134,6 +134,10 @@ def sync(
         time.sleep(REQUEST_PAUSE_S)
 
     fetch_race_predictions(client, conn, today)
+    # sleep, resting HR and HRV from the nights you wore the watch; then the resting HR they
+    # say, before the analysis below, so training load uses it right away
+    n_nights = overnight.fetch_quietly(client, conn, today)
+    overnight.update_resting_hr(conn, today)
 
     n_fit = 0
     if download_fit:
@@ -144,7 +148,7 @@ def sync(
     w = weather.update_quietly(conn) or {}
 
     return {"activities": n_activities, "vo2max_readings": n_vo2, "fit_files": n_fit, "analyzed": n_analyzed,
-            "weather": w.get("weather", 0)}
+            "weather": w.get("weather", 0), "nights": n_nights}
 
 
 def drop_apple_copies(conn: sqlite3.Connection) -> int:

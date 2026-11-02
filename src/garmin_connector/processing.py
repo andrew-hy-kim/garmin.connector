@@ -59,9 +59,12 @@ def effective_settings(conn: sqlite3.Connection) -> dict[str, Any]:
     garmin = db.get_garmin_profile(conn)
     settings: dict[str, Any] = {"sources": {}}
 
+    overnight_rhr = db.get_text_setting(conn, "overnight_resting_hr")
     for key in ("max_hr", "resting_hr", "lthr"):
         if key in chosen:
             settings[key], source = chosen[key], "you"
+        elif key == "resting_hr" and overnight_rhr:  # from the nights you wore the watch (overnight.py)
+            settings[key], source = float(overnight_rhr), "nights"
         elif garmin.get(key):
             settings[key], source = float(garmin[key]), "garmin"
         elif key == "max_hr":

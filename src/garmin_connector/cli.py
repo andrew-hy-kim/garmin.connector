@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> None:
 
     p_set = sub.add_parser("settings", help="show or change heart-rate settings used for zones and load")
     p_set.add_argument("--max-hr", type=float, help="your max heart rate (0 = use Garmin's / estimate)")
-    p_set.add_argument("--resting-hr", type=float, help="your resting heart rate (0 = use Garmin's / default)")
+    p_set.add_argument("--resting-hr", type=float, help="your resting heart rate (0 = use your nights' / Garmin's)")
     p_set.add_argument("--lthr", type=float, help="lactate-threshold heart rate (0 = use Garmin's)")
 
     p_dash = sub.add_parser("dashboard", help="open the dashboard in your browser")
@@ -77,7 +77,8 @@ def main(argv: list[str] | None = None) -> None:
             result = sync.run(conn, since=args.since, download_fit=not args.no_fit)
             print(
                 f"Synced {result['activities']} activities, {result['vo2max_readings']} VO2 max readings, "
-                f"{result['fit_files']} new .fit files; analyzed {result['analyzed']} activities."
+                f"{result['fit_files']} new .fit files, {result['nights']} nights of sleep; "
+                f"analyzed {result['analyzed']} activities."
             )
     elif args.command == "backup":
         with closing(db.connect(config.db_path())) as conn:
@@ -160,7 +161,7 @@ def main(argv: list[str] | None = None) -> None:
         for key, label in (("max_hr", "Max HR"), ("resting_hr", "Resting HR"), ("lthr", "Threshold HR")):
             value = current[key]
             source = current["sources"][key]
-            note = {"you": " (set by you)", "garmin": " (from Garmin)", "estimated": " (estimated)",
+            note = {"you": " (set by you)", "garmin": " (from Garmin)", "nights": " (from your nights)", "estimated": " (estimated)",
                     "default": " (default)"}.get(source, "")
             print(f"{label}: {round(value) if value else 'not set'}{note}")
         if current["zone_floors"]:
