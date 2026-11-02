@@ -19,7 +19,7 @@ $("xaxis").addEventListener("click", (e) => {
   derive(); drawAll();
 });
 
-unitsToggle($("units"), () => { renderAll(); if (allActivities) renderComparison(allActivities); });
+unitsToggle($("units"), () => { if (!D) return; renderAll(); if (allActivities) renderComparison(allActivities); });  // nothing to redraw on a workout that failed to load
 let resizeTimer;
 window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawAll, 100); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawAll(); if (D?.streams) renderMap(); });
