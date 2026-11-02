@@ -415,11 +415,9 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
     today = date.today()
 
     back = comeback(_runs(conn, (today - timedelta(days=COMEBACK_DAYS + 120)).isoformat()), today.isoformat())
-    # base and fatigue are 42- and 7-day averages: until six weeks of history, form says nothing
+    # base is a 42-day average: until six weeks of history, its ramp says nothing
     if len(load) >= 42:
         now, week_ago = load[-1], load[-8]
-        state = form_state(now["fitness"], now["form"])
-        level = {"overreaching": "warn", "fresh": "info"}.get(state["key"], "good")
         if back:
             notes.append(_note(
                 "info", f"Rebuilding after {_weeks(back['break_days'])} off",
@@ -427,10 +425,6 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
                 f"{round(back['week_minutes'])} min of "
                 f"running in the last 7 days). Your training base dropped during the break, which is expected. "
                 f"Build running time by roughly 10–20% a week and keep it all easy for now."))
-            if state["key"] == "fresh":
-                state = {**state, "advice": "This reads 'fresh' only because your recent training load is low "
-                                            "after the break. It's not a sign to race; keep building gradually."}
-        notes.append(_note(level, f"Form: {state['label']}", state["advice"]))
         if week_ago["fitness"] > 5:
             ramp = now["fitness"] / week_ago["fitness"] - 1
             if ramp > 0.08:

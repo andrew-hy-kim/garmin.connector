@@ -51,8 +51,7 @@ def test_workout_insights(conn):
 
 def test_overview_insights_and_form_state(conn):
     titles = [n["title"] for n in insights.overview_insights(conn)]
-    # under six weeks of history: base and fatigue (42- and 7-day averages) don't mean anything yet
-    assert not any(t.startswith("Form: ") for t in titles)
+    assert not any(t.startswith("Form: ") for t in titles)  # the form note is gone
     assert any("easy" in t for t in titles)  # intensity distribution note
     assert insights.form_state(100, 15)["key"] == "fresh"
     assert insights.form_state(100, 0)["key"] == "neutral"
@@ -81,12 +80,9 @@ def test_comeback_after_injury(tmp_path):
 
     overview = {n["title"]: n for n in insights.overview_insights(conn)}
     assert "Rebuilding after 13 weeks off" in overview
-    form = next(n for t, n in overview.items() if t.startswith("Form: "))
-    if form["title"] == "Form: Fresh":
-        assert "not a sign to race" in form["detail"]
 
 
-def test_form_note_once_there_are_six_weeks_of_history(tmp_path):
+def test_no_form_note_even_with_six_weeks_of_history(tmp_path):
     conn = db.connect(tmp_path / "f.db")
     today = date.today()
     db.upsert_activities(conn, [{
@@ -94,7 +90,7 @@ def test_form_note_once_there_are_six_weeks_of_history(tmp_path):
         "startTimeLocal": f"{today - timedelta(days=n * 2)} 07:00:00", "distance": 8000, "duration": 2700,
         "averageHR": 140} for n in range(1, 30)])  # every other day for eight weeks, summaries only
     titles = [n["title"] for n in insights.overview_insights(conn)]
-    assert any(t.startswith("Form: ") for t in titles)
+    assert not any(t.startswith("Form: ") for t in titles)
 
 
 def _with_bests(conn, aid, day, bests):

@@ -9,26 +9,6 @@ const state = {
   table: { search: "", workout: "all", source: "all", when: "any", from: "", to: "", sort: "start_time_local", dir: -1, page: 0 },
 };
 
-// Form as a share of fitness -> state. Mirrors insights.FORM_STATES.
-const FORM_STATES = [
-  { key: "fresh", min: 0.10, label: "Fresh", color: "--fitness", text: "Rested. Good for racing; weeks of this means losing your base." },
-  { key: "neutral", min: -0.10, label: "Maintaining", color: "--elev", text: "Training and recovery balanced." },
-  { key: "productive", min: -0.30, label: "Productive training", color: "--gap", text: "Carrying the fatigue that builds fitness." },
-  { key: "overreaching", min: -Infinity, label: "Overreaching", color: "--hr", text: "Fatigue far above your base; recover before more hard work." },
-];
-// Orange is too light for text on white; its numbers use the darker warning orange
-// (while history is still building, form means nothing yet: no alarm colors)
-const textColor = (st) => (warmingUp() ? "--text-primary" : st.key === "productive" ? "--warn-c" : st.color);
-// "+3", "-2" or "0" (rounded first, so a small negative never shows as "-0")
-const fmtSigned = (v) => { const r = Math.round(v) || 0; return `${r > 0 ? "+" : ""}${r}`; };
-// After a break, low fatigue reads as "fresh"; that's the break talking, not a good time to race
-const rebuildingNote = (st) => ((st.key === "fresh" || st.key === "neutral") && (state.insights || []).some((n) => n.title.startsWith("Rebuilding after"))
-  ? "Low fatigue after your break, not real freshness. Keep building gradually with easy running." : "");
-const formState = (d) => FORM_STATES.find((s) => (d.fitness > 1 ? d.form / d.fitness : 0) >= s.min);
-// Base and fatigue are 42- and 7-day averages: with under six weeks of history, form says nothing yet
-const WARMUP_DAYS = 42;
-const warmingUp = () => state.load.length > 0 && state.load.length < WARMUP_DAYS;
-const WARMUP_TEXT = "Form needs about six weeks of training behind it to mean something. Until then, build up gradually with easy running.";
 const charts = {};
 
 const filtered = () => state.activities.filter((a) =>

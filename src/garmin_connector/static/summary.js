@@ -221,19 +221,3 @@ function tileFilter(e) {
 $("tiles")?.addEventListener("click", tileFilter);
 $("tiles")?.addEventListener("keydown", tileFilter);
 
-
-// ---------- load extras ----------
-// Monotony and strain over the last 7 days, rest days until fresh, and the most load you
-// can do today and stay balanced (RUNALYZE's calculations; same model as the charts).
-function loadExtras(series) {
-  if (!series || series.length < 7) return null;
-  const week = series.slice(-7).map((d) => d.load);
-  const avg = week.reduce((a, b) => a + b, 0) / 7;
-  const sd = Math.sqrt(week.reduce((a, b) => a + (b - avg) ** 2, 0) / 7);
-  const monotony = sd ? Math.min(10, avg / sd) : avg ? 10 : 0;
-  const { fitness, fatigue } = series.at(-1);
-  const la = 1 / 7, lc = 1 / 42;
-  const restDays = fatigue > fitness && fatigue > 0 ? Math.ceil(Math.log(Math.max(1, fitness) / fatigue) / Math.log((1 - la) / (1 - lc))) : 0;
-  const balanced = Math.max(0, (fitness * (1 - lc) - fatigue * (1 - la)) / (la - lc));
-  return { monotony, strain: avg * 7 * monotony, weekLoad: avg * 7, restDays, balanced };
-}

@@ -14,7 +14,7 @@ function populateTypes() {
 function renderCharts() {
   renderMilestones();
   renderRecordsByYear();
-  renderNights(); renderTrend(); renderLoad(); renderVolume(); renderMix(); renderCross(); renderCalories(); renderLoadSources(); renderEfficiency(); renderForm(); renderVo2(); renderRecords(); renderPerf(); renderFocus();
+  renderNights(); renderTrend(); renderVolume(); renderMix(); renderCross(); renderCalories(); renderLoadSources(); renderEfficiency(); renderForm(); renderVo2(); renderRecords(); renderPerf();
   // "More charts" only when one of them has something to show
   const more = $("more-charts");
   if (more) more.hidden = [...more.querySelectorAll(".grid > .card")].every((c) => c.hidden);
@@ -53,8 +53,8 @@ function render() {
   if ($("welcome")) $("welcome").hidden = !empty;
   renderToday();
   renderLatest(); renderConsistency();
-  renderRecovery(); renderTiles(); renderRaces(); renderExplain(); renderCompare();
-  // form and monotony are day-to-day readiness numbers; they stay in the Base, fatigue & form fold
+  renderRecovery(); renderTiles(); renderRaces();
+  // form and monotony are day-to-day load-model numbers that say little; left out
   if ($("notes")) renderNotes($("notes"), state.insights.filter((n) => !/^(Form|Monotony)\b/.test(n.title)), undefined, 3);
   renderCharts(); renderStats(); renderSettings(); renderTable(); updateJump();
 }

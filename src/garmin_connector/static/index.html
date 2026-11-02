@@ -22,7 +22,7 @@
   <div class="page-head"><div class="eyebrow" id="today"></div><h1>Progress</h1></div>
 
   <nav class="jump" aria-label="On this page">
-    <a href="#recovery-card" data-needs="recovery-card">Recovery</a><a href="#perf">Fitness</a><a href="#training">Training</a><a href="#load-card">Load</a><a href="#focus-card" data-needs="focus-card">Improve</a>
+    <a href="#recovery-card" data-needs="recovery-card">Recovery</a><a href="#perf">Fitness</a><a href="#training">Training</a>
     <a href="#stats-card">Statistics</a><a href="#races-card">Races</a><a href="#records-grid">Records</a><a href="#hr-settings">Settings</a>
   </nav>
 
@@ -77,6 +77,9 @@
       <div class="headline" id="mix-head"></div>
       <div class="legend" id="mix-legend"></div>
       <div class="chart-box"><canvas id="mix" role="img" aria-label="Stacked bar chart of running minutes by intensity"></canvas></div>
+      <details class="more-inline" id="load-sources-fold" hidden><summary>Where your load comes from, <span id="load-sources-range"></span></summary>
+        <p class="hint">Each kind of workout's share of all your training load: time at each heart rate, with hard minutes counting much more than easy ones.</p>
+        <table class="compare load-sources"><tbody id="load-sources"></tbody></table></details>
     </div>
   </section>
 
@@ -96,7 +99,7 @@
       </div>
       <div class="card" id="cross-card" hidden>
         <h2>Cross-training</h2>
-        <p class="hint">Time on everything besides running. It counts toward your base and fatigue too. Click a bar to list that week.</p>
+        <p class="hint">Time on everything besides running. It counts toward your training load too. Click a bar to list that week.</p>
         <div class="headline" id="cross-head"></div>
         <div class="legend" id="cross-legend"></div>
         <div class="chart-box"><canvas id="cross" role="img" aria-label="Stacked bar chart of cross-training hours by kind"></canvas></div>
@@ -117,32 +120,6 @@
       </div>
     </section>
   </details>
-
-  <section class="card needs-data" id="load-card">
-    <details class="fold"><summary><h2>Base, fatigue &amp; form</h2><span class="dim" id="load-sum"></span></summary>
-    <div class="fold-wide">
-      <div>
-        <div class="explain" id="explain"></div>
-        <details class="more-inline"><summary>Base over time: now against 3, 6 and 12 months ago</summary>
-          <table class="compare"><tbody id="compare"></tbody></table></details>
-        <details class="more-inline" id="load-sources-fold" hidden><summary>Where your load comes from, <span id="load-sources-range"></span></summary>
-          <p class="hint">Each kind of workout's share of all the training load behind your base and fatigue.</p>
-          <table class="compare load-sources"><tbody id="load-sources"></tbody></table></details>
-      </div>
-      <div>
-        <div class="legend"><span style="--c:var(--fitness)">Base</span><span style="--c:var(--fatigue)">Fatigue</span></div>
-        <div class="chart-box"><canvas id="load" role="img" aria-label="Line chart of base and fatigue"></canvas></div>
-        <div class="legend" style="margin-top:12px" id="form-legend"></div>
-        <div class="chart-box short"><canvas id="form" role="img" aria-label="Bar chart of form, colored by state"></canvas></div>
-      </div>
-    </div></details>
-  </section>
-
-  <section class="card needs-data" id="focus-card" hidden>
-    <h2>Where to improve</h2>
-    <p class="hint">Your last three months, area by area, with the next step for each.</p>
-    <div class="focus" id="focus"></div>
-  </section>
 
   <section class="card needs-data" id="stats-card">
     <details class="fold"><summary><h2>Statistics</h2><span class="dim" id="stats-sum"></span></summary>

@@ -42,13 +42,14 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
   whatever range the charts show: VO2max shape over 4 weeks, heart rate at your usual pace and
   easy-run efficiency (the last 4 weeks against the 8 before), and training load against 4 weeks
   ago; hot or humid runs are left out, so summer doesn't read as slipping. Next to it, the one
-  step that would help most, from *Where to improve*
+  step that would help most (consistency, easy vs. hard, workouts or aerobic efficiency, from
+  your last three months), with a concrete next step using your own paces and distances
 - This week / month / year (each opens its runs), your cross-training this week (strength,
   rides, hikes and the rest) and **active calories** today with your 7-day daily average
 - **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
   its top coach note
 - **Coach notes** on your recent training: the three that matter most, with the rest a tap away
-  (form and monotony notes stay out of it; they're in Base, fatigue & form)
+  (a "training base ramping fast" warning shows up here when your load climbs too quickly)
 - **Aerobic fitness:** your **VO2max shape**, the way [RUNALYZE](https://runalyze.com) does it:
   an effective VO2max from every run's pace and heart rate (Daniels & Gilbert), averaged over
   30 days and weighted by duration. Races marked in Garmin calibrate it: the race whose time
@@ -61,7 +62,8 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
 - **Aerobic efficiency** right below it: distance per heartbeat on easy runs, run by run with
   a 30-day average. Rising means a stronger aerobic engine. Hot or humid runs show as orange
   triangles and are left out of the average, so a summer heatwave doesn't read as lost fitness.
-- Weekly distance and easy vs. hard running. Each chart leads with its headline number, and a
+- Weekly distance and easy vs. hard running (with a fold-out of **where your load comes from**:
+  each kind of run and cross-training as a share of all your load in the range). Each chart leads with its headline number, and a
   click on a week opens its runs. Folded under **More charts**: **nights** (resting HR,
   HRV with your normal range shaded, sleep score or sleep time, night by night with a 7-day
   average; nights without the watch are left as gaps). Under it, folded away, **what your nights
@@ -72,17 +74,9 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
   **Cross-training** (hours of
   strength, cycling, hiking & walking and everything else each week), **active calories**
   (what your workouts burned beyond resting, as a daily average) and running form.
-- **Base, fatigue & form** (folded away, with base and fatigue on its summary line) in plain language: *base* is your training load built up over about
-  6 weeks (what other apps call "fitness"; your actual running fitness is VO2max shape), plus
-  **monotony** and **training strain** (Foster) for the last 7 days, what resting would do, and
-  your base now vs. earlier. A fold-out shows **where your load comes from**: each kind of run
-  (easy, long, tempo…) and each kind of cross-training as a share of all your load in the range
 - **Running form:** cadence, stride length, ground contact time and vertical ratio on easy runs
   (whichever your watch records), each run plus a 30-day average, so you see your form change
   over months
-- **Where to improve:** your last three months area by area (consistency, easy vs. hard,
-  workouts, aerobic efficiency; no marathon-style long-run or mileage targets), each marked *work on*, *fine* or *strength*,
-  with what to work on first and a concrete next step using your own paces and distances
 - **Statistics** (folded away, like the race predictor and records) by year, month or week: runs, distance, time, pace, heart rate, climb, longest
   run and VO2max. Click a row to list its runs. Above it, a year-to-date chart of this year's
   distance against last year and your best year: ahead or behind by this date, and what

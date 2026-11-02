@@ -226,7 +226,7 @@ function renderTrend() {
   } else {
     [word, color, line] = ["Holding steady", "--elev", "You're keeping your fitness, but not building it."];
   }
-  // the next step: the area that holds you back most, from Where to improve
+  // the next step: the area that holds you back most (focus.py)
   const improving = word === "Improving";
   const area = (state.focus || []).find((a) => a.level === "focus" && a.action) || (!improving && (state.focus || []).find((a) => a.action));
   const step = area ? unitText(area.action)
@@ -240,8 +240,7 @@ function renderTrend() {
       ${signals.length ? `<div class="rd-facts">${signals.map((x) => `<span class="${x.dir > 0 ? "good" : x.dir < 0 ? "bad" : ""}">${x.text}</span>`).join("")}</div>` : ""}
     </div>
     <div class="rd-session" style="--c:var(${color})"><span class="eyebrow">${improving ? "To keep improving" : "To improve"}${area ? ` · ${esc(area.title)}` : ""}</span>
-      <span>${esc(step)}</span>
-      ${area && $("focus-card") ? `<a class="go" href="#focus-card">Where to improve ›</a>` : ""}</div>`;
+      <span>${esc(step)}</span></div>`;
 }
 
 // A route drawn from the workout's GPS points: no map tiles needed, so it works offline
@@ -298,22 +297,6 @@ async function renderLatest() {
     if (notes.length) renderNotes($("latest-notes"), notes);
   } catch {}
   $("latest-route").hidden = !$("latest-route").innerHTML;
-}
-
-// ---------- Progress: where to improve ----------
-const FOCUS_LABEL = { focus: "Work on", ok: "Fine", strength: "Strength" };
-function renderFocus() {
-  const list = state.focus || [];
-  const card = $("focus-card");
-  if (!card) return;
-  card.hidden = !list.length;
-  if (!list.length) return;
-  $("focus").innerHTML = list.map((a) => `<div class="focus-row lvl-${esc(a.level)}">
-      <div class="f-body">
-        <div class="f-head"><span class="f-pill">${FOCUS_LABEL[a.level] || ""}</span><b>${esc(a.title)}</b><span class="f-headline">${esc(unitText(a.headline))}</span></div>
-        <div class="f-detail">${esc(unitText(a.detail))}</div>
-        ${a.action ? `<div class="f-action"><b>Next step:</b> ${esc(unitText(a.action))}</div>` : ""}
-      </div></div>`).join("");
 }
 
 // ---------- Progress: aerobic fitness (VO2max shape), training paces ----------
