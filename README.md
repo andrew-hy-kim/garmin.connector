@@ -31,7 +31,9 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
   Garmin works out for you, and resting heart rate against your normal (the median of your
   last 30 nights), plus how many of the last 14 nights you wore the watch. It shows when last
   night is in; when resting HR or HRV stays off your normal for 2+ nights in a row, or you average
-  under 6 hours of sleep for a week, a coach note says so. Only nights you wore the watch to bed
+  under 6 hours of sleep for a week, a coach note says so. When your breathing rate during sleep
+  and resting HR are both up (1+ breath a minute and 3+ bpm over your normal), a coach note warns
+  you may be coming down with something: in your history that happened about 4 nights a year. Only nights you wore the watch to bed
   count: a night without it is simply skipped, and a night under 4 hours of sleep keeps its sleep
   time but not its resting HR or HRV. Garmin's daily resting heart rate (on days the watch was only
   on for a workout, that's your warm-up: 95–130 bpm) is never used
@@ -62,7 +64,12 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
 - Weekly distance and easy vs. hard running. Each chart leads with its headline number, and a
   click on a week opens its runs. Folded under **More charts**: **nights** (resting HR,
   HRV with your normal range shaded, sleep score or sleep time, night by night with a 7-day
-  average; nights without the watch are left as gaps), **cross-training** (hours of
+  average; nights without the watch are left as gaps). Under it, folded away, **what your nights
+  say**, worked out from your own history: whether short or low-HRV nights change your easy runs
+  (efficiency against your easy runs that month, hot days left out; it says "no clear effect"
+  when there isn't one), how many nights HRV takes to recover after intervals, tempo, long runs
+  and races (5+ of each needed), and the bedtime that splits your sleep scores most clearly.
+  **Cross-training** (hours of
   strength, cycling, hiking & walking and everything else each week), **active calories**
   (what your workouts burned beyond resting, as a daily average) and running form.
 - **Base, fatigue & form** (folded away, with base and fatigue on its summary line) in plain language: *base* is your training load built up over about

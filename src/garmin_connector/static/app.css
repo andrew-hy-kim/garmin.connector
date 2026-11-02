@@ -833,3 +833,6 @@ details.more-inline[open] > summary { margin-bottom: 8px; }
 .recovery-kv b em.rec-bad { color: var(--warn-c); }
 .recovery-kv small { color: var(--text-muted); font-size: 12px; }
 @media (max-width: 600px) { .recovery-kv { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.patterns { margin: 6px 0 0; padding-left: 18px; font-size: 14px; color: var(--text-secondary); }
+.patterns li { margin: 0 0 6px; }
+.patterns b { color: var(--text-primary); font-weight: 600; }

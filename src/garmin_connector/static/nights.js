@@ -64,6 +64,7 @@ function renderNights() {
     renderNights();
   };
   $("nights-hint").textContent = m.hint;
+  renderPatterns();
 
   const pts = all.filter((r) => r[m.key]).map((r) => ({ x: nightTime(r.date), y: r[m.key], r }));
   // 7-day average over the nights you wore it, so the trend shows through night-to-night noise
@@ -113,12 +114,30 @@ function renderNights() {
   });
 }
 
+// What your nights say: one line per finding, folded away under the chart
+function renderPatterns() {
+  const p = state.nights?.patterns;
+  if (!$("patterns-fold")) return;
+  const runs = p?.sleep_and_runs || [];
+  // nothing clear either way: one line for both kinds of poor night, not two that read alike
+  const poor = runs.length > 1 && runs.every((x) => !x.clear)
+    ? [`Poor nights: no clear effect on your easy runs. After short nights (${runs[0].runs} runs) and low-HRV nights (${runs[1].runs} runs) they were about as efficient as your others.`]
+    : runs.map((x) => x.text);
+  const lines = p ? [...poor, ...p.recovery.map((x) => x.text), ...(p.bedtime ? [p.bedtime.text] : [])] : [];
+  $("patterns-fold").hidden = !lines.length;
+  $("patterns").innerHTML = lines.map((t) => {
+    const [head, ...rest] = t.split(": ");  // "Long runs: HRV dips…" → a bold lead-in
+    return `<li>${rest.length && head.length < 30 ? `<b>${esc(head)}:</b> ${esc(rest.join(": "))}` : esc(t)}</li>`;
+  }).join("");
+}
+
 function nightLabel(r, m) {
   if (!r) return "";
   const parts = [
     r.sleep_s && `${fmtTotal(r.sleep_s)} asleep${r.sleep_score ? ` (score ${Math.round(r.sleep_score)})` : ""}`,
     r.resting_hr && `resting HR ${Math.round(r.resting_hr)}`,
     r.hrv && `HRV ${Math.round(r.hrv)} ms${r.hrv_low ? ` (normal ${Math.round(r.hrv_low)}–${Math.round(r.hrv_high)})` : ""}`,
+    r.respiration && `breathing ${r.respiration.toFixed(1)}/min`,
   ].filter(Boolean);
   return parts.join(" · ");
 }

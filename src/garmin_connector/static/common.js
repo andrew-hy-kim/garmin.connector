@@ -314,9 +314,9 @@ const QUALITY = new Set(["race", "progression", "tempo", "threshold", "intervals
 // A link to a section that's folded away opens it
 function openFoldAt(hash) {
   const el = hash && hash.length > 1 && document.getElementById(hash.slice(1));
-  // the fold around it (a chart inside More charts), or the fold inside it (a card's own)
-  const fold = el && (el.closest("details") || el.querySelector("details.fold"));
-  if (fold) fold.open = true;
+  // the folds around it (a chart inside More charts, a fold inside that), or else the fold inside it (a card's own)
+  let fold = el && (el.closest("details") || el.querySelector("details.fold"));
+  for (; fold; fold = fold.parentElement?.closest("details")) fold.open = true;
 }
 addEventListener("hashchange", () => openFoldAt(location.hash));
 document.addEventListener("click", (e) => { const a = e.target.closest('a[href^="#"]'); if (a) openFoldAt(a.getAttribute("href")); });

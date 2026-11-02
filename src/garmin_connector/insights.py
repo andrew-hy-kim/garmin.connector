@@ -527,6 +527,14 @@ def overview_insights(conn: sqlite3.Connection) -> list[dict[str, str]]:
 
     # Your nights: resting HR, HRV and sleep off your normal for a few nights running
     flags = (overnight.summary(conn, today) or {}).get("flags") or []
+    ill = next((f for f in flags if f["key"] == "ill"), None)
+    if ill:
+        notes.append(_note("warn", "Signs your body may be fighting something",
+                           f"Last night your breathing rate was {ill['breathing']:.1f} a minute (normally "
+                           f"{ill['breathing_normal']:.1f}) and resting heart rate {ill['resting_hr_up']} bpm above normal. "
+                           "Both rising together is one of the earliest signs of an illness coming on, often a day or two "
+                           "before you feel it. Keep today easy or take it off, and see what tonight says."))
+        flags = [f for f in flags if f is not ill]
     if flags:
         also = f"Also: {'; '.join(f['text'] for f in flags[1:])}. " if len(flags) > 1 else ""
         notes.append(_note("warn", flags[0]["text"],

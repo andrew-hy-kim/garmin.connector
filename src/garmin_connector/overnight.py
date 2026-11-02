@@ -59,6 +59,8 @@ REQUEST_PAUSE_S = 0.5
 RHR_NIGHTS = 30          # your resting HR for zones and load: the median of your latest 30 full nights...
 RHR_WITHIN_DAYS = 365    # ...within the last year
 RHR_MIN_NIGHTS = 5
+ILL_BREATHING = 1.0      # breaths/min above your normal, together with...
+ILL_RHR = 3              # ...resting HR this many bpm above it: an early sign of illness (about 4 nights a year in your history)
 RHR_STEP = 2             # and it only moves when that median moves 2+ bpm, so load isn't recalculated nightly
 
 FIELDS = ["sleep_s", "deep_s", "light_s", "rem_s", "awake_s", "sleep_score", "sleep_quality", "bedtime", "wake_time",
@@ -268,6 +270,7 @@ def summary(conn: sqlite3.Connection, today: date | None = None) -> dict[str, An
     before = [r for r in rows[:-1] if r["date"] > (date.fromisoformat(last["date"]) - timedelta(days=60)).isoformat()][-30:]
     rhr_normal = _median([r["resting_hr"] for r in before])
     hrv_normal = _median([r["hrv"] for r in before])
+    breathing_normal = _median([r["respiration"] for r in before])
     hrv_low, hrv_high = last.get("hrv_low"), last.get("hrv_high")
     if not (hrv_low and hrv_high) and hrv_normal:
         hrv_low, hrv_high = hrv_normal * 0.9, hrv_normal * 1.1
@@ -287,6 +290,12 @@ def summary(conn: sqlite3.Connection, today: date | None = None) -> dict[str, An
     hrv_low_n = streak(lambda r: bool(r["hrv"] and (r["hrv_low"] or hrv_low) and r["hrv"] < (r["hrv_low"] or hrv_low))) if hrv_low else 0
     flags = []
     if recent:
+        # Breathing rate and resting HR up together: often a day or two before you feel ill
+        if (breathing_normal and rhr_normal and last["respiration"] and last["resting_hr"]
+                and last["respiration"] >= breathing_normal + ILL_BREATHING and last["resting_hr"] >= rhr_normal + ILL_RHR):
+            flags.append({"key": "ill", "text": "Breathing rate and resting heart rate both up last night",
+                          "breathing": last["respiration"], "breathing_normal": breathing_normal,
+                          "resting_hr_up": round(last["resting_hr"] - rhr_normal)})
         if rhr_high >= 2:
             flags.append({"key": "rhr", "nights": rhr_high, "text":
                           f"Resting heart rate {round(last['resting_hr'] - rhr_normal)} bpm above your normal for {rhr_high} nights"})
@@ -298,11 +307,12 @@ def summary(conn: sqlite3.Connection, today: date | None = None) -> dict[str, An
     return {
         "last": last, "recent": recent, "worn_14": worn_14,
         "resting_hr_normal": rhr_normal, "hrv_normal": hrv_normal, "hrv_low": hrv_low, "hrv_high": hrv_high,
+        "breathing_normal": breathing_normal,
         "sleep_week_avg_s": sum(week) / len(week) if week else None,
         "flags": flags,
         "min_sleep_s": MIN_SLEEP_S,
         "nights": [{k: r[k] for k in ("date", "sleep_s", "deep_s", "light_s", "rem_s", "awake_s", "sleep_score",
-                                      "resting_hr", "hrv", "hrv_low", "hrv_high", "hrv_status", "bedtime", "wake_time")}
+                                      "resting_hr", "hrv", "hrv_low", "hrv_high", "hrv_status", "bedtime", "wake_time", "respiration")}
                    for r in rows],
     }
 

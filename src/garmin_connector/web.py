@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 
-from . import api, config, db, focus, heatmap, insights, overnight, performance, processing, races, recap, sync
+from . import api, config, db, focus, heatmap, insights, night_patterns, overnight, performance, processing, races, recap, sync
 
 log = logging.getLogger(__name__)
 # Heart-rate values you can set on the dashboard: (key, label, lowest, highest)
@@ -129,7 +129,8 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     @app.get("/api/nights")
     def nights():
         with conn() as c:
-            return jsonify(overnight.summary(c))
+            s = overnight.summary(c)
+            return jsonify(s and {**s, "patterns": night_patterns.patterns(c)})
 
     @app.get("/api/records")
     def records():
