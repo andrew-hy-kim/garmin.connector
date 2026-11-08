@@ -1,4 +1,4 @@
-// Progress: race predictor, statistics, progress status, where to improve, training paces.
+// Progress: race predictor, statistics, 4-week trend, training paces.
 
 // ---------- race predictor ----------
 // The main prediction comes from VO2max shape and marathon shape (RUNALYZE's model); your
@@ -164,7 +164,7 @@ $("stats")?.addEventListener("keydown", openPeriod);
 // ---------- Progress: are you getting fitter? ----------
 // Four signals over fixed windows (not the chart range): VO2max shape over 4 weeks, heart rate at
 // your usual pace and easy-run efficiency (last 4 weeks against the 8 before), and training load
-// (fitness) against 4 weeks ago. Each says better, worse or no change; together, one word.
+// (fitness) against 4 weeks ago. Each is colored better, worse or no change.
 function trendSignals() {
   const out = [];
   const p = state.perf;
@@ -210,37 +210,10 @@ function renderTrend() {
   const el = $("trend");
   if (!el) return;
   const signals = trendSignals();
-  const up = signals.filter((x) => x.dir > 0).length, down = signals.filter((x) => x.dir < 0).length;
-  const rebuilding = (state.insights || []).some((n) => n.title.startsWith("Rebuilding after"));
-  if (!rebuilding && signals.length < 2) { el.hidden = true; return; }
+  if (!signals.length) { el.hidden = true; return; }
   el.hidden = false;
-  let word, line, color;
-  if (rebuilding) {
-    [word, color, line] = ["Rebuilding", "--info", "Fitness dropped during your break. It comes back faster than it took to build."];
-  } else if (up >= 2 && up > down) {
-    [word, color, line] = ["Improving", "--good", "You're getting fitter. What you're doing is working."];
-  } else if (down >= 2 && down > up) {
-    [word, color, line] = ["Slipping", "--warn-c", "Your fitness is drifting down over the last month."];
-  } else if (up > down) {
-    [word, color, line] = ["Edging up", "--good", "Small gains, not a clear trend yet."];
-  } else {
-    [word, color, line] = ["Holding steady", "--elev", "You're keeping your fitness, but not building it."];
-  }
-  // the next step: the area that holds you back most (focus.py)
-  const improving = word === "Improving";
-  const area = (state.focus || []).find((a) => a.level === "focus" && a.action) || (!improving && (state.focus || []).find((a) => a.action));
-  const step = area ? unitText(area.action)
-    : rebuilding ? "Run three or more times a week, all easy, and add a little each week."
-    : improving ? "Keep it consistent: steady weeks, mostly easy, one or two harder sessions."
-    : "Run a little more each week, mostly easy, with one harder session a week.";
-  el.innerHTML = `<div class="rd-main" style="--c:var(${color})">
-      <span class="eyebrow">Progress</span>
-      <div class="rd-word"><b>${word}</b></div>
-      <p>${line}</p>
-      ${signals.length ? `<div class="rd-facts">${signals.map((x) => `<span class="${x.dir > 0 ? "good" : x.dir < 0 ? "bad" : ""}">${x.text}</span>`).join("")}</div>` : ""}
-    </div>
-    <div class="rd-session" style="--c:var(${color})"><span class="eyebrow">${improving ? "To keep improving" : "To improve"}${area ? ` · ${esc(area.title)}` : ""}</span>
-      <span>${esc(step)}</span></div>`;
+  el.innerHTML = `<span class="eyebrow">Last 4 weeks</span>
+    <div class="rd-facts">${signals.map((x) => `<span class="${x.dir > 0 ? "good" : x.dir < 0 ? "bad" : ""}">${x.text}</span>`).join("")}</div>`;
 }
 
 // A route drawn from the workout's GPS points: no map tiles needed, so it works offline

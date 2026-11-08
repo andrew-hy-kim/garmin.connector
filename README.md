@@ -37,19 +37,15 @@ your weekly training plan (the one Claude keeps updating as you chat) on claude.
   count: a night without it is simply skipped, and a night under 4 hours of sleep keeps its sleep
   time but not its resting HR or HRV. Garmin's daily resting heart rate (on days the watch was only
   on for a workout, that's your warm-up: 95–130 bpm) is never used
-- **Progress status:** one word: *Improving*, *Edging up*, *Holding
-  steady*, *Slipping* or *Rebuilding* (after a break). It weighs four signals over fixed windows,
-  whatever range the charts show: VO2max shape over 4 weeks, heart rate at your usual pace and
-  easy-run efficiency (the last 4 weeks against the 8 before), and training load against 4 weeks
-  ago; hot or humid runs are left out, so summer doesn't read as slipping. Next to it, the one
-  step that would help most (consistency, easy vs. hard, workouts or aerobic efficiency, from
-  your last three months), with a concrete next step using your own paces and distances
+- **Last 4 weeks:** four quick numbers on how you're trending, green when better and orange
+  when worse: VO2max shape change over 4 weeks, heart rate at your usual pace and easy-run
+  efficiency (the last 4 weeks against the 8 before), and training load against 4 weeks ago.
+  They use fixed windows, whatever range the charts show, and leave out hot or humid runs, so
+  summer doesn't read as slipping
 - This week / month / year (each opens its runs), your cross-training this week (strength,
   rides, hikes and the rest) and **active calories** today with your 7-day daily average
 - **Latest run:** distance, time, pace, heart rate, load and effective VO2max, its route, and
   its top coach note
-- **Coach notes** on your recent training: the three that matter most, with the rest a tap away
-  (a "training base ramping fast" warning shows up here when your load climbs too quickly)
 - **Aerobic fitness:** your **VO2max shape**, the way [RUNALYZE](https://runalyze.com) does it:
   an effective VO2max from every run's pace and heart rate (Daniels & Gilbert), averaged over
   30 days and weighted by duration. Races marked in Garmin calibrate it: the race whose time

@@ -490,22 +490,11 @@ th.sortable[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
   .topbar .controls label select { font-size: 14px; max-width: 132px; }
 }
 
-/* ---------- home: progress headline, latest run ---------- */
-.today-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
-.today-hero .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
-.rd-main { display: flex; flex-direction: column; gap: 4px; }
-.rd-word { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.rd-word b { font-size: 34px; letter-spacing: -0.02em; color: var(--c); font-family: ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif; }
-.rd-form { color: var(--text-secondary); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.rd-main p { margin: 0; color: var(--text-secondary); }
+/* ---------- home: 4-week trend, latest run ---------- */
+.trend-card .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
 .rd-facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .rd-facts span { background: var(--surface-2); border-radius: 999px; padding: 4px 10px; font-size: 13px; color: var(--text-secondary); }
 .rd-facts b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.rd-session { background: var(--surface-2); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 3px;
-  border-left: 4px solid var(--c, var(--fill-strong)); font-size: 14px; }
-.rd-session b { font-size: 17px; }
-.rd-session .tick { color: var(--good); }
-@media (max-width: 760px) { .today-hero { grid-template-columns: minmax(0, 1fr); gap: 14px; } .rd-word b { font-size: 30px; } }
 
 .latest { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 10px; }
 .latest-route { background: var(--surface-2); border-radius: 12px; aspect-ratio: 1; }

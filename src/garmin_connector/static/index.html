@@ -19,7 +19,7 @@
     </div>
     <div id="status" role="status" aria-live="polite"></div>
   </header>
-  <div class="page-head"><div class="eyebrow" id="today"></div><h1>Progress</h1></div>
+  <div class="page-head"><div class="eyebrow" id="today"></div></div>
 
   <nav class="jump" aria-label="On this page">
     <a href="#recovery-card" data-needs="recovery-card">Recovery</a><a href="#perf">Fitness</a><a href="#training">Training</a>
@@ -33,19 +33,14 @@
     <p>Download your workouts from Garmin Connect to get started. The first sync brings in your whole history,
       about a second per workout, and then each sync only adds what's new.</p>
     <button class="primary wide-btn" id="welcome-sync">Sync with Garmin</button>
-    <p class="hint">Your charts, fitness, records and coach notes appear here once your runs are in.</p>
+    <p class="hint">Your charts, fitness and records appear here once your runs are in.</p>
   </section>
 
-  <section class="card needs-data today-hero" id="trend" hidden></section>
+  <section class="card needs-data trend-card" id="trend" hidden></section>
 
   <section class="tiles needs-data" id="tiles"></section>
 
   <section class="card needs-data" id="latest"></section>
-
-  <section class="card needs-data" id="notes-card">
-    <h2>Coach notes</h2>
-    <div class="notes" id="notes"></div>
-  </section>
 
   <section class="card" id="recovery-card" hidden>
     <div class="toolbar"><h2 style="margin:0">Recovery</h2><span class="spacer"></span><span class="dim" id="recovery-when"></span></div>
