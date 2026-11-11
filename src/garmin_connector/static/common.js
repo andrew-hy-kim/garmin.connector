@@ -137,8 +137,9 @@ function hrPaceChoice(paces) {
 }
 // Totals of time: "42m", "1h 42m", "161h"
 function fmtTotal(s) {
-  s = Math.round(s || 0);
-  const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+  // Round to whole minutes first, so 6h 59m 40s shows "7h 00m", not "6h 60m"
+  const mins = Math.round((s || 0) / 60);
+  const h = Math.floor(mins / 60), m = mins % 60;
   if (!h) return `${m}m`;
   return h >= 100 ? `${fmtNum(h)}h` : `${h}h ${String(m).padStart(2, "0")}m`;
 }
